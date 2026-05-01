@@ -14,6 +14,8 @@ import {
   Map,
   UserCheck,
   AlertTriangle,
+  Copy,
+  CheckCircle2,
 } from "lucide-react";
 import userApi from "../services/api/userApi";
 
@@ -113,6 +115,8 @@ export default function UserTable() {
   const [editingUser, setEditingUser] = useState(null);
   const [successInfo, setSuccessInfo] = useState(null);
   const [errorInfo, setErrorInfo] = useState(null);
+  const [copyToast, setCopyToast] = useState(null);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState(emptyForm);
@@ -177,6 +181,13 @@ export default function UserTable() {
     }
   }, [errorInfo]);
 
+  useEffect(() => {
+    if (copyToast) {
+      const timer = setTimeout(() => setCopyToast(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copyToast]);
+
   const totalPagesSafe = Math.max(totalPages, 1);
   const safePage = Math.min(currentPage, totalPagesSafe);
   const pageUsers = users;
@@ -236,22 +247,27 @@ export default function UserTable() {
   };
 
   // Handle Delete User
-  const handleDelete = async (user) => {
-    try {
-      if (!window.confirm("Bạn có chắc chắn muốn xóa người dùng này?")) {
-        return;
-      }
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user);
+  };
 
-      const userId = resolveUserId(user);
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    
+    try {
+      const userId = resolveUserId(userToDelete);
       if (!userId) {
         setErrorInfo("Không xác định được ID người dùng");
+        setUserToDelete(null);
         return;
       }
 
       await userApi.deleteManagementUser(userId);
+      setUserToDelete(null);
       await fetchUsers();
     } catch (error) {
       setErrorInfo(error?.response?.data?.message || "Không thể xóa người dùng");
+      setUserToDelete(null);
     }
   };
 
@@ -749,7 +765,7 @@ export default function UserTable() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(u)}
+                        onClick={() => handleDeleteClick(u)}
                         className="text-red-500 hover:text-red-600"
                         title="Xóa"
                       >
@@ -805,12 +821,36 @@ export default function UserTable() {
                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 space-y-4">
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-gray-500 uppercase mb-1">Tài khoản (SĐT)</span>
-                    <span className="font-semibold text-gray-800 text-lg">{successInfo.phone}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-gray-800 text-lg">{successInfo.phone}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(successInfo.phone);
+                          setCopyToast("Đã sao chép tài khoản");
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="Sao chép tài khoản"
+                      >
+                        <Copy className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="w-full h-[1px] bg-gray-200"></div>
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-gray-500 uppercase mb-1">Mật khẩu</span>
-                    <span className="font-bold text-emerald-600 text-xl tracking-wider">{successInfo.password}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-emerald-600 text-xl tracking-wider">{successInfo.password}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(successInfo.password);
+                          setCopyToast("Đã sao chép mật khẩu");
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                        title="Sao chép mật khẩu"
+                      >
+                        <Copy className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="w-full h-[1px] bg-gray-200"></div>
                   <div className="flex flex-col">
@@ -833,6 +873,39 @@ export default function UserTable() {
           document.body
         )}
 
+      {/* Delete Confirmation Modal */}
+      {userToDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 py-6">
+            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-[400px] flex flex-col overflow-hidden">
+              <div className="p-6 sm:p-8 text-center space-y-4">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Trash2 className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Xác Nhận Xóa</h3>
+                <p className="text-gray-500 text-sm">
+                  Bạn có chắc chắn muốn xóa người dùng <span className="font-bold text-gray-800">"{userToDelete.name}"</span> không? Hành động này không thể hoàn tác.
+                </p>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setUserToDelete(null)}
+                    className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-full font-semibold hover:bg-gray-200 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete}
+                    className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-full font-semibold hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30"
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
       {/* Error Info Toast */}
       {errorInfo &&
         createPortal(
@@ -846,6 +919,26 @@ export default function UserTable() {
             </div>
             <button
               onClick={() => setErrorInfo(null)}
+              className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>,
+          document.body
+        )}
+
+      {/* Copy Toast */}
+      {copyToast &&
+        createPortal(
+          <div className="fixed top-6 right-6 z-[9999] w-[320px] bg-white border border-emerald-100 border-l-4 border-l-emerald-500 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center p-4">
+            <div className="flex-shrink-0 bg-emerald-50 rounded-full p-2 mr-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div className="flex-1 min-w-0 pr-2">
+              <h3 className="text-sm font-bold text-gray-900">{copyToast}</h3>
+            </div>
+            <button
+              onClick={() => setCopyToast(null)}
               className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
             >
               <X className="w-4 h-4" />

@@ -27,13 +27,28 @@ const CATEGORY_COLORS = {
 const getStatusConfig = (status) => {
   switch (status) {
     case "Đang Chờ":
-      return { color: "text-amber-300", dot: "bg-amber-400" };
+      return { bg: "bg-amber-500/30", border: "border-amber-500/50", color: "text-amber-300", dot: "bg-amber-400" };
     case "Đang Xử Lý":
-      return { color: "text-blue-300", dot: "bg-blue-400" };
+      return { bg: "bg-blue-500/30", border: "border-blue-500/50", color: "text-blue-300", dot: "bg-blue-400" };
     case "Đã Giải Quyết":
-      return { color: "text-emerald-300", dot: "bg-emerald-400" };
+      return { bg: "bg-emerald-500/30", border: "border-emerald-500/50", color: "text-emerald-300", dot: "bg-emerald-400" };
     default:
-      return { color: "text-gray-300", dot: "bg-gray-400" };
+      return { bg: "bg-gray-500/30", border: "border-gray-500/50", color: "text-gray-300", dot: "bg-gray-400" };
+  }
+};
+
+const getCategoryConfig = (category) => {
+  switch (category) {
+    case "Giao Thông":
+      return { bg: "bg-orange-500/30", border: "border-orange-500/50", color: "text-orange-300", dot: "bg-orange-400" };
+    case "Điện":
+      return { bg: "bg-yellow-500/30", border: "border-yellow-500/50", color: "text-yellow-300", dot: "bg-yellow-400" };
+    case "Cây Xanh":
+      return { bg: "bg-green-500/30", border: "border-green-500/50", color: "text-green-300", dot: "bg-green-400" };
+    case "CTCC":
+      return { bg: "bg-purple-500/30", border: "border-purple-500/50", color: "text-purple-300", dot: "bg-purple-400" };
+    default:
+      return { bg: "bg-slate-500/30", border: "border-slate-500/50", color: "text-slate-300", dot: "bg-slate-400" };
   }
 };
 
@@ -401,21 +416,15 @@ const ReceptForm = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-black/40 px-2.5 py-1 backdrop-blur-md border border-white/20 shadow-sm transition-colors group-hover:bg-black/50">
+                  <div className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110 ${getStatusConfig(report.status).bg} ${getStatusConfig(report.status).border}`}>
                     <span className={`h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor] ${getStatusConfig(report.status).dot}`} />
-                    <span className={`text-[11px] font-semibold tracking-wide ${getStatusConfig(report.status).color}`}>
+                    <span className={`text-[11px] font-bold tracking-wide ${getStatusConfig(report.status).color}`}>
                       {report.status}
                     </span>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-black/40 px-2.5 py-1 backdrop-blur-md border border-white/20 shadow-sm transition-colors group-hover:bg-black/50">
-                    <span 
-                      className="h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor]"
-                      style={{ backgroundColor: CATEGORY_COLORS[category] || "#64748b", color: CATEGORY_COLORS[category] || "#64748b" }}
-                    />
-                    <span 
-                      className="text-[11px] font-semibold tracking-wide capitalize"
-                      style={{ color: CATEGORY_COLORS[category] || "#e2e8f0" }}
-                    >
+                  <div className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110 ${getCategoryConfig(category).bg} ${getCategoryConfig(category).border}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor] ${getCategoryConfig(category).dot}`} />
+                    <span className={`text-[11px] font-bold tracking-wide capitalize ${getCategoryConfig(category).color}`}>
                       {String(category).toLowerCase()}
                     </span>
                   </div>
