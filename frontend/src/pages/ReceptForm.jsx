@@ -194,18 +194,14 @@ const ReceptForm = () => {
         team: selectedReport.team || selectedReport.handlerTeam,
         reporter: selectedReport.reporter,
         location: selectedReport.location || "Chưa có vị trí",
-<<<<<<< HEAD
         description:
           selectedReport.description || "Chưa có mô tả cho báo cáo này.",
-=======
-        description: selectedReport.description || "Chưa có mô tả cho báo cáo này.",
         lat: selectedReport.lat,
         lng: selectedReport.lng,
         reportLatitude: selectedReport.reportLatitude,
         reportLongitude: selectedReport.reportLongitude,
         confidenceScore: selectedReport.confidenceScore,
         scoringDetails: selectedReport.scoringDetails,
->>>>>>> origin/hao
         image: selectedReport.image || selectedReport.images?.[0] || "",
         images:
           Array.isArray(selectedReport.images) &&
@@ -413,7 +409,7 @@ const ReceptForm = () => {
             <SelectContent>
               <SelectItem value="all">Chọn ngày</SelectItem>
               <SelectItem value="recent">Mới nhất</SelectItem>
-              <SelectItem value="old">CÅ© hÆ¡n</SelectItem>
+              <SelectItem value="old">Cũ nhất</SelectItem>
             </SelectContent>
           </Select>
         </div>

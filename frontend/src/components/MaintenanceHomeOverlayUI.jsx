@@ -7,6 +7,7 @@ import {
   Plus,
   Camera,
   X,
+  Layers,
 } from "lucide-react";
 import ReportForm from "./Report";
 import Toast from "./Toast";
@@ -118,7 +119,7 @@ export default function MaintenanceHomeOverlayUI({
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const imageData = canvas.toDataURL("image/jpeg");
-    
+
     // Đóng camera, lưu ảnh và mở form Report
     closeCamera();
     setCapturedImage(imageData);
@@ -138,27 +139,31 @@ export default function MaintenanceHomeOverlayUI({
       <div className="w-full h-screen flex flex-col bg-background relative overflow-hidden">
         {/* MAP AREA - Background */}
         {mapElement && (
-          <div className="absolute inset-0 z-0 w-full h-full">
-            {mapElement}
-          </div>
+          <div className="absolute inset-0 z-0 w-full h-full">{mapElement}</div>
         )}
 
         {/* Floating Sidebar - Left Top (aligned with categories) */}
-        <div className="absolute left-6 top-4 z-10">
+        <div className="absolute left-3 top-4 z-90">
           <SidebarProvider>
             <MaintenanceUserSidebar />
           </SidebarProvider>
         </div>
 
         {/* Floating Navbar */}
-        <div className="pointer-events-none absolute left-28 right-4 top-4 z-20">
+        <div
+          className="pointer-events-none absolute right-4 top-4 z-20"
+          style={{ left: "var(--maintenance-sidebar-offset, 6rem)" }}
+        >
           <div className="pointer-events-auto">
             <NavbarAdmin />
           </div>
         </div>
 
         {/* Floating Categories - Right Top (below navbar) */}
-        <div className="absolute left-28 right-4 top-24 z-10 flex gap-3 overflow-x-auto scrollbar-hide">
+        <div
+          className="absolute right-4 top-24 z-10 flex gap-3 overflow-x-auto scrollbar-hide"
+          style={{ left: "var(--maintenance-sidebar-offset, 6rem)" }}
+        >
           <button
             onClick={() => setSelectedCategory("all")}
             className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 sm:h-10 sm:px-4 ${
@@ -167,10 +172,10 @@ export default function MaintenanceHomeOverlayUI({
             style={{
               backgroundColor: "#2563EB",
               color: "#ffffff",
-              border: "none"
+              border: "none",
             }}
           >
-            <span>📍</span>
+            <Layers size={18} />
             Tất cả
           </button>
           {categories.map((c) => (
@@ -183,7 +188,7 @@ export default function MaintenanceHomeOverlayUI({
               style={{
                 backgroundColor: c.bgColor,
                 color: "#ffffff",
-                border: "none"
+                border: "none",
               }}
             >
               <span className="icon-wrap">{c.icon}</span>
@@ -191,78 +196,7 @@ export default function MaintenanceHomeOverlayUI({
             </button>
           ))}
         </div>
-
-        {/* Floating Buttons - Bottom Right */}
-        <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-3 pointer-events-auto">
-          {/* Camera Button */}
-          <button
-            className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center bg-black text-white hover:bg-gray-800 transition-all"
-            onClick={openCamera}
-            title="Chụp ảnh"
-          >
-            <Camera size={20} />
-          </button>
-
-          {/* Plus Button */}
-          <button
-            className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center bg-black text-white hover:bg-gray-800 transition-all"
-            onClick={() => setIsReportOpen((prev) => !prev)}
-            title="Tạo báo cáo mới"
-          >
-            <Plus size={20} />
-          </button>
-        </div>
       </div>
-
-      {/* Report Form Modal */}
-      {isReportOpen && (
-        <div className="interactive">
-          <ReportForm 
-            onClose={() => {
-              setIsReportOpen(false);
-              setCapturedImage(null);
-            }} 
-            initialImage={capturedImage}
-          />
-        </div>
-      )}
-
-      {/* CAMERA MODAL */}
-      {showCameraOnly && (
-        <div className="interactive fixed inset-0 bg-black bg-opacity-90 z-[10000] flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-2xl">
-            <div className="bg-white rounded-t-lg p-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Chụp ảnh sự cố</h2>
-              <button
-                onClick={closeCamera}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="relative bg-black">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full h-auto max-h-[60vh] object-cover"
-              />
-              <canvas ref={canvasRef} className="hidden" />
-            </div>
-
-            <div className="bg-white rounded-b-lg p-4">
-              <button
-                onClick={capturePhoto}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors font-medium"
-              >
-                <Camera className="w-5 h-5" />
-                <span>Chụp ảnh</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -20,7 +20,11 @@ const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
 
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
-  if (!Number.isFinite(numericValue) || numericValue < min || numericValue > max) {
+  if (
+    !Number.isFinite(numericValue) ||
+    numericValue < min ||
+    numericValue > max
+  ) {
     return null;
   }
 
@@ -28,8 +32,16 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
+  const latFromField = parseCoordinate(
+    report?.lat ?? report?.reportLatitude,
+    -90,
+    90,
+  );
+  const lngFromField = parseCoordinate(
+    report?.lng ?? report?.reportLongitude,
+    -180,
+    180,
+  );
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }
@@ -190,7 +202,9 @@ const normalizeReportsForMap = async (rawReports) => {
       let position = extractPositionFromReport(report);
 
       if (!position) {
-        const locationKey = String(report?.location || "").trim().toLowerCase();
+        const locationKey = String(report?.location || "")
+          .trim()
+          .toLowerCase();
 
         if (locationKey && Array.isArray(geocodeCache[locationKey])) {
           const [lat, lng] = geocodeCache[locationKey];
@@ -295,7 +309,10 @@ export default function AdminDashboard() {
           const mapResponse = await reportApi.getMapReports();
           rawReports = Array.isArray(mapResponse?.data) ? mapResponse.data : [];
         } catch (mapError) {
-          console.warn("Không thể lấy dữ liệu map-view, thử fallback all reports", mapError);
+          console.warn(
+            "Không thể lấy dữ liệu map-view, thử fallback all reports",
+            mapError,
+          );
         }
 
         if (rawReports.length === 0) {
@@ -328,10 +345,13 @@ export default function AdminDashboard() {
       return;
     }
 
-    mapRef.current.fitBounds(reports.map((report) => report.position), {
-      padding: [42, 42],
-      maxZoom: 15,
-    });
+    mapRef.current.fitBounds(
+      reports.map((report) => report.position),
+      {
+        padding: [42, 42],
+        maxZoom: 15,
+      },
+    );
     hasAutoFittedRef.current = true;
   }, [reports]);
 
@@ -348,7 +368,9 @@ export default function AdminDashboard() {
       return reports;
     }
 
-    return reports.filter((point) => point.category === normalizedSelectedCategory);
+    return reports.filter(
+      (point) => point.category === normalizedSelectedCategory,
+    );
   }, [normalizedSelectedCategory, reports]);
 
   return (
@@ -387,8 +409,11 @@ export default function AdminDashboard() {
         ))}
       </MapContainer>
 
-      <div className="pointer-events-none absolute left-[7.2rem] right-4 top-[5.4rem] z-20">
-        <div className="pointer-events-auto flex gap-3 overflow-x-auto scrollbar-hide">
+      <div
+        className="pointer-events-none absolute right-4 top-[5.4rem] z-20"
+        style={{ left: "var(--admin-sidebar-offset, 6rem)" }}
+      >
+        <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap">
           {CATEGORY_OPTIONS.map((category) => (
             <button
               key={category.id}

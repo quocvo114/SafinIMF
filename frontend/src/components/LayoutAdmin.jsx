@@ -12,13 +12,20 @@ const LayoutAdmin = () => {
     return (
       <SidebarProvider>
         <div className="relative h-screen w-full overflow-hidden bg-gray-100">
-          <AdminSidebar />
+          <div className="absolute left-3 top-4 z-10">
+            <SidebarProvider>
+              <AdminSidebar />
+            </SidebarProvider>
+          </div>
 
           <div className="absolute inset-0 z-0">
             <Outlet />
           </div>
 
-          <div className="ml-4 pointer-events-none absolute left-[6rem] right-3 top-3 z-30 sm:right-4 sm:top-4">
+          <div
+            className="pointer-events-none absolute right-3 top-3 z-30 sm:right-4 sm:top-4"
+            style={{ left: "var(--admin-sidebar-offset, 6rem)" }}
+          >
             <div className="pointer-events-auto">
               <NavbarAdmin />
             </div>
@@ -31,13 +38,17 @@ const LayoutAdmin = () => {
   return (
     <SidebarProvider style={{ "--sidebar-width": "5.5rem" }}>
       <div className="flex h-screen w-full bg-gray-100 overflow-x-hidden">
-        <AdminSidebar />
+        <div className="absolute left-3 top-4 z-10">
+          <SidebarProvider>
+            <AdminSidebar />
+          </SidebarProvider>
+        </div>
 
         <div className="fixed left-3 top-3 z-50 md:hidden">
           <SidebarTrigger className="h-9 w-9 rounded-lg border border-gray-200 bg-white shadow-sm hover:bg-gray-50" />
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pl-0 md:pl-[calc(var(--sidebar-width)+1.5rem)]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pl-0 md:pl-[var(--admin-sidebar-offset)]">
           <div className="shrink-0 px-3 pt-14 sm:px-4 sm:pt-4">
             <NavbarAdmin />
           </div>
