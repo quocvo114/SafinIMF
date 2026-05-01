@@ -278,7 +278,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
   const getLocation = async () => {
     if (!navigator.geolocation) {
-      alert("Trình duyệt không hỗ trợ GPS");
+      showErrorToast("Trình duyệt của bạn không hỗ trợ định vị GPS.");
       return;
     }
 
@@ -297,27 +297,102 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
         }
 
         try {
+          // Thử lấy địa chỉ chi tiết từ Nominatim (OpenStreetMap)
           const response = await fetch(
-            `${API_BASE_URL}/geocode/reverse?lat=${latitude}&lon=${longitude}`,
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&accept-language=vi`,
           );
 
           if (!response.ok) {
-            throw new Error(`Backend API error: ${response.status}`);
+            throw new Error(`Nominatim API error: ${response.status}`);
           }
 
           const result = await response.json();
-          const resolvedAddress =
-            result?.data?.address || result?.data?.fullAddress || "";
+          const addressObj = result?.address || {};
 
-          if (result.success && resolvedAddress) {
+          const houseNumber = addressObj.house_number || "";
+          const road = addressObj.road || addressObj.street || "";
+          const ward =
+            addressObj.suburb ||
+            addressObj.neighbourhood ||
+            addressObj.quarter ||
+            addressObj.hamlet ||
+            addressObj.village ||
+            "";
+          const district =
+            addressObj.city_district ||
+            addressObj.district ||
+            addressObj.county ||
+            "";
+          const city =
+            addressObj.city ||
+            addressObj.town ||
+            addressObj.municipality ||
+            addressObj.province ||
+            addressObj.state ||
+            "";
+
+          const parts = [
+            houseNumber && road
+              ? `${houseNumber} ${road}`
+              : road || houseNumber,
+            ward,
+            district,
+            city,
+          ].filter(Boolean);
+
+          const uniqueParts = [];
+          parts.forEach((part) => {
+            if (!uniqueParts.includes(part)) {
+              uniqueParts.push(part);
+            }
+          });
+
+          let resolvedAddress = uniqueParts.join(", ");
+
+          if (!resolvedAddress && result.display_name) {
+            resolvedAddress = result.display_name;
+          }
+
+          if (resolvedAddress) {
             setLocation(resolvedAddress);
           } else {
-            setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+            // Fallback to backend API
+            const fallbackResponse = await fetch(
+              `${API_BASE_URL}/geocode/reverse?lat=${latitude}&lon=${longitude}`,
+            );
+            const fallbackResult = await fallbackResponse.json();
+            const fallbackAddress =
+              fallbackResult?.data?.address ||
+              fallbackResult?.data?.fullAddress ||
+              "";
+            setLocation(
+              fallbackAddress ||
+                `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+            );
           }
         } catch (err) {
-          console.error("Error getting address:", err);
-          setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
-          alert("Không thể lấy địa chỉ. Vui lòng nhập thủ công.");
+          console.error("Error getting address from Nominatim:", err);
+          // Fallback to backend API nếu Nominatim lỗi (ví dụ: rate limit)
+          try {
+            const fallbackResponse = await fetch(
+              `${API_BASE_URL}/geocode/reverse?lat=${latitude}&lon=${longitude}`,
+            );
+            const fallbackResult = await fallbackResponse.json();
+            const fallbackAddress =
+              fallbackResult?.data?.address ||
+              fallbackResult?.data?.fullAddress ||
+              "";
+            setLocation(
+              fallbackAddress ||
+                `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+            );
+          } catch (fallbackErr) {
+            console.error("Error getting address from backend:", fallbackErr);
+            setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+            showErrorToast(
+              "Không thể lấy địa chỉ tự động. Bạn vui lòng nhập thủ công nhé.",
+            );
+          }
         }
 
         setLocationLoading(false);
@@ -327,19 +402,19 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
         setLocationLoading(false);
 
         if (error.code === 1) {
-          alert(
-            "Bạn đã chặn quyền truy cập vị trí. Hãy cho phép lại trong trình duyệt (biểu tượng ổ khóa bên cạnh URL).",
+          showErrorToast(
+            "Bạn đang chặn quyền truy cập vị trí. Hãy cho phép lại trên trình duyệt để sử dụng tính năng này nhé.",
           );
         } else if (error.code === 2) {
-          alert(
-            "Không xác định được vị trí. Vui lòng thử lại hoặc nhập địa chỉ thủ công.",
+          showErrorToast(
+            "Không thể xác định được vị trí hiện tại. Vui lòng thử lại hoặc tự nhập tay địa chỉ.",
           );
         } else if (error.code === 3) {
-          alert(
-            "Lấy vị trí quá lâu (timeout). Vui lòng thử lại hoặc nhập địa chỉ thủ công.",
+          showErrorToast(
+            "Thời gian lấy vị trí quá lâu. Vui lòng thử lại hoặc tự nhập tay địa chỉ.",
           );
         } else {
-          alert("Không thể lấy vị trí GPS. Vui lòng nhập địa chỉ thủ công.");
+          showErrorToast("Lỗi định vị GPS. Vui lòng tự nhập tay địa chỉ.");
         }
       },
       {
@@ -357,6 +432,11 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
         return;
       }
 
+      if (!hasFetchedLocation) {
+        setHasFetchedLocation(true);
+        getLocation();
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,
@@ -372,7 +452,17 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       }, 100);
     } catch (error) {
       console.error(error);
-      alert("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.");
+      showErrorToast(
+        "Không thể truy cập Camera. Bạn hãy kiểm tra lại quyền truy cập của trình duyệt nhé.",
+      );
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+    if (!hasFetchedLocation) {
+      setHasFetchedLocation(true);
+      getLocation();
     }
   };
 
@@ -393,7 +483,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
     const imageData = canvas.toDataURL("image/jpeg");
 
-    const shouldGetLocation = !hasFetchedLocation && uploadedImages.length === 0;
+    const shouldGetLocation =
+      !hasFetchedLocation && uploadedImages.length === 0;
 
     setUploadedImages((prev) => [...prev, imageData]);
 
@@ -494,7 +585,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
     const userId = user?._id || user?.user_id;
     if (!userId) {
-      alert("Bạn cần đăng nhập để gửi báo cáo");
+      showErrorToast("Bạn cần đăng nhập để có thể gửi báo cáo sự cố.");
       return;
     }
 
@@ -613,7 +704,10 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                         Loại sự cố
                       </Label>
 
-                      <Select value={incidentType} onValueChange={setIncidentType}>
+                      <Select
+                        value={incidentType}
+                        onValueChange={setIncidentType}
+                      >
                         <SelectTrigger
                           style={{ width: "100%", height: "44px" }}
                           className={`flex !h-11 py-0 items-center justify-between rounded-xl border px-4 text-left text-sm transition focus:outline-none focus:ring-4 focus:ring-[#5d5fef]/10 hover:!bg-[#e8e9eb] [&_svg]:!size-5 [&_svg]:!text-[#9b9b9b] [&_svg]:opacity-100 shadow-none ${
@@ -730,7 +824,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
                           <button
                             type="button"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={handleUploadClick}
                             className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[#dddddd] bg-white text-sm font-medium text-[#333] transition hover:border-[#5d5fef] hover:text-[#5d5fef]"
                           >
                             <Upload className="h-4 w-4" />
@@ -768,7 +862,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
                           <button
                             type="button"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={handleUploadClick}
                             className="inline-flex h-11 min-w-[130px] items-center justify-center gap-2 rounded-xl border border-[#e2e2e2] bg-white px-4 text-sm font-medium text-[#333] shadow-sm transition hover:border-[#5d5fef] hover:text-[#5d5fef]"
                           >
                             <Upload className="h-4 w-4" />

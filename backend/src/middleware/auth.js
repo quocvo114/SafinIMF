@@ -17,7 +17,7 @@ const requireAuth = async (req, res, next) => {
     // Gán thông tin user từ token vào request
     req.user = {
       id: decoded.id,
-      user_id: decoded.user_id,
+      user_id: decoded.id,
       role: decoded.role,
     };
     
