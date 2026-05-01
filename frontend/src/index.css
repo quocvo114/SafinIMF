@@ -1,6 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap");
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+﻿@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap");
 @import "@fontsource-variable/geist";
 
 @layer base {
@@ -256,7 +254,7 @@ body {
 @layer base {
   .theme {
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-sans: "Geist Variable", sans-serif;
   }
   :root {
     --background: oklch(1 0 0);

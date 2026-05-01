@@ -4,22 +4,36 @@ const UserSchema = new mongoose.Schema({
   user_id: { type: Number, unique: true },
 
   full_name: String,
-  email: { type: String, trim: true, lowercase: true },
-  gender: {
-    type: String,
-    enum: ["Nam", "Nữ", "Khác"],
-    default: "Nam",
-  },
+  
+  email: String,
 
   phone: { type: String, unique: true, required: true },
-  password: { type: String, required: true }, // hash
+  
+  password: String, // hash (nullable cho Google login)
+  
+  gender: { type: String, enum: ["Nam", "Nữ", "Khác"], default: "Nam" },
 
   phone_verified: { type: Boolean, default: false },
 
+  email_verified: { type: Boolean, default: false },
+
+  verification_token: String,
+
   role: {
     type: String,
-    enum: ["citizen", "manager", "admin"],
+    enum: ["citizen", "manager", "maintenance", "admin"],
     default: "citizen",
+  },
+
+  area: {
+    type: String,
+    default: "",
+  },
+
+  account_status: {
+    type: String,
+    enum: ["active", "locked", "banned"],
+    default: "active",
   },
 
   created_at: { type: Date, default: Date.now },

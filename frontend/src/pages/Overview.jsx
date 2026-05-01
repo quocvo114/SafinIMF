@@ -1,4 +1,9 @@
 import React from "react";
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import L from "leaflet";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import {
   PieChart,
   Pie,
@@ -12,13 +17,47 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
 const Overview = () => {
+  const mapCenter = [16.0471, 108.2068];
+
   // Dữ liệu mẫu cho khu vực
   const areaData = [
-    { area: "Sơn Trà", received: 573, processing: 17, resolved: 556 },
-    { area: "Hải Châu", received: 725, processing: 34, resolved: 691 },
-    { area: "Liên Chiểu", received: 278, processing: 6, resolved: 272 },
-    { area: "Ngũ Hành Sơn", received: 647, processing: 21, resolved: 626 },
+    {
+      area: "Sơn Trà",
+      received: 573,
+      processing: 17,
+      resolved: 556,
+      position: [16.0614, 108.2468],
+    },
+    {
+      area: "Hải Châu",
+      received: 725,
+      processing: 34,
+      resolved: 691,
+      position: [16.0544, 108.2022],
+    },
+    {
+      area: "Liên Chiểu",
+      received: 278,
+      processing: 6,
+      resolved: 272,
+      position: [16.1039, 108.1246],
+    },
+    {
+      area: "Ngũ Hành Sơn",
+      received: 647,
+      processing: 21,
+      resolved: 626,
+      position: [15.9955, 108.2581],
+    },
   ];
 
   // Dữ liệu cho biểu đồ tròn - Loại Trạng Thái
@@ -38,6 +77,39 @@ const Overview = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <section className="mb-6 rounded-3xl bg-white p-6 shadow-md sm:mb-8 sm:p-8 lg:p-10">
+        <h2 className="mb-5 text-xl font-bold text-gray-800 sm:mb-6 sm:text-2xl lg:text-3xl">
+          Bản Đồ Giám Sát Khu Vực
+        </h2>
+
+        <div className="h-[360px] overflow-hidden rounded-2xl border border-gray-200 sm:h-[420px]">
+          <MapContainer
+            center={mapCenter}
+            zoom={12}
+            className="h-full w-full"
+            scrollWheelZoom={true}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            {areaData.map((area) => (
+              <Marker key={area.area} position={area.position}>
+                <Popup>
+                  <div className="min-w-[190px] space-y-1">
+                    <p className="font-semibold text-gray-900">{area.area}</p>
+                    <p className="text-sm text-gray-700">Đã tiếp nhận: {area.received}</p>
+                    <p className="text-sm text-blue-700">Đang xử lý: {area.processing}</p>
+                    <p className="text-sm text-emerald-700">Đã giải quyết: {area.resolved}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
+      </section>
+
       {/* Khu Vực Quản Lý */}
       <section className="bg-white rounded-3xl shadow-md p-6 sm:p-8 lg:p-10 mb-6 sm:mb-8">
         <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-6 sm:mb-8 text-gray-800">

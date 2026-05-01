@@ -61,3 +61,6 @@ Urban_Issues/output/
 
 # Generated test uploads
 test-data/reports/uploads/
+
+#model
+best.pt

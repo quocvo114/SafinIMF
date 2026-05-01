@@ -14,6 +14,15 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import InfoManagement from "../pages/Info_Management";
+import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -25,7 +34,7 @@ const AdminSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const portalTarget = typeof document !== "undefined" ? document.body : null;
@@ -86,51 +95,39 @@ const AdminSidebar = () => {
 
   return (
     <>
-      {showLogoutConfirm &&
-        portalTarget &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/50 px-4"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setShowLogoutConfirm(false);
-              }
-            }}
-          >
-            <div
-              className="w-full max-w-[420px] rounded-2xl bg-white p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
+      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <DialogContent className="max-w-[420px] rounded-2xl border border-gray-100 bg-white p-0">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle className="text-2xl font-semibold text-gray-800">
+              Xác nhận đăng xuất
+            </DialogTitle>
+            <DialogDescription className="text-base leading-6 text-gray-600">
+              Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="px-6 pb-6">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-gray-200 text-gray-700 hover:bg-gray-100"
+              onClick={() => setShowLogoutConfirm(false)}
             >
-              <h3 className="text-3xl font-semibold text-gray-800">
-                Xác nhận đăng xuất
-              </h3>
-              <p className="mt-3 text-base leading-6 text-gray-600">
-                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?
-              </p>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowLogoutConfirm(false)}
-                  className="rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-200"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="rounded-lg bg-red-500 px-4 py-2 font-medium text-white transition-colors hover:bg-red-600"
-                >
-                  Đăng xuất
-                </button>
-              </div>
-            </div>
-          </div>,
-          portalTarget,
-        )}
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              className="bg-red-500 text-white hover:bg-red-600"
+              onClick={handleLogout}
+            >
+              Đăng xuất
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <div className="fixed left-3 top-4 z-30">
-        <Sidebar
-          className="w-20 rounded-2xl border border-gray-200 overflow-hidden shadow-lg"
-          style={{ height: "calc(100vh - 32px)" }}
-        >
+      <Sidebar
+        className="z-30 top-4 h-[calc(100vh-2rem)] data-[side=left]:left-3 rounded-2xl border border-gray-200 overflow-hidden shadow-lg"
+      >
           <SidebarHeader className="flex items-center justify-center pb-4">
             <div className="flex items-center gap-0.5">
               <span className="text-2xl font-bold text-blue-600">S</span>
@@ -175,8 +172,7 @@ const AdminSidebar = () => {
               )}
             </button>
           </SidebarFooter>
-        </Sidebar>
-      </div>
+      </Sidebar>
 
       {showAvatarMenu &&
         portalTarget &&
@@ -217,7 +213,7 @@ const AdminSidebar = () => {
                 <button
                   onClick={() => {
                     setShowAvatarMenu(false);
-                    setShowProfileModal(true);
+                    setShowInfoModal(true);
                   }}
                   className="w-full px-4 py-2 flex items-center gap-3 text-gray-700 hover:bg-gray-50 transition-colors text-left"
                 >
@@ -241,8 +237,12 @@ const AdminSidebar = () => {
           portalTarget,
         )}
 
-      {showProfileModal && (
-        <InfoManagement onClose={() => setShowProfileModal(false)} />
+      {showInfoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <Info_Management onClose={() => setShowInfoModal(false)} />
+          </div>
+        </div>
       )}
     </>
   );

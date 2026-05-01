@@ -92,10 +92,9 @@ const SidebarAdmin = () => {
                   title={item.label}
                   className={({ isActive }) =>
                     `flex items-center justify-center w-12 h-12 rounded-[14px] transition-all duration-200 relative group
-                     ${
-                       isActive
-                         ? "bg-black text-white"
-                         : "text-gray-800 hover:bg-gray-100"
+                     ${isActive 
+                       ? "bg-black text-white" 
+                       : "text-gray-800 hover:bg-gray-100"
                      }`
                   }
                 >
@@ -111,7 +110,7 @@ const SidebarAdmin = () => {
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center cursor-pointer hover:shadow-md transition-all">
               <span className="text-white text-lg font-bold">👤</span>
             </div>
-
+            
             {/* Logout Button */}
             <button
               onClick={() => setShowLogoutConfirm(true)}

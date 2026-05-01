@@ -6,12 +6,16 @@ import {
   Building2,
   Plus,
   Camera,
+  LayoutGrid,
   X,
 } from "lucide-react";
 import ReportForm from "./Report";
+// Toast component imported but shadowed - using sonner toast directly
 import UserSidebar from "./UserSidebar";
 import { SidebarProvider } from "./ui/sidebar";
 import { toast } from "sonner";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const categories = [
   {
@@ -56,12 +60,26 @@ export default function HomeOverlayUI({
   userName,
   mapElement,
 }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [showCameraOnly, setShowCameraOnly] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
   const [stream, setStream] = useState(null);
+  const [localToast, setLocalToast] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+
+  const canCreateReport = () => {
+    const isAuthenticated = Boolean(user || localStorage.getItem("token"));
+    if (isAuthenticated) {
+      return true;
+    }
+
+    navigate("/signin");
+    return false;
+  };
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -76,6 +94,10 @@ export default function HomeOverlayUI({
 
   // Mở camera
   const openCamera = async () => {
+    if (!canCreateReport()) {
+      return;
+    }
+
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
@@ -88,9 +110,7 @@ export default function HomeOverlayUI({
       }, 100);
     } catch (error) {
       console.error(error);
-      toast.error(
-        "Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.",
-      );
+      toast.error("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.");
     }
   };
 
@@ -131,39 +151,41 @@ export default function HomeOverlayUI({
         )}
 
         {/* Floating Sidebar - Left Top (aligned with categories) */}
-        <div className="absolute left-3 top-3 z-20 md:left-6 md:top-4">
+        <div className="absolute left-6 top-4 z-10">
           <SidebarProvider>
             <UserSidebar />
           </SidebarProvider>
         </div>
 
         {/* Floating Categories - Right Top (next to sidebar) */}
-        <div className="absolute left-3 right-3 top-[4.25rem] z-20 flex gap-2 overflow-x-auto rounded-2xl bg-white/85 p-2 shadow-sm backdrop-blur md:left-28 md:right-4 md:top-4 md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
+        <div className="absolute left-28 top-4 right-4 z-10 flex gap-2 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`flex h-9 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium transition-all md:h-10 md:px-4 ${
+            className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
               selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
             }`}
             style={{
               backgroundColor: "#2563EB",
               color: "#ffffff",
-              border: "none",
+              border: "none"
             }}
           >
-            <span>📍</span>
-            Tất cả
+            <span className="icon-wrap">
+              <LayoutGrid size={18} />
+            </span>
+            <span>Tất cả</span>
           </button>
           {categories.map((c) => (
             <button
               key={c.id}
               onClick={() => setSelectedCategory(c.id)}
-              className={`flex h-9 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium transition-all md:h-10 md:px-4 ${
+              className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                 selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
               }`}
               style={{
                 backgroundColor: c.bgColor,
                 color: "#ffffff",
-                border: "none",
+                border: "none"
               }}
             >
               <span className="icon-wrap">{c.icon}</span>
@@ -173,23 +195,28 @@ export default function HomeOverlayUI({
         </div>
 
         {/* Floating Buttons - Bottom Right */}
-        <div className="pointer-events-auto absolute bottom-20 right-4 z-30 flex flex-col gap-2 md:bottom-6 md:right-6 md:gap-3">
+        <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-3 pointer-events-auto">
           {/* Camera Button */}
           <button
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white shadow-lg transition-all hover:bg-gray-800 md:h-14 md:w-14"
+            className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center bg-black text-white hover:bg-gray-800 transition-all"
             onClick={openCamera}
             title="Chụp ảnh"
           >
-            <Camera size={18} className="md:h-5 md:w-5" />
+            <Camera size={20} />
           </button>
 
           {/* Plus Button */}
           <button
             className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white shadow-lg transition-all hover:bg-gray-800 md:h-14 md:w-14"
-            onClick={() => setIsReportOpen((prev) => !prev)}
+            onClick={() => {
+              if (!canCreateReport()) {
+                return;
+              }
+              setIsReportOpen((prev) => !prev);
+            }}
             title="Tạo báo cáo mới"
           >
-            <Plus size={18} className="md:h-5 md:w-5" />
+            <Plus size={20} />
           </button>
         </div>
       </div>
@@ -197,11 +224,11 @@ export default function HomeOverlayUI({
       {/* Report Form Modal */}
       {isReportOpen && (
         <div className="interactive">
-          <ReportForm
+          <ReportForm 
             onClose={() => {
               setIsReportOpen(false);
               setCapturedImage(null);
-            }}
+            }} 
             initialImage={capturedImage}
           />
         </div>

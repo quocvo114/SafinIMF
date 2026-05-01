@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import ReportDetailQLKV from "../components/ReportDetail-QLKV";
+import { formatLocationDisplay } from "../utils/formatLocation";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
 
 const ReportManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -8,11 +11,13 @@ const ReportManagement = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [reports, setReports] = useState([]);
+  const [incidentTypes, setIncidentTypes] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const limit = 10;
+  const [showDetail, setShowDetail] = useState(null);
 
   const fetchManagementReports = async () => {
     try {
@@ -31,7 +36,7 @@ const ReportManagement = () => {
       setTotalPages(response?.pagination?.totalPages || 1);
     } catch (error) {
       setErrorMessage(
-        error?.response?.data?.message || "Không thể tải danh sách báo cáo"
+        error?.response?.data?.message || "Không thể tải danh sách báo cáo",
       );
       setReports([]);
       setTotalPages(1);
@@ -39,6 +44,24 @@ const ReportManagement = () => {
       setLoading(false);
     }
   };
+
+  const fetchIncidentTypes = async () => {
+    try {
+      const response = await incidentApi.getIncidentTypes();
+      if (response?.success && Array.isArray(response.data)) {
+        setIncidentTypes(response.data.filter((item) => item?.name));
+      } else {
+        setIncidentTypes([]);
+      }
+    } catch (error) {
+      console.error("Không thể tải danh mục loại sự cố:", error);
+      setIncidentTypes([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchIncidentTypes();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -48,19 +71,33 @@ const ReportManagement = () => {
     return () => clearTimeout(timer);
   }, [searchQuery, selectedCategory, selectedStatus, currentPage]);
 
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case "Giao Thông":
-        return "#f97316";
-      case "Điện":
-        return "#eab308";
-      case "Cây Xanh":
-        return "#22c55e";
-      case "CTCC":
-        return "#a855f7";
-      default:
-        return "#6b7280";
+  const categoryOptions = useMemo(() => {
+    const activeTypes = incidentTypes.map((item) => item.name).filter(Boolean);
+    const historicalTypes = reports.map((item) => item.type).filter(Boolean);
+    return ["all", ...new Set([...activeTypes, ...historicalTypes])];
+  }, [incidentTypes, reports]);
+
+  const categoryColorMap = useMemo(() => {
+    return incidentTypes.reduce((acc, item) => {
+      if (item?.name && item?.color) {
+        acc[item.name] = item.color;
+      }
+      return acc;
+    }, {});
+  }, [incidentTypes]);
+
+  useEffect(() => {
+    if (
+      selectedCategory !== "all" &&
+      !categoryOptions.includes(selectedCategory)
+    ) {
+      setSelectedCategory("all");
+      setCurrentPage(1);
     }
+  }, [selectedCategory, categoryOptions]);
+
+  const getCategoryColor = (category) => {
+    return categoryColorMap[category] || "#6b7280";
   };
 
   const getStatusColor = (status) => {
@@ -107,7 +144,10 @@ const ReportManagement = () => {
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={20}
+            />
             <input
               type="text"
               placeholder="Nhập mã báo cáo để tìm kiếm"
@@ -123,11 +163,11 @@ const ReportManagement = () => {
             onChange={handleCategoryChange}
             className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white cursor-pointer"
           >
-            <option value="all">Tất Cả Các Loại</option>
-            <option value="Giao Thông">Giao Thông</option>
-            <option value="Điện">Điện</option>
-            <option value="Cây Xanh">Cây Xanh</option>
-            <option value="CTCC">CTCC</option>
+            {categoryOptions.map((type) => (
+              <option key={type} value={type}>
+                {type === "all" ? "Tất Cả Các Loại" : type}
+              </option>
+            ))}
           </select>
 
           {/* Status Filter */}
@@ -189,6 +229,23 @@ const ReportManagement = () => {
                     <tr
                       key={report._id || report.id || report.report_id}
                       className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={async () => {
+                        try {
+                          // Fetch full report details to get updated fields like afterImg and progressNote
+                          const reportId =
+                            report.id || report.report_id || report._id;
+                          const response =
+                            await reportApi.getReportById(reportId);
+                          if (response?.success && response?.data) {
+                            setShowDetail(response.data);
+                          } else {
+                            setShowDetail(report); // Fallback to list data
+                          }
+                        } catch (err) {
+                          console.error("Error fetching report detail:", err);
+                          setShowDetail(report); // Fallback to list data
+                        }
+                      }}
                     >
                       <td className="py-4 px-4 text-sm font-medium text-gray-900">
                         {report.id || report.report_id}
@@ -199,18 +256,22 @@ const ReportManagement = () => {
                       <td className="py-4 px-4">
                         <span
                           className="inline-block px-3 py-1 rounded-full text-xs font-medium text-white"
-                          style={{ backgroundColor: getCategoryColor(report.type) }}
+                          style={{
+                            backgroundColor: getCategoryColor(report.type),
+                          }}
                         >
                           {report.type}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-sm text-gray-700">
-                        {report.location}
+                      <td className="w-1/4 px-4 py-3 text-sm font-medium text-gray-900 border-b border-gray-100 max-w-[200px] truncate">
+                        {formatLocationDisplay(report.location)}
                       </td>
                       <td className="py-4 px-4">
                         <span
                           className="inline-block px-3 py-1 rounded-full text-xs font-medium text-white"
-                          style={{ backgroundColor: getStatusColor(report.status) }}
+                          style={{
+                            backgroundColor: getStatusColor(report.status),
+                          }}
                         >
                           {report.status}
                         </span>
@@ -241,13 +302,15 @@ const ReportManagement = () => {
           >
             <ChevronLeft size={20} className="text-gray-600" />
           </button>
-          
+
           <span className="px-4 py-2 text-sm font-medium text-gray-700">
             {currentPage} / {totalPages}
           </span>
 
           <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            onClick={() =>
+              setCurrentPage(Math.min(totalPages, currentPage + 1))
+            }
             disabled={currentPage === totalPages}
             className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
@@ -255,6 +318,19 @@ const ReportManagement = () => {
           </button>
         </div>
       </div>
+
+      <ReportDetailQLKV
+        data={showDetail}
+        close={() => setShowDetail(null)}
+        onUpdateStatus={() => {
+          setShowDetail(null);
+          fetchManagementReports();
+        }}
+        onSendProcess={() => {
+          setShowDetail(null);
+          fetchManagementReports();
+        }}
+      />
     </div>
   );
 };

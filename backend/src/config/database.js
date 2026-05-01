@@ -45,7 +45,7 @@ const connectDB = async () => {
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     await ensureEmailIndex();
   } catch (err) {
-    console.error("MongoDB Connection Error:", err);
+    console.error("MongoDB Connection Error:", err.message);
     process.exit(1);
   }
 };

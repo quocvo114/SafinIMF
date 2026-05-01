@@ -4,7 +4,9 @@ import { X, CheckCircle, AlertCircle, Info } from "lucide-react";
 const Toast = ({ message, type = "success", onClose, duration = 3000 }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
-      onClose();
+      if (typeof onClose === "function") {
+        onClose();
+      }
     }, duration);
 
     return () => clearTimeout(timer);
@@ -30,7 +32,11 @@ const Toast = ({ message, type = "success", onClose, duration = 3000 }) => {
       {icons[type]}
       <p className="flex-1 text-sm font-medium text-gray-800">{message}</p>
       <button
-        onClick={onClose}
+        onClick={() => {
+          if (typeof onClose === "function") {
+            onClose();
+          }
+        }}
         className="text-gray-400 hover:text-gray-600 transition-colors"
       >
         <X className="w-4 h-4" />

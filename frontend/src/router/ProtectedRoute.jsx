@@ -10,14 +10,24 @@ export default function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to="/signin" replace />;
   }
 
-  // Nếu yêu cầu role cụ thể (vd: admin) nhưng user không có role đó
-  if (requiredRole && user.role !== requiredRole) {
-    // Admin cố vào trang user -> về dashboard
-    if (user.role === 'admin') {
+  // requiredRole có thể là string hoặc mảng roles
+  const allowedRoles = Array.isArray(requiredRole)
+    ? requiredRole
+    : requiredRole
+      ? [requiredRole]
+      : [];
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    // Role thuộc nhóm quản trị/đội xử lý nhưng vào sai trang
+    if (["admin", "manager", "maintenance"].includes(user.role)) {
+      if (user.role === "maintenance") {
+        return <Navigate to="/admin/maintenanceteam" replace />;
+      }
       return <Navigate to="/admin/overview" replace />;
     }
-    // User thường cố vào trang admin -> về trang chủ
-    return <Navigate to="/" replace />;
+
+    // User thường vào nhầm trang admin
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

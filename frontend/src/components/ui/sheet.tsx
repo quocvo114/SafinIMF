@@ -1,5 +1,6 @@
-import * as React from "react"
-import { Dialog as SheetPrimitive } from "radix-ui"
+﻿import * as React from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+const SheetPrimitive = DialogPrimitive
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"

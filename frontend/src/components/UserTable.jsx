@@ -1,49 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Search, Plus, Pencil, Trash2, Lock, X } from "lucide-react";
-
-// Mock data – sau này thay bằng dữ liệu thật từ API
-const initialUsers = [
-  {
-    id: "user153",
-    name: "VLong",
-    phone: "(308) 555-0121",
-    role: "User",
-    area: "Sơn Trà",
-    status: "active",
-  },
-  {
-    id: "user154",
-    name: "VLong",
-    phone: "(239) 555-0128",
-    role: "User",
-    area: "Liên Chiểu",
-    status: "locked",
-  },
-  {
-    id: "user121",
-    name: "HHao",
-    phone: "(308) 555-0122",
-    role: "Admin",
-    area: "Hòa Xuân",
-    status: "active",
-  },
-  {
-    id: "user192",
-    name: "VQuoc",
-    phone: "(307) 555-0138",
-    role: "QTV",
-    area: "Hải Châu",
-    status: "active",
-  },
-  {
-    id: "user057",
-    name: "NVu",
-    phone: "(252) 555-0125",
-    role: "KTV",
-    area: "Khuê Trung",
-    status: "banned",
-  },
-];
+import userApi from "../services/api/userApi";
 
 const ROLE_OPTIONS = [
   { value: "all", label: "Tất cả vai trò" },
@@ -81,14 +38,44 @@ const statusLabel = {
   banned: "Bị Cấm",
 };
 
+const emptyForm = {
+  name: "",
+  phone: "",
+  role: "User",
+  area: "Sơn Trà",
+  status: "active",
+};
+
+const normalizeUser = (user) => ({
+  id: user.id || `user${String(user.user_id || "").padStart(3, "0")}`,
+  user_id: user.user_id,
+  name: user.name || user.full_name || "",
+  phone: user.phone || "",
+  role: user.role || "User",
+  area: user.area || "",
+  status: user.status || user.account_status || "active",
+});
+
+const resolveUserId = (user) => {
+  if (Number.isFinite(user?.user_id)) {
+    return user.user_id;
+  }
+
+  const fallback = Number(String(user?.id || "").replace(/\D/g, ""));
+  return Number.isFinite(fallback) ? fallback : null;
+};
+
 export default function UserTable() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [areaFilter, setAreaFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const pageSize = 10;
 
   // Modal states
@@ -97,54 +84,62 @@ export default function UserTable() {
   const [editingUser, setEditingUser] = useState(null);
 
   // Form states
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    role: "User",
-    area: "Sơn Trà",
-    status: "active",
-  });
+  const [formData, setFormData] = useState(emptyForm);
 
-  const filteredUsers = useMemo(() => {
-    const text = search.toLowerCase().trim();
-    return users.filter((u) => {
-      const matchSearch =
-        !text ||
-        u.name.toLowerCase().includes(text) ||
-        u.phone.toLowerCase().includes(text);
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setErrorMessage("");
 
-      const matchRole = roleFilter === "all" || u.role === roleFilter;
-      const matchArea = areaFilter === "all" || u.area === areaFilter;
-      const matchStatus = statusFilter === "all" || u.status === statusFilter;
+      const response = await userApi.getManagementUsers({
+        search,
+        role: roleFilter,
+        area: areaFilter,
+        status: statusFilter,
+        page: currentPage,
+        limit: pageSize,
+      });
 
-      return matchSearch && matchRole && matchArea && matchStatus;
-    });
-  }, [search, roleFilter, areaFilter, statusFilter, users]);
+      const payload = response?.data;
+      setUsers((payload?.data || []).map(normalizeUser));
+      setTotalPages(payload?.pagination?.totalPages || 1);
+    } catch (error) {
+      setUsers([]);
+      setTotalPages(1);
+      setErrorMessage(
+        error?.response?.data?.message || "Không thể tải danh sách người dùng"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [search, roleFilter, areaFilter, statusFilter, currentPage]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const startIdx = (safePage - 1) * pageSize;
-  const pageUsers = filteredUsers.slice(startIdx, startIdx + pageSize);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchUsers();
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [fetchUsers]);
+
+  const totalPagesSafe = Math.max(totalPages, 1);
+  const safePage = Math.min(currentPage, totalPagesSafe);
+  const pageUsers = users;
 
   const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
-  const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
+  const handleNext = () =>
+    setCurrentPage((p) => Math.min(totalPagesSafe, p + 1));
 
   // Handle Add User
-  const handleAddUser = () => {
-    const newId = `user${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
-    const newUser = {
-      id: newId,
-      ...formData,
-    };
-    setUsers((prev) => [...prev, newUser]);
-    setShowAddModal(false);
-    setFormData({
-      name: "",
-      phone: "",
-      role: "User",
-      area: "Sơn Trà",
-      status: "active",
-    });
+  const handleAddUser = async () => {
+    try {
+      await userApi.createManagementUser(formData);
+      setShowAddModal(false);
+      setFormData(emptyForm);
+      await fetchUsers();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Không thể thêm người dùng");
+    }
   };
 
   // Handle Edit User
@@ -160,45 +155,59 @@ export default function UserTable() {
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = () => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === editingUser.id
-          ? { ...u, ...formData }
-          : u
-      )
-    );
-    setShowEditModal(false);
-    setEditingUser(null);
-    setFormData({
-      name: "",
-      phone: "",
-      role: "User",
-      area: "Sơn Trà",
-      status: "active",
-    });
+  const handleSaveEdit = async () => {
+    try {
+      const userId = resolveUserId(editingUser);
+      if (!userId) {
+        alert("Không xác định được ID người dùng");
+        return;
+      }
+
+      await userApi.updateManagementUser(userId, formData);
+      setShowEditModal(false);
+      setEditingUser(null);
+      setFormData(emptyForm);
+      await fetchUsers();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Không thể cập nhật người dùng");
+    }
   };
 
   // Handle Delete User
-  const handleDelete = (userId) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa người dùng này?")) {
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
+  const handleDelete = async (user) => {
+    try {
+      if (!window.confirm("Bạn có chắc chắn muốn xóa người dùng này?")) {
+        return;
+      }
+
+      const userId = resolveUserId(user);
+      if (!userId) {
+        alert("Không xác định được ID người dùng");
+        return;
+      }
+
+      await userApi.deleteManagementUser(userId);
+      await fetchUsers();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Không thể xóa người dùng");
     }
   };
 
   // Handle Lock/Unlock User
-  const handleToggleLock = (userId) => {
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === userId) {
-          return {
-            ...u,
-            status: u.status === "active" ? "locked" : "active",
-          };
-        }
-        return u;
-      })
-    );
+  const handleToggleLock = async (user) => {
+    try {
+      const userId = resolveUserId(user);
+      if (!userId) {
+        alert("Không xác định được ID người dùng");
+        return;
+      }
+
+      const nextStatus = user.status === "active" ? "locked" : "active";
+      await userApi.updateManagementUserStatus(userId, nextStatus);
+      await fetchUsers();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Không thể đổi trạng thái người dùng");
+    }
   };
 
   return (
@@ -293,13 +302,7 @@ export default function UserTable() {
               <button
                 onClick={() => {
                   setShowAddModal(false);
-                  setFormData({
-                    name: "",
-                    phone: "",
-                    role: "User",
-                    area: "Sơn Trà",
-                    status: "active",
-                  });
+                  setFormData(emptyForm);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -387,13 +390,7 @@ export default function UserTable() {
               <button
                 onClick={() => {
                   setShowAddModal(false);
-                  setFormData({
-                    name: "",
-                    phone: "",
-                    role: "User",
-                    area: "Sơn Trà",
-                    status: "active",
-                  });
+                  setFormData(emptyForm);
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
@@ -420,13 +417,7 @@ export default function UserTable() {
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingUser(null);
-                  setFormData({
-                    name: "",
-                    phone: "",
-                    role: "User",
-                    area: "Sơn Trà",
-                    status: "active",
-                  });
+                  setFormData(emptyForm);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -515,13 +506,7 @@ export default function UserTable() {
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingUser(null);
-                  setFormData({
-                    name: "",
-                    phone: "",
-                    role: "User",
-                    area: "Sơn Trà",
-                    status: "active",
-                  });
+                  setFormData(emptyForm);
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
@@ -553,18 +538,29 @@ export default function UserTable() {
             </tr>
           </thead>
           <tbody>
-            {pageUsers.length === 0 && (
+            {loading && (
               <tr>
                 <td
                   colSpan={7}
                   className="px-4 py-6 text-center text-gray-400 text-sm"
                 >
-                  Không tìm thấy người dùng phù hợp.
+                  Đang tải dữ liệu...
                 </td>
               </tr>
             )}
 
-            {pageUsers.map((u) => (
+            {!loading && pageUsers.length === 0 && (
+              <tr>
+                <td
+                  colSpan={7}
+                  className="px-4 py-6 text-center text-gray-400 text-sm"
+                >
+                  {errorMessage || "Không tìm thấy người dùng phù hợp."}
+                </td>
+              </tr>
+            )}
+
+            {!loading && pageUsers.map((u) => (
               <tr
                 key={u.id}
                 className="border-t border-gray-100 hover:bg-gray-50"
@@ -588,7 +584,7 @@ export default function UserTable() {
                   <div className="flex items-center justify-center gap-3">
                     <button
                       type="button"
-                      onClick={() => handleToggleLock(u.id)}
+                      onClick={() => handleToggleLock(u)}
                       className="text-amber-500 hover:text-amber-600"
                       title="Khóa / mở khóa"
                     >
@@ -604,7 +600,7 @@ export default function UserTable() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(u.id)}
+                      onClick={() => handleDelete(u)}
                       className="text-red-500 hover:text-red-600"
                       title="Xóa"
                     >
@@ -628,12 +624,12 @@ export default function UserTable() {
             {"<"}
           </button>
           <span>
-            {safePage} / {totalPages}
+            {safePage} / {totalPagesSafe}
           </span>
           <button
             type="button"
             onClick={handleNext}
-            disabled={safePage === totalPages}
+            disabled={safePage === totalPagesSafe}
             className="px-2 py-1 rounded-md border disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {">"}
