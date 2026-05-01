@@ -159,10 +159,12 @@ const ReceptForm = () => {
         confidenceScore: selectedReport.confidenceScore,
         scoringDetails: selectedReport.scoringDetails,
         image: selectedReport.image || selectedReport.images?.[0] || "",
+        afterImg: selectedReport.afterImg || "",
+        progressNote: selectedReport.progressNote || "",
         images:
           Array.isArray(selectedReport.images) && selectedReport.images.length > 0
             ? selectedReport.images
-            : [selectedReport.image || "", selectedReport.afterImage || ""],
+            : [selectedReport.image || "", selectedReport.afterImg || ""],
       }
     : null;
 
