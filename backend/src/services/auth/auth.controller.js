@@ -104,7 +104,8 @@ async function login(req, res) {
         .json({ message: "Sai số điện thoại hoặc mật khẩu" });
     }
 
-    if (!user.phone_verified) {
+    const isPhoneVerified = user.phone_verified !== false;
+    if (!isPhoneVerified) {
       return res
         .status(403)
         .json({ message: "Số điện thoại chưa được xác thực" });

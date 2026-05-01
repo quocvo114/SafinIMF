@@ -13,7 +13,16 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
-import Info_Management from "../pages/Info_Management";
+import InfoManagement from "../pages/Info_Management";
+import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -86,48 +95,39 @@ const AdminSidebar = () => {
 
   return (
     <>
-      {showLogoutConfirm && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowLogoutConfirm(false);
-            }
-          }}
-        >
-          <div
-            className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-xl font-semibold text-gray-800 mb-3">
+      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <DialogContent className="max-w-[420px] rounded-2xl border border-gray-100 bg-white p-0">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle className="text-2xl font-semibold text-gray-800">
               Xác nhận đăng xuất
-            </h3>
-            <p className="text-gray-600 mb-6">
+            </DialogTitle>
+            <DialogDescription className="text-base leading-6 text-gray-600">
               Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors font-medium"
-                >
-                Hủy
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors font-medium"
-              >
-                Đăng xuất
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="px-6 pb-6">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-gray-200 text-gray-700 hover:bg-gray-100"
+              onClick={() => setShowLogoutConfirm(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              className="bg-red-500 text-white hover:bg-red-600"
+              onClick={handleLogout}
+            >
+              Đăng xuất
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <div className="fixed left-3 top-4 z-30">
-        <Sidebar
-          className="w-20 rounded-2xl border border-gray-200 overflow-hidden shadow-lg"
-          style={{ height: "calc(100vh - 32px)" }}
-        >
+      <Sidebar
+        className="z-30 top-4 h-[calc(100vh-2rem)] data-[side=left]:left-3 rounded-2xl border border-gray-200 overflow-hidden shadow-lg"
+      >
           <SidebarHeader className="flex items-center justify-center pb-4">
             <div className="flex items-center gap-0.5">
               <span className="text-2xl font-bold text-blue-600">S</span>
@@ -172,8 +172,7 @@ const AdminSidebar = () => {
               )}
             </button>
           </SidebarFooter>
-        </Sidebar>
-      </div>
+      </Sidebar>
 
       {showAvatarMenu &&
         portalTarget &&

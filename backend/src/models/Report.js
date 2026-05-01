@@ -1,23 +1,22 @@
+
 const mongoose = require("mongoose");
 
 const ReportSchema = new mongoose.Schema(
   {
-    report_id: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    id: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    report_id: {
-      type: Number,
-      required: true,
-      unique: true,
-      index: true,
-    },
+     id: {
+       type: String,
+       required: true,
+       unique: true,
+       index: true, // Add index for faster lookup
+     },
+     report_id: {
+       // For numeric, sequential ID if applicable, allow it to be optional
+       type: Number,
+       unique: true,
+       sparse: true, // Allow multiple documents to have null or missing report_id, or enforce uniqueness only on non-null values
+       default: null,
+       index: true,
+     },
     userId: {
       type: String,
       required: true,
@@ -37,12 +36,35 @@ const ReportSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["Giao Thông", "Điện", "Cây Xanh", "CTCC"],
+      trim: true,
+      index: true,
     },
 
     location: {
       type: String,
       required: true,
+    },
+    reportLatitude: {
+      type: Number,
+      default: null,
+    },
+    reportLongitude: {
+      type: Number,
+      default: null,
+    },
+
+    lat: {
+      type: Number,
+      min: -90,
+      max: 90,
+      default: null,
+    },
+
+    lng: {
+      type: Number,
+      min: -180,
+      max: 180,
+      default: null,
     },
 
     status: {
@@ -81,6 +103,12 @@ const ReportSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    progressNote: {
+      type: String,
+      default: "",
+    },
+
     aiPercent: {
       type: Number,
       default: null,
@@ -100,6 +128,20 @@ const ReportSchema = new mongoose.Schema(
     aiSource: {
       type: String,
       default: "",
+    },
+    exifMetadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    confidenceScore: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100,
+    },
+    scoringDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
   },
   {

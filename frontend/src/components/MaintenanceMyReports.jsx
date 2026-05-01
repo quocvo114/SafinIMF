@@ -3,6 +3,7 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "./ui/input";
 import MaintenanceUserSidebar from "./MaintenanceUserSidebar";
 import { SidebarProvider } from "./ui/sidebar";
+import { formatLocationDisplay } from "../utils/formatLocation";
 
 export default function MaintenanceMyReports() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -115,8 +116,8 @@ export default function MaintenanceMyReports() {
                         {report.id}
                       </td>
                       <td className="px-4 py-5 font-medium text-gray-900">{report.title}</td>
-                      <td className="px-4 py-5 text-gray-600">
-                        {report.location}
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {formatLocationDisplay(report.location)}
                       </td>
                       <td className="px-4 py-5 text-gray-500 whitespace-nowrap">
                         {report.time}

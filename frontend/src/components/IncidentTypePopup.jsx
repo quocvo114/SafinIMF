@@ -72,6 +72,7 @@ const IncidentTypePopup = ({
   onColorChange,
   onClose,
   onSubmit,
+  isSaving = false,
 }) => {
   const [popupScale, setPopupScale] = useState(1);
 
@@ -209,6 +210,7 @@ const IncidentTypePopup = ({
             type="button"
             variant="outline"
             onClick={onClose}
+            disabled={isSaving}
             className="h-[54px] rounded-[10px] border-gray-300 text-base font-medium text-gray-700 hover:bg-gray-50"
           >
             hủy
@@ -216,10 +218,10 @@ const IncidentTypePopup = ({
           <Button
             type="button"
             onClick={onSubmit}
-            disabled={!name.trim()}
+            disabled={!name.trim() || isSaving}
             className="h-[54px] rounded-[10px] bg-blue-600 text-base font-medium text-white hover:bg-blue-700"
           >
-            {submitLabel}
+            {isSaving ? "Đang lưu..." : submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

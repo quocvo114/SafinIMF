@@ -3,18 +3,11 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);   // { user_id, full_name, phone, role }
-  const [token, setToken] = useState(null);
-
-  useEffect(() => {
-    // load từ localStorage khi F5
-    const savedToken = localStorage.getItem("token");
+  const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem("user");
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-  }, []);
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [token, setToken] = useState(() => localStorage.getItem("token"));
 
   const login = (token, user) => {
     setToken(token);

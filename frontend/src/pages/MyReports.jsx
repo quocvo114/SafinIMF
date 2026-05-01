@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, House, Megaphone } from "lucide-react";
+import Toast from "../components/Toast";
 import ReportDetail from "../components/ReportDetail";
+import { formatLocationDisplay } from "../utils/formatLocation";
 import ReportReviews from "../components/ReportReviews";
 import UserSidebar from "../components/UserSidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
@@ -268,7 +270,7 @@ export default function MyReports() {
                         {item.type}
                       </span>
                     </td>
-                    <td className="p-3">{item.location}</td>
+                    <td className="p-3">{formatLocationDisplay(item.location)}</td>
                     <td className="p-3">
                       <span
                         className={`text-white px-3 py-1 rounded-full text-xs ${

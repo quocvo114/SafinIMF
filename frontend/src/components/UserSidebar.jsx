@@ -78,6 +78,7 @@ const UserSidebar = () => {
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const isAuthenticated = Boolean(user);
   const [toast, setToast] = useState(null);
 
   const unreadCount = notifications.filter((item) => !item.isRead).length;
@@ -104,11 +105,13 @@ const UserSidebar = () => {
     },
   ];
 
-  const userInfo = {
-    name: user?.full_name || "Người dùng",
-    email: user?.email || "user@example.com",
-    avatar: user?.avatar || null,
-  };
+  const userInfo = isAuthenticated
+    ? {
+        name: user?.full_name || "Người dùng",
+        email: user?.email || "user@example.com",
+        avatar: user?.avatar || null,
+      }
+    : null;
 
   const handleLogout = () => {
     setShowLogoutConfirm(false);
@@ -251,27 +254,37 @@ const UserSidebar = () => {
         </SidebarContent>
 
         <SidebarFooter className="flex flex-col items-center gap-2 py-4 relative">
-          {/* User Avatar Button */}
-          <button
-            onClick={() => setShowAvatarMenu(!showAvatarMenu)}
-            title={userInfo.name}
-            className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-semibold text-sm hover:shadow-md transition-all relative z-40"
-          >
-            {userInfo.avatar ? (
-              <img
-                src={userInfo.avatar}
-                alt={userInfo.name}
-                className="w-full h-full object-cover rounded-full"
-              />
-            ) : (
-              userInfo.name.charAt(0).toUpperCase()
-            )}
-          </button>
+          {isAuthenticated ? (
+            <button
+              onClick={() => setShowAvatarMenu(!showAvatarMenu)}
+              title={userInfo?.name || "Tài khoản"}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-semibold text-sm hover:shadow-md transition-all relative z-40"
+            >
+              {userInfo?.avatar ? (
+                <img
+                  src={userInfo.avatar}
+                  alt={userInfo.name}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                (userInfo?.name || "U").charAt(0).toUpperCase()
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate("/signin")}
+              title="Đăng nhập"
+              className="w-10 h-10 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center hover:bg-gray-300 transition-all"
+            >
+              <User className="h-4 w-4" />
+            </button>
+          )}
         </SidebarFooter>
       </Sidebar>
 
       {/* Dropdown Menu - Positioned outside sidebar */}
       {showAvatarMenu &&
+        isAuthenticated &&
         portalTarget &&
         createPortal(
           <>
@@ -289,22 +302,22 @@ const UserSidebar = () => {
               {/* User Info Header */}
               <div className="flex items-center gap-3 border-b border-gray-100 p-4">
                 <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-base font-semibold text-white">
-                  {userInfo.avatar ? (
+                  {userInfo?.avatar ? (
                     <img
                       src={userInfo.avatar}
                       alt={userInfo.name}
                       className="h-full w-full rounded-full object-cover"
                     />
                   ) : (
-                    userInfo.name.charAt(0).toUpperCase()
+                    userInfo?.name?.charAt(0).toUpperCase()
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-gray-800">
-                    {userInfo.name}
+                    {userInfo?.name}
                   </p>
                   <p className="truncate text-sm text-gray-500">
-                    {userInfo.email}
+                    {userInfo?.email}
                   </p>
                 </div>
               </div>
@@ -348,7 +361,6 @@ const UserSidebar = () => {
               className="fixed inset-0 z-[1900]"
               onClick={() => setShowNotificationsPopup(false)}
             />
-
             {/* Notifications Panel */}
             <div
               className="fixed left-24 top-20 z-[2000] w-[380px] max-w-[calc(100vw-7.5rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"

@@ -171,53 +171,6 @@ class ReportRepository {
   }
 
   /**
-   * Lấy báo cáo cho trang quản lý (có lọc + phân trang)
-   */
-  async getManagementList({ search, type, status, page = 1, limit = 10 }) {
-    try {
-      const query = {};
-
-      if (type && type !== "all") {
-        query.type = type;
-      }
-
-      if (status && status !== "all") {
-        query.status = status;
-      }
-
-      if (search) {
-        const keyword = search.trim();
-        query.$or = [
-          { id: { $regex: keyword, $options: "i" } },
-          { report_id: { $regex: keyword, $options: "i" } },
-          { title: { $regex: keyword, $options: "i" } },
-        ];
-      }
-
-      const safePage = Math.max(parseInt(page, 10) || 1, 1);
-      const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
-      const skip = (safePage - 1) * safeLimit;
-
-      const [items, total] = await Promise.all([
-        Report.find(query).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
-        Report.countDocuments(query),
-      ]);
-
-      return {
-        items,
-        pagination: {
-          page: safePage,
-          limit: safeLimit,
-          total,
-          totalPages: Math.max(Math.ceil(total / safeLimit), 1),
-        },
-      };
-    } catch (error) {
-      throw new Error("Lỗi khi lấy danh sách quản lý báo cáo: " + error.message);
-    }
-  }
-
-  /**
    * Lấy tất cả báo cáo
    */
   async getAll() {

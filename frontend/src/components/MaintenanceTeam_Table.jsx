@@ -3,23 +3,23 @@ import { Search, Plus, X, Lock, Pencil, Trash2 } from "lucide-react";
 import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 
 const AREA_OPTIONS = [
-    { value: "", label: "Tất cả khu vực" },
-    { value: "Sơn Trà", label: "Sơn Trà" },
-    { value: "Liên Chiểu", label: "Liên Chiểu" },
-    { value: "Hải Châu", label: "Hải Châu" },
-    { value: "Hòa Xuân", label: "Hòa Xuân" },
-    { value: "Khuê Trung", label: "Khuê Trung" },
+  { value: "", label: "Tất cả khu vực" },
+  { value: "Sơn Trà", label: "Sơn Trà" },
+  { value: "Liên Chiểu", label: "Liên Chiểu" },
+  { value: "Hải Châu", label: "Hải Châu" },
+  { value: "Hòa Xuân", label: "Hòa Xuân" },
+  { value: "Khuê Trung", label: "Khuê Trung" },
 ];
 
 const STATUS_OPTIONS = [
-    { value: "", label: "Tất cả trạng thái" },
-    { value: "active", label: "Hoạt Động" },
-    { value: "inactive", label: "Bị Khóa" },
+  { value: "", label: "Tất cả trạng thái" },
+  { value: "active", label: "Hoạt Động" },
+  { value: "inactive", label: "Bị Khóa" },
 ];
 
 const statusStyle = {
-    active: "bg-blue-100 text-blue-800",
-    inactive: "bg-amber-100 text-amber-800"
+  active: "bg-blue-100 text-blue-800",
+  inactive: "bg-amber-100 text-amber-800",
 };
 
 const emptyForm = {
@@ -75,7 +75,7 @@ const MaintenanceTeam_Table = () => {
       setTeams([]);
       setTotalPages(1);
       setErrorMessage(
-        error?.response?.data?.message || "Không tải được danh sách đội xử lý"
+        error?.response?.data?.message || "Không tải được danh sách đội xử lý",
       );
     } finally {
       setLoading(false);
@@ -159,7 +159,9 @@ const MaintenanceTeam_Table = () => {
       await maintenanceTeamApi.updateTeamStatus(id, nextStatus);
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể đổi trạng thái đội xử lý");
+      alert(
+        error?.response?.data?.message || "Không thể đổi trạng thái đội xử lý",
+      );
     }
   };
 
@@ -246,7 +248,9 @@ const MaintenanceTeam_Table = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Thêm Đội Xử Lý Mới</h3>
+              <h3 className="text-lg font-semibold text-gray-800">
+                Thêm Đội Xử Lý Mới
+              </h3>
               <button
                 onClick={() => {
                   setShowAddModal(false);
@@ -266,7 +270,9 @@ const MaintenanceTeam_Table = () => {
                 <input
                   type="text"
                   value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, id: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Nhập Team ID"
                 />
@@ -279,7 +285,9 @@ const MaintenanceTeam_Table = () => {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Nhập tên đội"
                 />
@@ -292,7 +300,9 @@ const MaintenanceTeam_Table = () => {
                 <input
                   type="text"
                   value={formData.leader}
-                  onChange={(e) => setFormData({ ...formData, leader: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, leader: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Nhập tên trưởng đội"
                 />
@@ -305,7 +315,12 @@ const MaintenanceTeam_Table = () => {
                 <input
                   type="number"
                   value={formData.memberCount}
-                  onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) || 1 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      memberCount: parseInt(e.target.value) || 1,
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Nhập số lượng"
                   min="1"
@@ -318,7 +333,9 @@ const MaintenanceTeam_Table = () => {
                 </label>
                 <select
                   value={formData.area}
-                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, area: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                 >
                   <option value="Sơn Trà">Sơn Trà</option>
@@ -335,7 +352,9 @@ const MaintenanceTeam_Table = () => {
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                 >
                   <option value="active">Hoạt Động</option>
@@ -370,7 +389,9 @@ const MaintenanceTeam_Table = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Chỉnh Sửa Đội</h3>
+              <h3 className="text-lg font-semibold text-gray-800">
+                Chỉnh Sửa Đội
+              </h3>
               <button
                 onClick={() => {
                   setShowEditModal(false);
@@ -391,7 +412,9 @@ const MaintenanceTeam_Table = () => {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Nhập tên đội"
                 />
@@ -404,7 +427,9 @@ const MaintenanceTeam_Table = () => {
                 <input
                   type="text"
                   value={formData.leader}
-                  onChange={(e) => setFormData({ ...formData, leader: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, leader: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Nhập tên trưởng đội"
                 />
@@ -417,7 +442,12 @@ const MaintenanceTeam_Table = () => {
                 <input
                   type="number"
                   value={formData.memberCount}
-                  onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) || 1 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      memberCount: parseInt(e.target.value) || 1,
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="Nhập số lượng"
                   min="1"
@@ -430,7 +460,9 @@ const MaintenanceTeam_Table = () => {
                 </label>
                 <select
                   value={formData.area}
-                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, area: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                 >
                   <option value="Sơn Trà">Sơn Trà</option>
@@ -447,7 +479,9 @@ const MaintenanceTeam_Table = () => {
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                 >
                   <option value="active">Hoạt Động</option>
@@ -515,55 +549,58 @@ const MaintenanceTeam_Table = () => {
               </tr>
             )}
 
-            {!loading && pageTeams.map((team) => (
-              <tr
-                key={team.id}
-                className="border-t border-gray-100 hover:bg-gray-50"
-              >
-                <td className="px-4 py-3 font-medium text-gray-800">{team.id}</td>
-                <td className="px-4 py-3 font-medium">{team.name}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{team.leader}</td>
-                <td className="px-4 py-3">{team.memberCount}</td>
-                <td className="px-4 py-3">{team.area}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                      statusStyle[team.status]
-                    }`}
-                  >
-                    {team.status === "active" ? "Hoạt Động" : "Bị Khóa"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleEditClick(team)}
-                      className="text-blue-500 hover:text-blue-600"
-                      title="Sửa"
+            {!loading &&
+              pageTeams.map((team) => (
+                <tr
+                  key={team.id}
+                  className="border-t border-gray-100 hover:bg-gray-50"
+                >
+                  <td className="px-4 py-3 font-medium text-gray-800">
+                    {team.id}
+                  </td>
+                  <td className="px-4 py-3 font-medium">{team.name}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{team.leader}</td>
+                  <td className="px-4 py-3">{team.memberCount}</td>
+                  <td className="px-4 py-3">{team.area}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                        statusStyle[team.status]
+                      }`}
                     >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleLock(team.id, team.status)}
-                      className="text-amber-500 hover:text-amber-600"
-                      title="Khóa / mở khóa"
-                    >
-                      <Lock className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(team.id)}
-                      className="text-red-500 hover:text-red-600"
-                      title="Xóa"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {team.status === "active" ? "Hoạt Động" : "Bị Khóa"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(team)}
+                        className="text-blue-500 hover:text-blue-600"
+                        title="Sửa"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLock(team.id, team.status)}
+                        className="text-amber-500 hover:text-amber-600"
+                        title="Khóa / mở khóa"
+                      >
+                        <Lock className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(team.id)}
+                        className="text-red-500 hover:text-red-600"
+                        title="Xóa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
 
