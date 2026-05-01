@@ -134,9 +134,6 @@ function normalizeReport(report) {
   };
 
   const aiPercent = Number(normalizeAiPercent(report?.aiPercent).toFixed(2));
-  const damageLevel =
-    report?.damageLevel ||
-    (aiPercent >= 70 ? "Nặng" : aiPercent >= 30 ? "Trung bình" : "Nhẹ");
 
   return {
     id: report?.id || report?.report_id || report?._id || "N/A",
@@ -149,7 +146,6 @@ function normalizeReport(report) {
     images: report?.images || [],
     image: report?.image || "",
     aiPercent,
-    damageLevel,
   };
 }
 
@@ -463,9 +459,6 @@ export default function MyReports() {
                             Trạng thái
                           </TableHead>
                           <TableHead className="px-4 py-3 font-semibold">
-                            Độ hư hại
-                          </TableHead>
-                          <TableHead className="px-4 py-3 font-semibold">
                             % AI
                           </TableHead>
                           <TableHead className="px-4 py-3 font-semibold">
@@ -527,24 +520,6 @@ export default function MyReports() {
                                 }`}
                               >
                                 {STATUS_LABEL[item.status] || "Đang Chờ"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="px-4 py-3">
-                              <Badge
-                                variant={
-                                  item.damageLevel === "Nặng"
-                                    ? "destructive"
-                                    : "outline"
-                                }
-                                className={`h-auto border-0 rounded-full px-3 py-1 text-xs font-medium ${
-                                  item.damageLevel === "Trung bình"
-                                    ? "bg-amber-100 text-amber-700"
-                                    : item.damageLevel === "Nhẹ"
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : ""
-                                }`}
-                              >
-                                {item.damageLevel}
                               </Badge>
                             </TableCell>
                             <TableCell className="px-4 py-3">
