@@ -4,6 +4,7 @@ import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import { formatLocationDisplay } from "../utils/formatLocation";
 import { reportApi } from "../services/api/reportApi";
 import incidentApi from "../services/api/incidentApi";
+import ReportDetail from "../components/ReportDetail";
 
 const ReportManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,6 +16,7 @@ const ReportManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [selectedReport, setSelectedReport] = useState(null);
 
   const limit = 10;
 
@@ -221,6 +223,7 @@ const ReportManagement = () => {
                   reports.map((report) => (
                     <tr
                       key={report._id || report.id || report.report_id}
+                      onClick={() => setSelectedReport(report)}
                       className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
                     >
                       <td className="py-4 px-4 text-sm font-medium text-gray-900">
@@ -288,6 +291,14 @@ const ReportManagement = () => {
           </button>
         </div>
       </div>
+
+      {/* Report Detail Modal */}
+      {selectedReport && (
+        <ReportDetail
+          data={selectedReport}
+          close={() => setSelectedReport(null)}
+        />
+      )}
     </div>
   );
 };
