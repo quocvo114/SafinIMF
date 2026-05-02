@@ -30,11 +30,9 @@ function normalizeText(value = "") {
 }
 
 const NORMALIZED_DISTRICT_ALIAS_MAP = Object.entries(DISTRICT_ALIAS_MAP).reduce(
-  (accumulator, [district, aliases]) => {
-    accumulator[normalizeText(district)] = aliases.map((alias) =>
-      normalizeText(alias),
-    );
-    return accumulator;
+  (acc, [district, aliases]) => {
+    acc[normalizeText(district)] = aliases.map((alias) => normalizeText(alias));
+    return acc;
   },
   {},
 );
@@ -48,16 +46,12 @@ function buildVietnameseRegexPattern(value = "") {
 
   return normalized
     .split("")
-    .map((character) => {
-      if (character === " ") {
-        return "\\s+";
+    .map((char) => {
+      if (char === " ") return "\\s+";
+      if (VIETNAMESE_CHAR_CLASS_MAP[char]) {
+        return VIETNAMESE_CHAR_CLASS_MAP[char];
       }
-
-      if (VIETNAMESE_CHAR_CLASS_MAP[character]) {
-        return VIETNAMESE_CHAR_CLASS_MAP[character];
-      }
-
-      return escapeRegex(character);
+      return escapeRegex(char);
     })
     .join("");
 }
@@ -67,10 +61,12 @@ function buildDistrictRegex(district) {
   const aliases = NORMALIZED_DISTRICT_ALIAS_MAP[normalizedDistrict] || [
     normalizedDistrict,
   ];
+
   const pattern = Array.from(new Set(aliases))
     .map((alias) => buildVietnameseRegexPattern(alias))
     .filter(Boolean)
     .join("|");
+
   return new RegExp(pattern, "iu");
 }
 
@@ -92,6 +88,7 @@ class ReportRepository {
 
     if (search) {
       const keyword = search.trim();
+
       const orQuery = [
         { id: { $regex: keyword, $options: "i" } },
         { title: { $regex: keyword, $options: "i" } },
@@ -109,7 +106,7 @@ class ReportRepository {
   }
 
   /**
-   * Lấy báo cáo cho trang quản lý (có lọc + phân trang)
+   * Trang quản lý (admin)
    */
   async getManagementList({ search, type, status, page = 1, limit = 10 }) {
     try {
@@ -141,7 +138,7 @@ class ReportRepository {
   }
 
   /**
-   * Lấy báo cáo cho trang đơn tiếp nhận (lọc theo quận/huyện + phân trang)
+   * Trang đơn tiếp nhận (theo quận)
    */
   async getReceptionList({
     search,
@@ -153,7 +150,12 @@ class ReportRepository {
     limit = 10,
   }) {
     try {
-      const query = this.buildFilterQuery({ search, type, status, district });
+      const query = this.buildFilterQuery({
+        search,
+        type,
+        status,
+        district,
+      });
 
       const safePage = Math.max(parseInt(page, 10) || 1, 1);
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
@@ -197,58 +199,6 @@ class ReportRepository {
     }
   }
 
-  /**
-   * Lấy báo cáo cho trang quản lý (có lọc + phân trang)
-   */
-  async getManagementList({ search, type, status, page = 1, limit = 10 }) {
-    try {
-      const query = {};
-
-      if (type && type !== "all") {
-        query.type = type;
-      }
-
-      if (status && status !== "all") {
-        query.status = status;
-      }
-
-      if (search) {
-        const keyword = search.trim();
-        query.$or = [
-          { id: { $regex: keyword, $options: "i" } },
-          { report_id: { $regex: keyword, $options: "i" } },
-          { title: { $regex: keyword, $options: "i" } },
-        ];
-      }
-
-      const safePage = Math.max(parseInt(page, 10) || 1, 1);
-      const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
-      const skip = (safePage - 1) * safeLimit;
-
-      const [items, total] = await Promise.all([
-        Report.find(query).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
-        Report.countDocuments(query),
-      ]);
-
-      return {
-        items,
-        pagination: {
-          page: safePage,
-          limit: safeLimit,
-          total,
-          totalPages: Math.max(Math.ceil(total / safeLimit), 1),
-        },
-      };
-    } catch (error) {
-      throw new Error(
-        "Lỗi khi lấy danh sách quản lý báo cáo: " + error.message,
-      );
-    }
-  }
-
-  /**
-   * Lấy tất cả báo cáo
-   */
   async getAll() {
     try {
       return await Report.find({}).sort({ createdAt: -1 });
@@ -256,6 +206,7 @@ class ReportRepository {
       throw new Error("Lỗi khi lấy danh sách báo cáo: " + error.message);
     }
   }
+
   async getById(id) {
     try {
       return await Report.findOne({ $or: [{ id }, { report_id: id }] });
@@ -264,9 +215,6 @@ class ReportRepository {
     }
   }
 
-  /**
-   * Lấy tất cả báo cáo của một user
-   */
   async getByUserId(userId) {
     try {
       return await Report.find({ userId }).sort({ createdAt: -1 });
@@ -275,9 +223,6 @@ class ReportRepository {
     }
   }
 
-  /**
-   * Tạo báo cáo mới
-   */
   async create(reportData) {
     try {
       const report = new Report(reportData);

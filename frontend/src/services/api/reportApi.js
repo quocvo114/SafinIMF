@@ -34,6 +34,19 @@ export const reportApi = {
     }
   },
 
+  // Lấy dữ liệu nhẹ cho marker bản đồ
+  getMapReports: async () => {
+    try {
+      const response = await axiosClient.get("/reports", {
+        params: { view: "map" },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu marker bản đồ:", error);
+      throw error;
+    }
+  },
+
   // Lấy 1 báo cáo theo ID
   getReportById: async (id) => {
     try {
@@ -86,6 +99,20 @@ export const reportApi = {
       return response.data;
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái báo cáo:", error);
+      throw error;
+    }
+  },
+
+  // PB14: Cập nhật tiến độ xử lý (Đội xử lý upload ảnh sau khắc phục)
+  updateProgress: async (reportId, { afterImg, progressNote }) => {
+    try {
+      const response = await axiosClient.patch(`/reports/${reportId}/progress`, {
+        afterImg,
+        progressNote,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi cập nhật tiến độ xử lý:", error);
       throw error;
     }
   },

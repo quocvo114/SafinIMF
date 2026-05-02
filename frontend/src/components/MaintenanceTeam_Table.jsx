@@ -49,6 +49,13 @@ const normalizeTeam = (team) => ({
   status: team.status || "active",
 });
 
+const AREA_SELECT_OPTIONS = ["Sơn Trà", "Liên Chiểu", "Hải Châu", "Hòa Xuân", "Khuê Trung"];
+
+const inputCls =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none";
+const selectCls =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white";
+
 const MaintenanceTeam_Table = () => {
   const [teams, setTeams] = useState([]);
   const [search, setSearch] = useState("");
@@ -101,9 +108,7 @@ const MaintenanceTeam_Table = () => {
 
   const handleAddTeam = async () => {
     try {
-      if (!formData.name || !formData.leader || !formData.id) {
-        return;
-      }
+      if (!formData.name || !formData.leader || !formData.id) return;
 
       await maintenanceTeamApi.createTeam({
         id: formData.id,
@@ -118,7 +123,7 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể thêm đội xử lý");
+      toast.error(error?.response?.data?.message || "Không thể thêm đội xử lý");
     }
   };
 
@@ -130,9 +135,7 @@ const MaintenanceTeam_Table = () => {
 
   const handleSaveEdit = async () => {
     try {
-      if (!editingTeam) {
-        return;
-      }
+      if (!editingTeam) return;
 
       await maintenanceTeamApi.updateTeam(editingTeam.id, {
         name: formData.name,
@@ -147,17 +150,17 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể cập nhật đội xử lý");
+      toast.error(error?.response?.data?.message || "Không thể cập nhật đội xử lý");
     }
   };
 
   const confirmDelete = async () => {
     try {
       if (!teamToDelete) return;
+      setTeamToDelete(null);
       await maintenanceTeamApi.deleteTeam(teamToDelete.id);
       toast.success("Đã xóa đội xử lý thành công!");
       await fetchTeams();
-      setTeamToDelete(null);
     } catch (error) {
       toast.error(error?.response?.data?.message || "Không thể xóa đội xử lý");
     }
@@ -169,7 +172,7 @@ const MaintenanceTeam_Table = () => {
       await maintenanceTeamApi.updateTeamStatus(id, nextStatus);
       await fetchTeams();
     } catch (error) {
-      alert(
+      toast.error(
         error?.response?.data?.message || "Không thể đổi trạng thái đội xử lý",
       );
     }
@@ -280,9 +283,9 @@ const MaintenanceTeam_Table = () => {
       {/* Add Team Modal */}
       {showAddModal &&
         createPortal(
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+              <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-semibold text-gray-800">
                   Thêm Đội Xử Lý Mới
                 </h3>
@@ -308,7 +311,7 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, id: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className={inputCls}
                     placeholder="Nhập Team ID"
                   />
                 </div>
@@ -323,7 +326,7 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className={inputCls}
                     placeholder="Nhập tên đội"
                   />
                 </div>
@@ -338,7 +341,7 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, leader: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className={inputCls}
                     placeholder="Nhập tên trưởng đội"
                   />
                 </div>
@@ -356,7 +359,7 @@ const MaintenanceTeam_Table = () => {
                         memberCount: parseInt(e.target.value) || 1,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className={inputCls}
                     placeholder="Nhập số lượng"
                     min="1"
                   />
@@ -371,13 +374,11 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, area: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                    className={selectCls}
                   >
-                    <option value="Sơn Trà">Sơn Trà</option>
-                    <option value="Liên Chiểu">Liên Chiểu</option>
-                    <option value="Hải Châu">Hải Châu</option>
-                    <option value="Hòa Xuân">Hòa Xuân</option>
-                    <option value="Khuê Trung">Khuê Trung</option>
+                    {AREA_SELECT_OPTIONS.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -390,7 +391,7 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, status: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                    className={selectCls}
                   >
                     <option value="active">Hoạt Động</option>
                     <option value="inactive">Bị Khóa</option>
@@ -421,12 +422,11 @@ const MaintenanceTeam_Table = () => {
         )}
 
       {/* Edit Team Modal */}
-      {/* Edit Team Modal */}
       {showEditModal &&
         createPortal(
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+              <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-semibold text-gray-800">
                   Chỉnh Sửa Đội
                 </h3>
@@ -453,7 +453,7 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className={inputCls}
                     placeholder="Nhập tên đội"
                   />
                 </div>
@@ -468,7 +468,7 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, leader: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className={inputCls}
                     placeholder="Nhập tên trưởng đội"
                   />
                 </div>
@@ -486,7 +486,7 @@ const MaintenanceTeam_Table = () => {
                         memberCount: parseInt(e.target.value) || 1,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className={inputCls}
                     placeholder="Nhập số lượng"
                     min="1"
                   />
@@ -501,13 +501,11 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, area: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                    className={selectCls}
                   >
-                    <option value="Sơn Trà">Sơn Trà</option>
-                    <option value="Liên Chiểu">Liên Chiểu</option>
-                    <option value="Hải Châu">Hải Châu</option>
-                    <option value="Hòa Xuân">Hòa Xuân</option>
-                    <option value="Khuê Trung">Khuê Trung</option>
+                    {AREA_SELECT_OPTIONS.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -520,7 +518,7 @@ const MaintenanceTeam_Table = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, status: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                    className={selectCls}
                   >
                     <option value="active">Hoạt Động</option>
                     <option value="inactive">Bị Khóa</option>
@@ -582,7 +580,7 @@ const MaintenanceTeam_Table = () => {
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
 
       {/* Bảng */}

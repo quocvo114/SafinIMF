@@ -248,9 +248,51 @@ class GeocodeController {
 
       console.log(`🌍 Reverse geocoding: ${lat}, ${lon}`);
 
+      // Ưu tiên Nominatim TRƯỚC — trả về địa chỉ chi tiết (số nhà, tên đường)
       try {
-        // Thử BigDataCloud API - miễn phí, không cần key, ít rate limit
-        console.log("🔍 Trying BigDataCloud API...");
+        console.log("🌍 Trying Nominatim API (detailed address)...");
+        const response = await axios.get(
+          `https://nominatim.openstreetmap.org/reverse`,
+          {
+            params: {
+              format: "json",
+              lat: lat,
+              lon: lon,
+              addressdetails: 1,
+              zoom: 18, // Mức chi tiết cao nhất — lấy đến số nhà
+              "accept-language": "vi",
+            },
+            headers: {
+              "User-Agent": "ReportApp/1.0 (Contact: admin@example.com)",
+            },
+            timeout: 8000,
+          }
+        );
+
+        const data = response.data;
+        console.log("📡 Nominatim full response:", JSON.stringify(data, null, 2));
+
+        if (data && data.address) {
+          console.log("✅ Nominatim address:", data.address);
+          const normalized = getReadableNominatimAddress(data, lat, lon);
+
+          return res.status(200).json({
+            success: true,
+            data: {
+              address: normalized.address,
+              fullAddress: normalized.fullAddress,
+              details: data.address,
+              source: "nominatim",
+            },
+          });
+        }
+      } catch (nominatimError) {
+        console.log("⚠️ Nominatim failed:", nominatimError.message);
+      }
+
+      // Fallback: BigDataCloud API — chỉ có địa chỉ hành chính (phường, quận, TP)
+      try {
+        console.log("🔍 Trying BigDataCloud API (fallback)...");
         const bigDataResponse = await axios.get(
           `https://api.bigdatacloud.net/data/reverse-geocode-client`,
           {
@@ -275,6 +317,7 @@ class GeocodeController {
               address: normalized.address,
               fullAddress: normalized.fullAddress,
               details: data,
+              source: "bigdatacloud",
             },
           });
         }
@@ -282,64 +325,26 @@ class GeocodeController {
         console.log("⚠️ BigDataCloud failed:", bigDataError.message);
       }
 
-      // Fallback: Thử Nominatim (có thể bị rate limit)
-      console.log("🌍 Trying Nominatim API...");
-      const response = await axios.get(
-        `https://nominatim.openstreetmap.org/reverse`,
-        {
-          params: {
-            format: "json",
-            lat: lat,
-            lon: lon,
-            addressdetails: 1,
-            "accept-language": "vi",
-          },
-          headers: {
-            "User-Agent": "ReportApp/1.0 (Contact: admin@example.com)",
-          },
-          timeout: 5000,
-        }
-      );
-
-      const data = response.data;
-      console.log("📡 Nominatim full response:", JSON.stringify(data, null, 2));
-
-      if (data && data.address) {
-        console.log("✅ Has address object:", data.address);
-        const normalized = getReadableNominatimAddress(data, lat, lon);
-
-        return res.status(200).json({
-          success: true,
-          data: {
-            address: normalized.address,
-            fullAddress: normalized.fullAddress,
-            details: data.address,
-          },
-        });
-      } else {
-        return res.status(200).json({
-          success: true,
-          data: {
-            address: `${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(
-              6
-            )}`,
-            fullAddress: data.display_name || "Không tìm thấy địa chỉ",
-          },
-        });
-      }
-    } catch (error) {
-      console.error("❌ Geocode error:", error.message);
-      const { lat, lon } = req.query;
-      
-      // Trả về tọa độ nếu có lỗi
+      // Cả 2 API đều fail — trả về tọa độ
       return res.status(200).json({
         success: true,
         data: {
-          address: `${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(
-            6
-          )}`,
+          address: `${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(6)}`,
+          fullAddress: "Không tìm thấy địa chỉ",
+          source: "fallback",
+        },
+      });
+    } catch (error) {
+      console.error("❌ Geocode error:", error.message);
+      const { lat, lon } = req.query;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          address: `${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(6)}`,
           fullAddress: "Không thể lấy địa chỉ",
           error: error.message,
+          source: "error",
         },
       });
     }

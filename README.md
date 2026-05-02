@@ -179,12 +179,12 @@ Tăng tốc xử lý
 🗂️ Project Structure (Backend)
 backend/
 │── src/
-│   ├── config/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   └── server.js
+│ ├── config/
+│ ├── controllers/
+│ ├── middleware/
+│ ├── models/
+│ ├── routes/
+│ └── server.js
 🔐 Authentication Flow
 
 User đăng ký → tạo ID custom (TK1, TK2,...)

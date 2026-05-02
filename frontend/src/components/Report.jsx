@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Toast from "./Toast";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
 import { useAuth } from "../context/AuthContext";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -27,14 +28,17 @@ import {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
-const incidentOptions = [
-  { value: "infrastructure", label: "Hạ tầng giao thông" },
-  { value: "lighting", label: "Chiếu sáng công cộng" },
-  { value: "environment", label: "Vệ sinh môi trường" },
-  { value: "water", label: "Cấp thoát nước" },
-  { value: "electricity", label: "Điện lực" },
-  { value: "other", label: "Khác" },
+const LEGACY_INCIDENT_OPTIONS = [
+  { value: "Giao Thông", label: "Giao Thông" },
+  { value: "Điện", label: "Điện" },
+  { value: "Cây Xanh", label: "Cây Xanh" },
+  { value: "CTCC", label: "CTCC" },
 ];
+
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MIN_IMAGES = 1;
+const MAX_IMAGES = 3;
 
 function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
   const navigate = useNavigate();
@@ -47,7 +51,17 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     initialImage ? [initialImage] : [],
   );
   const [location, setLocation] = useState("");
+  const [locationCoordinates, setLocationCoordinates] = useState({
+    lat: null,
+    lng: null,
+  });
+  const [gpsCoordinates, setGpsCoordinates] = useState(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [incidentOptions, setIncidentOptions] = useState(
+    LEGACY_INCIDENT_OPTIONS,
+  );
+  const [incidentTypeLoading, setIncidentTypeLoading] = useState(true);
   const [showCamera, setShowCamera] = useState(false);
   const [stream, setStream] = useState(null);
   const [hasFetchedLocation, setHasFetchedLocation] = useState(false);
@@ -67,12 +81,51 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
   }, [autoOpenCamera]);
 
   useEffect(() => {
-    if (initialImage && !hasFetchedLocation) {
-      getLocation();
+    const fetchIncidentTypes = async () => {
+      try {
+        setIncidentTypeLoading(true);
+        const response = await incidentApi.getIncidentTypes();
+
+        if (response?.success && Array.isArray(response.data)) {
+          const activeOptions = response.data
+            .filter((item) => item?.active !== false)
+            .map((item) => ({
+              value: item.name,
+              label: item.name,
+            }));
+
+          setIncidentOptions(activeOptions);
+          return;
+        }
+
+        setIncidentOptions(LEGACY_INCIDENT_OPTIONS);
+      } catch (error) {
+        console.error("Failed to fetch incident types:", error);
+        setIncidentOptions(LEGACY_INCIDENT_OPTIONS);
+      } finally {
+        setIncidentTypeLoading(false);
+      }
+    };
+
+    fetchIncidentTypes();
+  }, []);
+
+  useEffect(() => {
+    if (
+      incidentType &&
+      !incidentOptions.some((option) => option.value === incidentType)
+    ) {
+      setIncidentType("");
+    }
+  }, [incidentType, incidentOptions]);
+
+  useEffect(() => {
+    if (!hasFetchedLocation && !location) {
       setHasFetchedLocation(true);
+      getLocation();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialImage]);
+  }, [hasFetchedLocation, location]);
 
   const showErrorToast = (message) => {
     setToast({ message, type: "error" });
@@ -84,10 +137,10 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
   const validateFiles = (files) => {
     const currentCount = uploadedImages.length;
-    const remainingSlots = 5 - currentCount;
+    const remainingSlots = MAX_IMAGES - currentCount;
 
     if (remainingSlots <= 0) {
-      showErrorToast("Bạn chỉ được tải tối đa 5 ảnh.");
+      showErrorToast(`Bạn chỉ được tải tối đa ${MAX_IMAGES} ảnh.`);
       return [];
     }
 
@@ -95,13 +148,13 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     const validFiles = [];
 
     for (const file of selectedFiles) {
-      if (!file.type.startsWith("image/")) {
-        showErrorToast(`File "${file.name}" không phải là hình ảnh.`);
+      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+        showErrorToast(`File "${file.name}" phải là JPG hoặc PNG.`);
         continue;
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        showErrorToast(`Ảnh "${file.name}" vượt quá 10MB.`);
+      if (file.size > MAX_IMAGE_BYTES) {
+        showErrorToast(`Ảnh "${file.name}" vượt quá 5MB.`);
         continue;
       }
 
@@ -132,6 +185,40 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     }
   };
 
+  const validateBase64ImagesForSubmit = (images) => {
+    for (let i = 0; i < images.length; i += 1) {
+      const image = images[i];
+      if (typeof image !== "string" || !image.trim()) {
+        showErrorToast(`Ảnh thứ ${i + 1} không hợp lệ.`);
+        return false;
+      }
+
+      const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i.exec(
+        image.trim(),
+      );
+      if (!match) {
+        showErrorToast(`Ảnh thứ ${i + 1} phải ở định dạng JPG/PNG.`);
+        return false;
+      }
+
+      const mimeType = match[1].toLowerCase();
+      if (!ALLOWED_IMAGE_TYPES.has(mimeType)) {
+        showErrorToast(`Ảnh thứ ${i + 1} phải là JPG hoặc PNG.`);
+        return false;
+      }
+
+      const base64Payload = match[2].replace(/\s/g, "");
+      const bytes = Math.floor((base64Payload.length * 3) / 4);
+      if (bytes > MAX_IMAGE_BYTES) {
+        showErrorToast(`Ảnh thứ ${i + 1} vượt quá 5MB.`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  // Upload ảnh chỉ thêm ảnh, vị trí hiện tại đã được lấy tự động khi mở form
   const handleImageUpload = async (e) => {
     const files = validateFiles(e.target.files || []);
     if (!files.length) return;
@@ -199,7 +286,15 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { latitude, longitude } = position.coords;
+        const { latitude, longitude, accuracy } = position.coords;
+        setLocationCoordinates({ lat: latitude, lng: longitude });
+        setGpsCoordinates({ latitude, longitude });
+        setGpsAccuracy(accuracy);
+
+        console.log(`📍 GPS accuracy: ${Math.round(accuracy)}m`);
+        if (accuracy > 100) {
+          console.warn("⚠️ GPS accuracy thấp (>100m). Vị trí có thể không chính xác.");
+        }
 
         try {
           // Thử lấy địa chỉ chi tiết từ Nominatim (OpenStreetMap)
@@ -324,7 +419,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0,
       },
     );
@@ -332,8 +427,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
   const openCamera = async () => {
     try {
-      if (uploadedImages.length >= 5) {
-        showErrorToast("Bạn chỉ được tải tối đa 5 ảnh.");
+      if (uploadedImages.length >= MAX_IMAGES) {
+        showErrorToast(`Bạn chỉ được tải tối đa ${MAX_IMAGES} ảnh.`);
         return;
       }
 
@@ -373,8 +468,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
-    if (uploadedImages.length >= 5) {
-      showErrorToast("Bạn chỉ được tải tối đa 5 ảnh.");
+    if (uploadedImages.length >= MAX_IMAGES) {
+      showErrorToast(`Bạn chỉ được tải tối đa ${MAX_IMAGES} ảnh.`);
       return;
     }
 
@@ -415,6 +510,9 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     setDescription("");
     setUploadedImages([]);
     setLocation("");
+    setLocationCoordinates({ lat: null, lng: null });
+    setGpsCoordinates(null);
+    setGpsAccuracy(null);
     setHasFetchedLocation(false);
     setDragActive(false);
   };
@@ -425,6 +523,29 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     onClose && onClose();
   };
 
+  const geocodeAddress = async (address) => {
+    if (!address) return { lat: null, lng: null };
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&addressdetails=1&accept-language=vi`,
+        {
+          headers: {
+            "User-Agent": "ReportApp/1.0 (Contact: admin@example.com)",
+          },
+        },
+      );
+      if (!response.ok) return { lat: null, lng: null };
+      const result = await response.json();
+      if (!Array.isArray(result) || result.length === 0) return { lat: null, lng: null };
+      const lat = parseFloat(result[0]?.lat);
+      const lng = parseFloat(result[0]?.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+      return { lat: null, lng: null };
+    } catch {
+      return { lat: null, lng: null };
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -432,15 +553,33 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       return;
     }
 
-    if (!title || !incidentType || uploadedImages.length === 0) {
-      showErrorToast("Vui lòng điền đầy đủ thông tin bắt buộc để gửi báo cáo.");
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+
+    if (!trimmedTitle || !incidentType) {
+      alert("Vui lòng điền đầy đủ các trường bắt buộc");
       return;
     }
 
-    if (!location) {
-      showErrorToast(
-        "Vui lòng nhập vị trí hoặc bật định vị GPS để hệ thống ghi nhận.",
-      );
+    if (trimmedDescription.length < 5 || trimmedDescription.length > 500) {
+      showErrorToast("Mô tả phải từ 5 đến 500 ký tự.");
+      return;
+    }
+
+    if (
+      uploadedImages.length < MIN_IMAGES ||
+      uploadedImages.length > MAX_IMAGES
+    ) {
+      showErrorToast(`Bạn cần tải từ ${MIN_IMAGES} đến ${MAX_IMAGES} ảnh.`);
+      return;
+    }
+
+    if (!validateBase64ImagesForSubmit(uploadedImages)) {
+      return;
+    }
+
+    if (!location && !gpsCoordinates) {
+      alert("Vui lòng nhập vị trí hoặc cho phép truy cập GPS");
       return;
     }
 
@@ -454,21 +593,31 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     let keepSubmitting = false;
 
     try {
-      const typeMapping = {
-        infrastructure: "Giao Thông",
-        lighting: "Điện",
-        environment: "Cây Xanh",
-        water: "Cây Xanh",
-        electricity: "Điện",
-        other: "CTCC",
-      };
+      let submitLat = null;
+      let submitLng = null;
+
+      if (Number.isFinite(locationCoordinates.lat) && Number.isFinite(locationCoordinates.lng)) {
+        submitLat = Number(locationCoordinates.lat);
+        submitLng = Number(locationCoordinates.lng);
+      } else if (gpsCoordinates) {
+        submitLat = gpsCoordinates.latitude;
+        submitLng = gpsCoordinates.longitude;
+      } else if (location) {
+        const geocoded = await geocodeAddress(location);
+        submitLat = geocoded.lat;
+        submitLng = geocoded.lng;
+      }
 
       const reportData = {
         userId,
-        title,
-        type: typeMapping[incidentType] || "CTCC",
-        location,
-        description,
+        title: trimmedTitle,
+        type: incidentType,
+        location: location || (gpsCoordinates ? `${gpsCoordinates.latitude}, ${gpsCoordinates.longitude}` : "Chưa xác định"),
+        latitude: submitLat,
+        longitude: submitLng,
+        lat: submitLat,
+        lng: submitLng,
+        description: trimmedDescription,
         images: uploadedImages,
       };
 
@@ -567,18 +716,37 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                               : "border-transparent !bg-[#f4f5f6] text-[#9b9b9b] data-[placeholder]:!text-[#9b9b9b]"
                           }`}
                         >
-                          <SelectValue placeholder="Chọn loại sự cố" />
+                          <SelectValue
+                            placeholder={
+                              incidentTypeLoading
+                                ? "Đang tải loại sự cố..."
+                                : "Chọn loại sự cố"
+                            }
+                          />
                         </SelectTrigger>
-                        <SelectContent className="z-[10000] max-h-[200px] overflow-y-auto overflow-x-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_12px_30px_rgba(0,0,0,0.12)] custom-scrollbar">
-                          {incidentOptions.map((option) => (
+                        <SelectContent
+                          position="popper"
+                          className="z-[10020] w-[var(--radix-select-trigger-width)] max-h-[260px] rounded-xl border border-gray-100 bg-white p-1 text-sm shadow-[0_12px_30px_rgba(0,0,0,0.12)]"
+                        >
+                          {incidentOptions.length > 0 ? (
+                            incidentOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                className="rounded-lg py-2 text-sm font-normal text-[#222] focus:bg-[#f5f6ff] focus:text-[#3b3df5] data-[state=checked]:font-medium"
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))
+                          ) : (
                             <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              className="w-full cursor-pointer px-4 py-3 text-left text-sm transition hover:bg-[#f5f6ff] focus:bg-[#f5f6ff] data-[state=checked]:bg-[#f5f6ff] data-[state=checked]:font-semibold data-[state=checked]:text-[#3b3df5]"
+                              value="__no_incident_type"
+                              disabled
+                              className="rounded-lg py-2 text-sm text-gray-400"
                             >
-                              {option.label}
+                              Chưa có loại sự cố khả dụng
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -606,7 +774,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                       Hình ảnh sự cố
                     </h3>
                     <p className="mt-0.5 text-xs text-[#8b8b8b]">
-                      Định dạng JPG, PNG (Tối đa 10MB)
+                      Định dạng JPG, PNG (1-3 ảnh, tối đa 5MB/ảnh)
                     </p>
                   </div>
 
@@ -665,7 +833,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                         </div>
 
                         <p className="text-center text-[11px] text-[#8b8b8b]">
-                          Đã tải {uploadedImages.length}/5 ảnh
+                          Đã tải {uploadedImages.length}/{MAX_IMAGES} ảnh
                         </p>
                       </div>
                     ) : (
@@ -707,7 +875,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png"
                       multiple
                       onChange={handleImageUpload}
                       className="hidden"
@@ -726,7 +894,11 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                       <Input
                         type="text"
                         value={location}
-                        onChange={(e) => setLocation(e.target.value)}
+                        onChange={(e) => {
+                          setLocation(e.target.value);
+                          setLocationCoordinates({ lat: null, lng: null });
+                          setGpsAccuracy(null);
+                        }}
                         disabled={locationLoading}
                         placeholder="Nhập vị trí sự cố (Ví dụ: 03 Quang Trung, Hải Châu, ĐN)"
                         className="h-11 py-0 w-full rounded-xl border border-transparent !bg-white !pl-10 pr-4 text-sm text-[#222] outline-none transition placeholder:text-[#9b9b9b] focus:border-[#5d5fef] focus:ring-4 focus:ring-[#5d5fef]/10 disabled:cursor-not-allowed disabled:opacity-70 shadow-none"
@@ -740,6 +912,21 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                         cho đội xử lý tiến hành khắc phục.
                       </p>
                     </div>
+                    {gpsAccuracy !== null && gpsAccuracy > 100 && (
+                      <div className="mt-2 flex items-start gap-1.5 leading-4 text-amber-600">
+                        <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                        <p className="text-[10.5px] tracking-tight">
+                          ⚠️ Độ chính xác GPS thấp (~{Math.round(gpsAccuracy)}m). Nên nhập địa chỉ thủ công để chính xác hơn.
+                        </p>
+                      </div>
+                    )}
+                    {gpsAccuracy !== null && gpsAccuracy <= 100 && (
+                      <div className="mt-2 flex items-start gap-1.5 leading-4 text-green-600">
+                        <p className="text-[10.5px] tracking-tight">
+                          ✓ GPS chính xác ~{Math.round(gpsAccuracy)}m
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-auto flex flex-col-reverse gap-2 pt-6 sm:flex-row sm:justify-end">

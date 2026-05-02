@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, House, Megaphone } from "lucide-react";
+import Toast from "../components/Toast";
 import ReportDetail from "../components/ReportDetail";
+import { formatLocationDisplay } from "../utils/formatLocation";
 import ReportReviews from "../components/ReportReviews";
 import UserSidebar from "../components/UserSidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
@@ -118,7 +120,7 @@ export default function MyReports() {
   return (
     <div className="w-full h-screen overflow-hidden bg-gray-100 flex flex-col relative">
       {/* Floating Sidebar */}
-      <div className="absolute left-6 top-4 z-10">
+      <div className="absolute left-4 top-4 z-10">
         <SidebarProvider>
           <UserSidebar />
         </SidebarProvider>
@@ -127,7 +129,7 @@ export default function MyReports() {
       {/* MAIN CONTENT */}
       <div
         className="flex-1 overflow-y-auto p-6"
-        style={{ marginLeft: "7rem" }}
+        style={{ marginLeft: "var(--user-sidebar-offset, 6rem)" }}
       >
         {/* HEADER - Title + Search */}
         <div className="flex items-center justify-between mb-6">
@@ -268,7 +270,9 @@ export default function MyReports() {
                         {item.type}
                       </span>
                     </td>
-                    <td className="p-3">{item.location}</td>
+                    <td className="p-3">
+                      {formatLocationDisplay(item.location)}
+                    </td>
                     <td className="p-3">
                       <span
                         className={`text-white px-3 py-1 rounded-full text-xs ${

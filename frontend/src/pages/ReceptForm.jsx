@@ -12,14 +12,16 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { reportApi } from "../services/api/reportApi";
 import { areaApi } from "../services/api/areaApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import ReportDetailQLKV from "../components/ReportDetail-QLKV";
+import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
 
 const TYPE_OPTIONS = ["all", "Giao Thông", "Điện", "Cây Xanh", "CTCC"];
 const STATUS_OPTIONS = ["all", "Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
 
 const CATEGORY_COLORS = {
   "Giao Thông": "#f97316",
-  "Điện": "#fdca00",
+  Điện: "#fdca00",
   "Cây Xanh": "#16a34a",
   CTCC: "#b78ff2",
 };
@@ -54,6 +56,44 @@ const getCategoryConfig = (category) => {
 
 const STATUS_FLOW = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
 
+function mapMaintenanceTeamsToAssignOptions(teams = []) {
+  return teams
+    .map((team) => {
+      const teamId = team?.team_id || team?.id;
+      if (!teamId) return null;
+
+      const rawCases =
+        team?.cases ??
+        team?.caseCount ??
+        team?.currentCases ??
+        team?.assignedCount ??
+        0;
+      const rawMaxCases =
+        team?.maxCases ?? team?.capacity ?? team?.max_cases ?? 5;
+
+      const cases = Number.isFinite(Number(rawCases)) ? Number(rawCases) : 0;
+      const maxCases = Number.isFinite(Number(rawMaxCases))
+        ? Number(rawMaxCases)
+        : 5;
+
+      return {
+        id: teamId,
+        name: team?.name || "Đội xử lý",
+        status: team?.status || "active",
+        specialty:
+          team?.specialty ||
+          team?.field ||
+          team?.domain ||
+          team?.area ||
+          "Chưa rõ lĩnh vực",
+        distance: team?.distance || "--",
+        cases,
+        maxCases: Math.max(maxCases, 1),
+      };
+    })
+    .filter(Boolean);
+}
+
 function getNextStatus(currentStatus) {
   const index = STATUS_FLOW.indexOf(currentStatus);
 
@@ -80,6 +120,8 @@ const ReceptForm = () => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedReport, setSelectedReport] = useState(null);
+  const [assigningReport, setAssigningReport] = useState(null);
+  const [assignTeams, setAssignTeams] = useState(null);
 
   const [areas, setAreas] = useState([]);
   const [selectedArea, setSelectedArea] = useState("all");
@@ -146,7 +188,8 @@ const ReceptForm = () => {
         setReports([]);
         setTotalPages(1);
         setErrorMessage(
-          error?.response?.data?.message || "Không tải được dữ liệu đơn tiếp nhận"
+          error?.response?.data?.message ||
+            "Không tải được dữ liệu đơn tiếp nhận",
         );
       } finally {
         setLoading(false);
@@ -193,10 +236,18 @@ const ReceptForm = () => {
         team: selectedReport.team || selectedReport.handlerTeam,
         reporter: selectedReport.reporter,
         location: selectedReport.location || "Chưa có vị trí",
-        description: selectedReport.description || "Chưa có mô tả cho báo cáo này.",
+        description:
+          selectedReport.description || "Chưa có mô tả cho báo cáo này.",
+        lat: selectedReport.lat,
+        lng: selectedReport.lng,
+        reportLatitude: selectedReport.reportLatitude,
+        reportLongitude: selectedReport.reportLongitude,
+        confidenceScore: selectedReport.confidenceScore,
+        scoringDetails: selectedReport.scoringDetails,
         image: selectedReport.image || selectedReport.images?.[0] || "",
         images:
-          Array.isArray(selectedReport.images) && selectedReport.images.length > 0
+          Array.isArray(selectedReport.images) &&
+          selectedReport.images.length > 0
             ? selectedReport.images
             : [selectedReport.image || "", selectedReport.afterImage || ""],
       }
@@ -204,16 +255,24 @@ const ReceptForm = () => {
 
   const handleCloseDetail = () => setSelectedReport(null);
 
-  const syncReportStatus = (reportId, nextStatus) => {
+  const syncReportStatus = (reportId, nextStatus, assignedTeamName) => {
+    const teamPatch = assignedTeamName
+      ? { team: assignedTeamName, handlerTeam: assignedTeamName }
+      : {};
+
     setReports((prev) =>
       prev.map((item) => {
         const itemId = item.id || item.report_id;
-        return itemId === reportId ? { ...item, status: nextStatus } : item;
+        return itemId === reportId
+          ? { ...item, status: nextStatus, ...teamPatch }
+          : item;
       }),
     );
 
     setSelectedReport((prev) =>
-      prev ? { ...prev, status: nextStatus } : prev,
+      prev && (prev.id || prev.report_id) === reportId
+        ? { ...prev, status: nextStatus, ...teamPatch }
+        : prev,
     );
   };
 
@@ -233,20 +292,55 @@ const ReceptForm = () => {
       syncReportStatus(reportId, nextStatus);
     } catch (error) {
       setErrorMessage(
-        error?.response?.data?.message || "Không thể cập nhật trạng thái báo cáo",
+        error?.response?.data?.message ||
+          "Không thể cập nhật trạng thái báo cáo",
       );
     }
   };
 
   const handleSendProcess = async (report) => {
-    const reportId = report?.report_id || report?.id;
+    if (!report) {
+      return;
+    }
+
+    setSelectedReport(null);
+    setAssigningReport(report);
+    setAssignTeams(null);
+
+    try {
+      const response = await maintenanceTeamApi.getTeams({
+        page: 1,
+        limit: 50,
+        status: "active",
+      });
+      setAssignTeams(mapMaintenanceTeamsToAssignOptions(response?.data || []));
+    } catch (error) {
+      setAssignTeams(null);
+    }
+  };
+
+  const handleCloseAssignTeam = () => {
+    setAssigningReport(null);
+    setAssignTeams(null);
+  };
+
+  const handleCancelAssignTeam = () => {
+    if (assigningReport) {
+      setSelectedReport(assigningReport);
+    }
+    handleCloseAssignTeam();
+  };
+
+  const handleAssignTeam = async (team) => {
+    const reportId = assigningReport?.report_id || assigningReport?.id;
     if (!reportId) {
       return;
     }
 
     try {
       await reportApi.updateReportStatus(reportId, "Đang Xử Lý");
-      syncReportStatus(reportId, "Đang Xử Lý");
+      syncReportStatus(reportId, "Đang Xử Lý", team?.name);
+      handleCloseAssignTeam();
     } catch (error) {
       setErrorMessage(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
@@ -528,6 +622,18 @@ const ReceptForm = () => {
         close={handleCloseDetail}
         onUpdateStatus={handleUpdateStatus}
         onSendProcess={handleSendProcess}
+      />
+
+      <AssignMaintenanceTeam
+        open={Boolean(assigningReport)}
+        reportCode={
+          assigningReport?.id || assigningReport?.report_id || "BCGT3101"
+        }
+        reportType={assigningReport?.type || assigningReport?.category}
+        teams={assignTeams ?? []}
+        onClose={handleCloseAssignTeam}
+        onCancel={handleCancelAssignTeam}
+        onAssign={handleAssignTeam}
       />
     </div>
   );

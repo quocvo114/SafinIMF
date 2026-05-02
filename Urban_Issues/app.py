@@ -5,14 +5,30 @@ from PIL import Image, UnidentifiedImageError
 import io
 import base64
 from pathlib import Path
+import logging
 
 app = Flask(__name__)
 CORS(app)
 
-# Load the trained model
-BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / 'best.pt'
-model = YOLO(str(MODEL_PATH))
+# Resolve trained model path relative to this file and load safely
+MODEL_PATH = Path(__file__).parent / 'best.pt'
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+model = None
+try:
+    if MODEL_PATH.exists():
+        logging.info(f"Loading model from {MODEL_PATH}")
+        model = YOLO(str(MODEL_PATH))
+        logging.info("Model loaded successfully")
+    else:
+        logging.error(f"Model file not found at {MODEL_PATH}")
+except Exception as e:
+    logging.exception("Failed to load model:")
 
 CLASS_NAMES = [
     'Road cracks', 'Pothole', 'Illegal Parking', 'Broken Road Sign',
@@ -50,27 +66,30 @@ def health():
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
+        # Ensure model is available
+        if model is None:
+            logging.error("[predict] Model not loaded on server")
+            return jsonify({'error': 'Model not loaded on server'}), 500
+
         # Get image from request
         if 'image' not in request.files:
+            logging.warning("[predict] Request missing 'image' field")
             return jsonify({'error': 'No image provided'}), 400
-        
+
         file = request.files['image']
         if file.filename == '':
+            logging.warning("[predict] Empty filename received")
             return jsonify({'error': 'No file selected'}), 400
-        
-        # Read and process image
-        file_bytes = file.read()
-        if not file_bytes:
-            return jsonify({'error': 'Uploaded file is empty'}), 400
 
-        try:
-            image = Image.open(io.BytesIO(file_bytes)).convert('RGB')
-        except UnidentifiedImageError:
-            return jsonify({'error': 'Invalid image file'}), 400
-        
+        logging.info(f"[predict] Received image: {file.filename}")
+
+        # Read and process image
+        image = Image.open(io.BytesIO(file.read()))
+        logging.info(f"[predict] Image size: {image.size}, mode: {image.mode}")
+
         # Run inference
         results = model(image, conf=0.25)
-        
+
         # Parse results
         detections = []
         for result in results:
@@ -78,10 +97,10 @@ def predict():
                 for i, box in enumerate(result.boxes):
                     class_id = int(box.cls.item())
                     confidence = float(box.conf.item())
-                    
+
                     # Get coordinates
                     xyxy = box.xyxy[0].cpu().numpy()
-                    
+
                     detections.append({
                         'class_id': class_id,
                         'class_name': _get_class_name(class_id),
@@ -93,24 +112,38 @@ def predict():
                             'y_max': float(xyxy[3])
                         }
                     })
-        
+
+        logging.info(f"[predict] Total detections: {len(detections)}")
+        for d in detections:
+            logging.info(
+                f"  → class={d['class_name']} | confidence={d['confidence']:.4f} "
+                f"| bbox=[{d['bbox']['x_min']:.1f},{d['bbox']['y_min']:.1f},"
+                f"{d['bbox']['x_max']:.1f},{d['bbox']['y_max']:.1f}]"
+            )
+
+        if len(detections) == 0:
+            logging.warning(f"[predict] No objects detected in {file.filename}")
+
         # Annotate image
         annotated_img = results[0].plot()
         img_pil = Image.fromarray(annotated_img)
-        
+
         # Convert to base64 for response
         buffered = io.BytesIO()
         img_pil.save(buffered, format='JPEG')
         img_base64 = base64.b64encode(buffered.getvalue()).decode()
-        
+
+        logging.info(f"[predict] Returning {len(detections)} detections for {file.filename}")
+
         return jsonify({
             'success': True,
             'detections': detections,
             'image': f'data:image/jpeg;base64,{img_base64}',
             'total_objects': len(detections)
         }), 200
-    
+
     except Exception as e:
+        logging.exception(f"[predict] Unexpected error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/classes', methods=['GET'])
@@ -118,4 +151,4 @@ def get_classes():
     return jsonify({'classes': CLASS_NAMES}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5001)

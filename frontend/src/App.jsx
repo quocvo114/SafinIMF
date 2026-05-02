@@ -40,7 +40,9 @@ function App() {
   return (
     <AuthProvider>
       <TooltipProvider>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Router
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <Routes>
             {/* Public */}
             <Route path="/" element={<PublicPage />} />

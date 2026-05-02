@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import ReportDetailQLKV from "../components/ReportDetail-QLKV";
+import { formatLocationDisplay } from "../utils/formatLocation";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
 
 const ReportManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -8,6 +11,7 @@ const ReportManagement = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [reports, setReports] = useState([]);
+  const [incidentTypes, setIncidentTypes] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -40,6 +44,24 @@ const ReportManagement = () => {
     }
   };
 
+  const fetchIncidentTypes = async () => {
+    try {
+      const response = await incidentApi.getIncidentTypes();
+      if (response?.success && Array.isArray(response.data)) {
+        setIncidentTypes(response.data.filter((item) => item?.name));
+      } else {
+        setIncidentTypes([]);
+      }
+    } catch (error) {
+      console.error("Không thể tải danh mục loại sự cố:", error);
+      setIncidentTypes([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchIncidentTypes();
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchManagementReports();
@@ -48,19 +70,30 @@ const ReportManagement = () => {
     return () => clearTimeout(timer);
   }, [searchQuery, selectedCategory, selectedStatus, currentPage]);
 
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case "Giao Thông":
-        return "#f97316";
-      case "Điện":
-        return "#eab308";
-      case "Cây Xanh":
-        return "#22c55e";
-      case "CTCC":
-        return "#a855f7";
-      default:
-        return "#6b7280";
+  const categoryOptions = useMemo(() => {
+    const activeTypes = incidentTypes.map((item) => item.name).filter(Boolean);
+    const historicalTypes = reports.map((item) => item.type).filter(Boolean);
+    return ["all", ...new Set([...activeTypes, ...historicalTypes])];
+  }, [incidentTypes, reports]);
+
+  const categoryColorMap = useMemo(() => {
+    return incidentTypes.reduce((acc, item) => {
+      if (item?.name && item?.color) {
+        acc[item.name] = item.color;
+      }
+      return acc;
+    }, {});
+  }, [incidentTypes]);
+
+  useEffect(() => {
+    if (selectedCategory !== "all" && !categoryOptions.includes(selectedCategory)) {
+      setSelectedCategory("all");
+      setCurrentPage(1);
     }
+  }, [selectedCategory, categoryOptions]);
+
+  const getCategoryColor = (category) => {
+    return categoryColorMap[category] || "#6b7280";
   };
 
   const getStatusColor = (status) => {
@@ -123,11 +156,11 @@ const ReportManagement = () => {
             onChange={handleCategoryChange}
             className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white cursor-pointer"
           >
-            <option value="all">Tất Cả Các Loại</option>
-            <option value="Giao Thông">Giao Thông</option>
-            <option value="Điện">Điện</option>
-            <option value="Cây Xanh">Cây Xanh</option>
-            <option value="CTCC">CTCC</option>
+            {categoryOptions.map((type) => (
+              <option key={type} value={type}>
+                {type === "all" ? "Tất Cả Các Loại" : type}
+              </option>
+            ))}
           </select>
 
           {/* Status Filter */}
@@ -204,8 +237,8 @@ const ReportManagement = () => {
                           {report.type}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-sm text-gray-700">
-                        {report.location}
+                      <td className="w-1/4 px-4 py-3 text-sm font-medium text-gray-900 border-b border-gray-100 max-w-[200px] truncate">
+                        {formatLocationDisplay(report.location)}
                       </td>
                       <td className="py-4 px-4">
                         <span

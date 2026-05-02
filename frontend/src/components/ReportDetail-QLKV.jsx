@@ -9,11 +9,12 @@ import {
   Send,
   Users,
   X,
+  Shield,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Skeleton } from "./ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import {
   Dialog,
   DialogClose,
@@ -22,6 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import ImageViewer from "./ImageViewer";
+import LocationMapInline from "./LocationMapInline";
 
 function normalizeTypeKey(type) {
   return String(type || "")
@@ -120,6 +123,14 @@ function getIconToneClass(tone = "blue") {
     return "bg-[#74C200] text-[#B0FF3B]";
   }
 
+  if (tone === "status-error") {
+    return "bg-[#FEE2E2] text-[#EF4444]";
+  }
+
+  if (tone === "status-warning") {
+    return "bg-[#FFEDD5] text-[#F97316]";
+  }
+
   return "bg-[#DCEEFF] text-[#3B82F6]";
 }
 
@@ -141,6 +152,28 @@ function getStatusIconTone(status) {
   return "status-waiting";
 }
 
+function getConfidenceColorClass(score) {
+  if (score === null || score === undefined) return "text-zinc-500";
+  if (score >= 80) return "text-[#65a30d]"; // Green
+  if (score >= 70) return "text-[#eab308]"; // Yellow
+  if (score >= 50) return "text-[#f97316]"; // Orange
+  return "text-[#ef4444]"; // Red
+}
+
+function getConfidenceIconTone(score) {
+  if (score === null || score === undefined) return "status-waiting";
+  if (score >= 80) return "status-resolved";
+  if (score >= 70) return "status-processing";
+  if (score >= 50) return "status-warning";
+  return "status-error";
+}
+
+function getConfidenceValue(score, details) {
+  if (score === null || score === undefined) return "Chưa đánh giá";
+  const level = details?.level || "";
+  return `${score}% ${level ? `- ${level}` : ""}`;
+}
+
 function InfoBlock({
   icon: Icon,
   label,
@@ -148,26 +181,87 @@ function InfoBlock({
   valueClassName = "",
   iconTone = "blue",
   className = "",
+  onClick,
 }) {
   const normalizedValue = value || "Chưa có dữ liệu";
 
   return (
-    <div className={`flex items-start gap-3 ${className}`}>
+    <div className={`flex items-center gap-2.5 ${className}`} onClick={onClick}>
       <div
-        className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${getIconToneClass(iconTone)}`}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${getIconToneClass(iconTone)}`}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-400">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
           {label}
         </p>
         <p
-          className={`mt-0.5 break-words text-[15px] font-semibold leading-tight text-zinc-900 ${valueClassName}`}
+          className={`mt-0.5 break-words text-[14px] font-semibold leading-tight text-zinc-900 truncate ${valueClassName}`}
         >
           {normalizedValue}
         </p>
       </div>
+    </div>
+  );
+}
+
+function formatLocationDisplay(loc) {
+  if (!loc) return "Chưa có vị trí";
+  // Extract content inside parentheses: "lat, lng (Address)" -> "Address"
+  const match = loc.match(/\(([^)]+)\)/);
+  if (match && match[1]) {
+    const inside = match[1].trim();
+    // Check if the inside part is just another coordinate pair
+    if (!/^[\d.-]+,\s*[\d.-]+$/.test(inside)) {
+      return inside;
+    }
+  }
+  // If no parentheses, but starts with coordinates: "lat, lng"
+  if (/^[\d.-]+,\s*[\d.-]+$/.test(loc.trim())) {
+    return "Đang chờ cập nhật địa chỉ..."; // Or just return the coordinates if needed
+  }
+  return loc;
+}
+
+function ConfidenceScoreWidget({ score, details }) {
+  const hasScore = score !== null && score !== undefined;
+
+  const levelConfig = (() => {
+    if (!hasScore)
+      return { color: "text-zinc-400", bg: "bg-zinc-100", border: "border-zinc-200", label: "Chưa đánh giá" };
+    if (score >= 90)
+      return { color: "text-[#15803d]", bg: "bg-[#dcfce7]", border: "border-[#86efac]", label: "Rất tin cậy" };
+    if (score >= 80)
+      return { color: "text-[#166534]", bg: "bg-[#f0fdf4]", border: "border-[#bbf7d0]", label: "Tin cậy cao" };
+    if (score >= 70)
+      return { color: "text-[#854d0e]", bg: "bg-[#fefce8]", border: "border-[#fef08a]", label: "Tin cậy TB" };
+    if (score >= 50)
+      return { color: "text-[#9a3412]", bg: "bg-[#fff7ed]", border: "border-[#fdba74]", label: "Tin cậy thấp" };
+    return { color: "text-[#991b1b]", bg: "bg-[#fef2f2]", border: "border-[#fca5a5]", label: "Không đủ tin cậy" };
+  })();
+
+  const ScoreIcon = !hasScore ? Shield : score >= 80 ? ShieldCheck : score >= 50 ? Shield : ShieldAlert;
+
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border ${levelConfig.border} ${levelConfig.bg} px-3.5 py-2.5`}>
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${levelConfig.bg} ${levelConfig.color}`}>
+        <ScoreIcon className="h-5 w-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-bold uppercase tracking-wider text-zinc-500`}>Độ tin cậy AI</span>
+          {hasScore && (
+            <span className={`text-base font-black ${levelConfig.color}`}>{score}%</span>
+          )}
+        </div>
+        <span className={`text-sm font-semibold ${levelConfig.color}`}>{levelConfig.label}</span>
+      </div>
+      {hasScore && (
+        <div className="w-20 h-2 rounded-full bg-zinc-200 overflow-hidden shrink-0">
+          <div className={`h-full rounded-full ${levelConfig.color.replace("text-", "bg-")}`} style={{ width: `${score}%` }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -185,6 +279,35 @@ export default function ReportDetailQLKV({
   const beforeImage = resolveImage(data, 0);
   const afterImage = resolveImage(data, 1);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
+  const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
+
+  const allImages = [beforeImage, afterImage].filter(Boolean);
+
+  const openImageViewer = (index) => {
+    setImageViewer({ open: true, index });
+  };
+
+  // Parse lat/lng from report
+  const parseCoord = (value, min, max) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num >= min && num <= max ? num : null;
+  };
+
+  const reportLat =
+    parseCoord(data?.lat ?? data?.reportLatitude, -90, 90) ??
+    (() => {
+      const m = String(data?.location || "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+      return m ? parseCoord(m[1], -90, 90) : null;
+    })();
+
+  const reportLng =
+    parseCoord(data?.lng ?? data?.reportLongitude, -180, 180) ??
+    (() => {
+      const m = String(data?.location || "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+      return m ? parseCoord(m[2], -180, 180) : null;
+    })();
+
+  const displayLocation = formatLocationDisplay(data.location);
 
   useEffect(() => {
     setAfterImageFailed(false);
@@ -197,54 +320,71 @@ export default function ReportDetailQLKV({
   const teamName = data.team || data.handlerTeam || "Chưa phân công";
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && close?.()}>
-      <DialogContent
-        showCloseButton={false}
-        className="z-[70] flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-[620px] flex-col gap-0 overflow-hidden rounded-[24px] border border-[#e5e7eb] bg-[#f3f4f6] p-0 shadow-2xl sm:w-[calc(100vw-3rem)] sm:!max-w-[620px]"
-      >
-        <DialogHeader className="px-4 pb-2 pt-4 sm:px-5 sm:pt-5">
-          <div className="flex items-start justify-between gap-3">
-            <DialogTitle className="text-[18px] font-bold leading-tight text-zinc-900 sm:text-[20px]">
-              Chi tiết báo cáo
-            </DialogTitle>
-            <DialogClose asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 rounded-full bg-[#ebebeb] text-zinc-500 hover:bg-zinc-200"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogClose>
-          </div>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && close?.()}>
+        <DialogContent
+          showCloseButton={false}
+          className="z-[70] flex max-h-[98vh] w-[calc(100vw-1.5rem)] max-w-[660px] flex-col gap-0 overflow-hidden rounded-[24px] border border-[#e5e7eb] bg-[#f3f4f6] p-0 shadow-2xl sm:w-[calc(100vw-3rem)] sm:!max-w-[660px]"
+        >
+        <DialogHeader className="flex items-center justify-between flex-row px-6 pt-5 pb-3 border-b border-[#d8dde5] shrink-0">
+          <DialogTitle className="text-xl font-bold leading-tight text-zinc-900">
+            Chi tiết báo cáo
+          </DialogTitle>
+          <DialogClose asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 rounded-full bg-[#ebebeb] text-zinc-500 hover:bg-zinc-200"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogClose>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           <div className="flex flex-col gap-3.5">
-            <Badge
-              className={`w-fit rounded-full px-3 py-1 text-[11px] font-semibold leading-none ${getTypeBadgeClass(data.type)}`}
-            >
-              {data.type || "Khác"}
-            </Badge>
-
-            <h3 className="text-[18px] font-bold leading-tight text-[#3D3D3D] sm:text-[21px]">
-              {issueTitle}
-            </h3>
-
-            <div className="rounded-[10px] bg-[#e7e7ea] px-3 py-2.5">
-              <p className="text-[12px] italic text-zinc-600 sm:text-[13px]">
-                {data.description || "Chưa có mô tả cho báo cáo này."}
-              </p>
+            {/* Type + Title */}
+            <div>
+              <Badge
+                className={`w-fit rounded-full px-3 py-1 text-[11px] font-semibold leading-none ${getTypeBadgeClass(data.type)}`}
+              >
+                {data.type || "Khác"}
+              </Badge>
+              <h3 className="mt-2 text-xl font-bold leading-snug text-[#3D3D3D]">
+                {issueTitle}
+              </h3>
             </div>
 
-            <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
+            {/* Description */}
+            {data.description && data.description.trim() && (
+              <div className="rounded-xl bg-white p-3 border border-gray-200">
+                <p className="text-sm italic leading-relaxed text-zinc-600">
+                  {data.description}
+                </p>
+              </div>
+            )}
+
+            {/* Info Grid 2x2 compact */}
+            <div className="grid grid-cols-2 gap-3">
               <InfoBlock
                 icon={Hash}
-                label="Mã báo cáo"
+                label="Mã BC"
                 value={data.id}
                 valueClassName="text-[#2563EB]"
               />
-              <InfoBlock icon={MapPin} label="Vị trí" value={data.location} />
+              <LocationMapInline
+                lat={reportLat}
+                lng={reportLng}
+                address={displayLocation}
+                title={issueTitle}
+              >
+                <InfoBlock
+                  icon={MapPin}
+                  label="Vị trí"
+                  value={displayLocation}
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                />
+              </LocationMapInline>
               <InfoBlock icon={Clock3} label="Thời gian" value={data.time} />
               <InfoBlock
                 icon={CircleDot}
@@ -257,62 +397,61 @@ export default function ReportDetailQLKV({
                 icon={Users}
                 label="Đội phụ trách"
                 value={teamName}
-                className="sm:col-span-2"
+                className="col-span-2"
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card className="gap-0 rounded-[12px] border-0 bg-[#ececef] py-0 shadow-none">
-                <CardHeader className="px-4 pb-2 pt-4">
-                  <CardTitle className="flex items-center text-[15px] font-semibold text-zinc-900">
-                    <Camera className="mr-2 h-4 w-4 text-[#2563EB]" />
-                    Ảnh Sự Cố
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="mx-auto h-[170px] w-full overflow-hidden rounded-[10px] bg-[#dcdcdf] sm:h-[180px]">
-                    {beforeImage ? (
-                      <img
-                        src={beforeImage}
-                        alt="Anh hien trang"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-sm text-zinc-400">
-                        Chưa có ảnh
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Confidence Score */}
+            <ConfidenceScoreWidget
+              score={data.confidenceScore}
+              details={data.scoringDetails}
+            />
 
-              <Card className="gap-0 rounded-[12px] border-0 bg-[#ececef] py-0 shadow-none">
-                <CardHeader className="px-4 pb-2 pt-4">
-                  <CardTitle className="flex items-center text-[15px] font-semibold text-[#2563EB]">
-                    <Camera className="mr-2 h-4 w-4 text-[#2563EB]" />
-                    Ảnh Sau Khắc Phục
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="mx-auto h-[170px] w-full overflow-hidden rounded-[10px] bg-[#dcdcdf] sm:h-[180px]">
-                    {showAfterImage ? (
-                      <img
-                        src={afterImage}
-                        alt="Anh sau khac phuc"
-                        className="h-full w-full object-cover"
-                        onError={() => setAfterImageFailed(true)}
-                      />
-                    ) : (
-                      <Skeleton className="h-full w-full rounded-[10px] bg-zinc-300/70" />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Photos - fixed height row */}
+            <div className="grid grid-cols-2 gap-3" style={{ height: "150px" }}>
+              <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden">
+                <div className="flex items-center gap-1.5 mb-1.5 px-0.5 shrink-0">
+                  <Camera className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-semibold text-zinc-900">Ảnh Sự Cố</span>
+                </div>
+                <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
+                  {beforeImage ? (
+                    <img
+                      src={beforeImage}
+                      alt="Ảnh sự cố"
+                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openImageViewer(0)}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">Chưa có ảnh</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden">
+                <div className="flex items-center gap-1.5 mb-1.5 px-0.5 shrink-0">
+                  <Camera className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-semibold text-blue-600">Ảnh Khắc Phục</span>
+                </div>
+                <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
+                  {showAfterImage ? (
+                    <img
+                      src={afterImage}
+                      alt="Ảnh khắc phục"
+                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openImageViewer(allImages.indexOf(afterImage))}
+                      onError={() => setAfterImageFailed(true)}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">Chưa có ảnh</div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="!mx-0 !mb-0 !border-t border-[#d8dde5] shrink-0 items-center justify-end gap-2.5 px-4 pb-4 pt-3 sm:flex-row sm:px-5">
+        <DialogFooter className="!mx-0 !mb-0 !border-t border-[#d8dde5] shrink-0 items-center justify-end gap-2.5 px-6 py-4 sm:flex-row">
           <Button
             variant="outline"
             className="h-10 w-full rounded-[10px] border-[#b8bcc5] bg-[#f7f7f8] px-5 text-sm font-semibold text-[#2f64da] hover:bg-[#eceef2] sm:h-11 sm:w-auto sm:text-base"
@@ -331,5 +470,13 @@ export default function ReportDetailQLKV({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <ImageViewer
+      images={allImages}
+      initialIndex={imageViewer.index}
+      isOpen={imageViewer.open}
+      onClose={() => setImageViewer({ open: false, index: 0 })}
+    />
+    </>
   );
 }
