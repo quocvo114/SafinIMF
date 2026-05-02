@@ -15,12 +15,14 @@ import MaintenanceDashboard from "./pages/MaintenanceDashboard.jsx";
 import MaintenanceMyReports from "./components/MaintenanceMyReports.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import Register from "./pages/Register.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminUserManagement from "./pages/UserManagement.jsx";
 import ReceptForm from "./pages/ReceptForm.jsx";
 import ReportManagement from "./pages/Report_Management.jsx";
-import IncidentManagement from "./pages/incident_management.jsx";
+import IncidentManagement from "./pages/Incident_management.jsx";
 import ThongKe from "./pages/ThongKe.jsx";
 import Maintenanceteam_Management from "./pages/MaintenanceTeam_Management.jsx";
 
@@ -28,6 +30,7 @@ import RegisterConfirm from "./components/RegisterConfirm.jsx";
 import LayoutAdmin from "./components/LayoutAdmin.jsx";
 import ProtectedRoute from "./router/ProtectedRoute.jsx";
 import AssignedReport from "./pages/Assigned_report.jsx";
+import Info_Management from "./pages/Info_Management.jsx";
 
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
@@ -43,6 +46,8 @@ function App() {
             <Route path="/signin" element={<SignIn />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Citizen */}
             <Route

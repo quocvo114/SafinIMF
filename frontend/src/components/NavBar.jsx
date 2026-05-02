@@ -478,19 +478,21 @@ export function NavbarAdmin() {
       <header className="relative z-40">
         <div
           className="bg-white border border-gray-200 rounded-[30px] shadow-sm
-                   px-5 py-2.5 flex items-center justify-end"
+                   px-3 py-2.5 sm:px-5 flex items-center justify-between gap-2 sm:gap-4"
           style={{ minHeight: "60px" }}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-4 sm:justify-end">
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-full border-gray-200 bg-[#eaeaea] px-5 text-sm text-gray-700 hover:bg-[#eaeaea]"
+              className="h-10 min-w-0 flex-1 justify-center rounded-full border-gray-200 bg-[#eaeaea] px-3 text-sm text-gray-700 hover:bg-[#eaeaea] sm:flex-none sm:px-5"
             >
               <CloudSun className="h-4 w-4 text-gray-500" />
-              <span className="font-medium text-gray-700">{temperature}°C</span>
-              <span className="text-gray-400">|</span>
-              <span className="font-medium text-gray-600">
+              <span className="whitespace-nowrap font-medium text-gray-700">
+                {temperature}°C
+              </span>
+              <span className="hidden text-gray-400 sm:inline">|</span>
+              <span className="hidden whitespace-nowrap font-medium text-gray-600 sm:inline">
                 {formatDate(currentDate)}
               </span>
             </Button>
@@ -498,10 +500,10 @@ export function NavbarAdmin() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 rounded-full border-gray-200 bg-[#eaeaea] px-5 text-sm text-gray-800 hover:bg-[#eaeaea]"
+              className="h-10 min-w-0 flex-1 justify-center rounded-full border-gray-200 bg-[#eaeaea] px-3 text-sm text-gray-800 hover:bg-[#eaeaea] sm:flex-none sm:px-5"
             >
               <Navigation className="h-4 w-4 text-gray-700" />
-              <span className="font-semibold">{displayCity}</span>
+              <span className="truncate font-semibold">{displayCity}</span>
             </Button>
 
             <div className="relative" ref={notiRef}>

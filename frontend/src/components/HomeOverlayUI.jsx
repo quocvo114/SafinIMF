@@ -6,6 +6,7 @@ import {
   Building2,
   Plus,
   Camera,
+  LayoutGrid,
   X,
 } from "lucide-react";
 import ReportForm from "./Report";
@@ -153,8 +154,10 @@ export default function HomeOverlayUI({
               border: "none"
             }}
           >
-            <span>📍</span>
-            Tất cả
+            <span className="icon-wrap">
+              <LayoutGrid size={18} />
+            </span>
+            <span>Tất cả</span>
           </button>
           {categories.map((c) => (
             <button

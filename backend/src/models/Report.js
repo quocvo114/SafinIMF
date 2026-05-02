@@ -37,12 +37,27 @@ const ReportSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["Giao Thông", "Điện", "Cây Xanh", "CTCC"],
+      trim: true,
+      index: true,
     },
 
     location: {
       type: String,
       required: true,
+    },
+
+    lat: {
+      type: Number,
+      min: -90,
+      max: 90,
+      default: null,
+    },
+
+    lng: {
+      type: Number,
+      min: -180,
+      max: 180,
+      default: null,
     },
 
     status: {

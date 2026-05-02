@@ -12,6 +12,7 @@ import ReportReviews from "../components/ReportReviews";
 import UserSidebar from "../components/UserSidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
 import { useAuth } from "../context/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-const TYPE_OPTIONS = ["all", "Giao Thông", "Điện", "Cây Xanh", "CTCC"];
 const STATUS_OPTIONS = ["all", "Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
 const TYPE_LABELS = {
   all: "Tất cả",
@@ -94,11 +94,28 @@ const truncateLocation = (value, maxLength = 24) => {
   return `${text.slice(0, maxLength)}...`;
 };
 
+const formatReportDateTime = (value) => {
+  if (!value) {
+    return "Chưa có thời gian";
+  }
+
+  const rawValue = typeof value === "string" ? value.trim() : value;
+  if (!rawValue) {
+    return "Chưa có thời gian";
+  }
+
+  const parsedDate = new Date(rawValue);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return typeof rawValue === "string" ? rawValue : "Chưa có thời gian";
+  }
+
+  return parsedDate.toLocaleString("vi-VN");
+};
+
 const useTestWorkflow =
   (import.meta.env.VITE_USE_TEST_REPORT_WORKFLOW ?? "false") === "true";
 
 function normalizeReport(report) {
-  const hasKnownType = TYPE_OPTIONS.includes(report?.type);
   const hasKnownStatus = STATUS_OPTIONS.includes(report?.status);
   const reportDate = report?.time || report?.createdAt;
 
@@ -115,31 +132,33 @@ function normalizeReport(report) {
     return parsed;
   };
 
-  const aiPercent = Number(normalizeAiPercent(report?.aiPercent).toFixed(2));
-  const damageLevel =
-    report?.damageLevel ||
-    (aiPercent >= 70 ? "Nặng" : aiPercent >= 30 ? "Trung bình" : "Nhẹ");
+  const hasAiValue =
+    report?.aiPercent !== null && report?.aiPercent !== undefined;
+  const aiPercent = hasAiValue
+    ? Number(normalizeAiPercent(report?.aiPercent).toFixed(2))
+    : 0;
+  const aiVerified =
+    typeof report?.aiVerified === "boolean" ? report.aiVerified : hasAiValue;
 
   return {
     id: report?.id || report?.report_id || report?._id || "N/A",
     title: report?.title || "Không có tiêu đề",
-    type: hasKnownType ? report.type : "Khác",
+    type: report?.type || "Khác",
     location: report?.location || "Chưa có vị trí",
     status: hasKnownStatus ? report.status : "Đang Chờ",
-    time: reportDate
-      ? new Date(reportDate).toLocaleString("vi-VN")
-      : "Chưa có thời gian",
+    time: formatReportDateTime(reportDate),
     description: report?.description || "",
     images: report?.images || [],
     image: report?.image || "",
     aiPercent,
-    damageLevel,
+    aiVerified,
   };
 }
 
 export default function MyReports() {
   const { user } = useAuth();
   const [reports, setReports] = useState([]);
+  const [activeIncidentTypes, setActiveIncidentTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
@@ -154,7 +173,22 @@ export default function MyReports() {
 
   useEffect(() => {
     fetchReports();
+    fetchIncidentTypes();
   }, [user]);
+
+  const fetchIncidentTypes = async () => {
+    try {
+      const response = await incidentApi.getIncidentTypes();
+      if (response?.success && Array.isArray(response.data)) {
+        setActiveIncidentTypes(response.data.filter((item) => item?.name));
+      } else {
+        setActiveIncidentTypes([]);
+      }
+    } catch (err) {
+      setActiveIncidentTypes([]);
+      console.error("Không thể tải danh mục loại sự cố:", err);
+    }
+  };
 
   const fetchReports = async () => {
     const userId = user?._id || user?.user_id;
@@ -211,6 +245,24 @@ export default function MyReports() {
       return matchSearch && matchType && matchStatus;
     });
   }, [reports, search, typeFilter, statusFilter]);
+
+  const typeOptions = useMemo(() => {
+    const activeTypeNames = activeIncidentTypes
+      .map((item) => item.name)
+      .filter(Boolean);
+
+    const historicalTypeNames = reports
+      .map((item) => item.type)
+      .filter(Boolean);
+
+    return ["all", ...new Set([...activeTypeNames, ...historicalTypeNames])];
+  }, [activeIncidentTypes, reports]);
+
+  useEffect(() => {
+    if (typeFilter !== "all" && !typeOptions.includes(typeFilter)) {
+      setTypeFilter("all");
+    }
+  }, [typeFilter, typeOptions]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -351,14 +403,14 @@ export default function MyReports() {
               spacing={2}
               className="flex flex-wrap items-center justify-start gap-2"
             >
-              {TYPE_OPTIONS.map((option) => (
+              {typeOptions.map((option) => (
                 <ToggleGroupItem
                   key={option}
                   value={option}
                   className="h-11 rounded-full border border-gray-200 bg-white px-5 text-sm font-medium text-gray-600 hover:bg-gray-50 data-[state=on]:border-blue-200 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-600"
-                  aria-label={TYPE_LABELS[option]}
+                  aria-label={option === "all" ? "Tất cả" : option}
                 >
-                  {TYPE_LABELS[option]}
+                  {option === "all" ? "Tất cả" : option}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
@@ -447,9 +499,6 @@ export default function MyReports() {
                             Trạng thái
                           </TableHead>
                           <TableHead className="px-4 py-3 font-semibold">
-                            Độ hư hại
-                          </TableHead>
-                          <TableHead className="px-4 py-3 font-semibold">
                             % AI
                           </TableHead>
                           <TableHead className="px-4 py-3 font-semibold">
@@ -461,7 +510,7 @@ export default function MyReports() {
                         {visibleReports.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={8}
+                              colSpan={7}
                               className="px-4 py-10 text-center text-gray-400"
                             >
                               Chưa có dữ liệu báo cáo phù hợp.
@@ -514,40 +563,31 @@ export default function MyReports() {
                               </Badge>
                             </TableCell>
                             <TableCell className="px-4 py-3">
-                              <Badge
-                                variant={
-                                  item.damageLevel === "Nặng"
-                                    ? "destructive"
-                                    : "outline"
-                                }
-                                className={`h-auto border-0 rounded-full px-3 py-1 text-xs font-medium ${
-                                  item.damageLevel === "Trung bình"
-                                    ? "bg-amber-100 text-amber-700"
-                                    : item.damageLevel === "Nhẹ"
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : ""
-                                }`}
-                              >
-                                {item.damageLevel}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="px-4 py-3">
-                              <Badge
-                                variant={
-                                  item.aiPercent >= 70
-                                    ? "destructive"
-                                    : "outline"
-                                }
-                                className={`h-auto border-0 rounded-full px-3 py-1 text-xs font-medium ${
-                                  item.aiPercent >= 70
-                                    ? ""
-                                    : item.aiPercent >= 30
-                                      ? "bg-amber-100 text-amber-700"
-                                      : "bg-emerald-100 text-emerald-700"
-                                }`}
-                              >
-                                {Number(item.aiPercent || 0).toFixed(2)}%
-                              </Badge>
+                              {item.aiVerified ? (
+                                <Badge
+                                  variant={
+                                    item.aiPercent >= 70
+                                      ? "destructive"
+                                      : "outline"
+                                  }
+                                  className={`h-auto border-0 rounded-full px-3 py-1 text-xs font-medium ${
+                                    item.aiPercent >= 70
+                                      ? ""
+                                      : item.aiPercent >= 30
+                                        ? "bg-amber-100 text-amber-700"
+                                        : "bg-emerald-100 text-emerald-700"
+                                  }`}
+                                >
+                                  {Number(item.aiPercent || 0).toFixed(2)}%
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="h-auto border-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700"
+                                >
+                                  Đang xác thực
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="px-4 py-3 text-gray-600">
                               {item.time}

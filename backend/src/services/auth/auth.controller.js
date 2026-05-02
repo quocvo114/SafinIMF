@@ -251,9 +251,83 @@ async function googleLogin(req, res) {
   }
 }
 
+// 5) Gửi OTP để reset password
+async function sendForgotPasswordOtp(req, res) {
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ message: "Thiếu số điện thoại" });
+    }
+
+    const user = await userRepo.findByPhone(phone);
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Số điện thoại không tồn tại trong hệ thống" });
+    }
+
+    const code = otpService.generateOtp(phone);
+    console.log(`🔐 OTP reset password cho ${phone}: ${code}`);
+
+    return res.json({
+      success: true,
+      message: "OTP đã được gửi (demo). Kiểm tra console server.",
+      otp_demo: code,
+    });
+  } catch (err) {
+    console.error("sendForgotPasswordOtp error:", err);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
+}
+
+// 6) Reset password với OTP
+async function resetPassword(req, res) {
+  try {
+    const { phone, otp, newPassword } = req.body;
+
+    if (!phone || !otp || !newPassword) {
+      return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc" });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Mật khẩu phải có ít nhất 6 ký tự" });
+    }
+
+    const valid = otpService.verifyOtp(phone, otp);
+    if (!valid) {
+      return res
+        .status(400)
+        .json({ message: "OTP không hợp lệ hoặc đã hết hạn" });
+    }
+
+    const user = await userRepo.findByPhone(phone);
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Số điện thoại không tồn tại" });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await userRepo.updatePassword(user.user_id, hashed);
+
+    return res.json({
+      success: true,
+      message: "Đặt lại mật khẩu thành công",
+    });
+  } catch (err) {
+    console.error("resetPassword error:", err);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
+}
+
 module.exports = {
   sendRegisterOtp,
   confirmRegister,
   login,
   googleLogin,
+  sendForgotPasswordOtp,
+  resetPassword,
 };

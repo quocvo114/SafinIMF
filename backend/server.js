@@ -1,6 +1,4 @@
 require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
 const connectDB = require("./src/config/database");
 const authRoutes = require("./src/services/auth/auth.routes");
 const userRoutes = require("./src/services/user/user.routes");
@@ -58,12 +56,11 @@ if (ENABLE_MONGO) {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
-// app.use("/api/users", userRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/geocode", geocodeRoutes);
 app.use("/api/maintenance-teams", maintenanceTeamRoutes);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🔥 Server đang chạy tại http://localhost:${PORT}`);
+  console.log(`Server đang chạy tại http://localhost:${PORT}`);
 });

@@ -53,7 +53,20 @@ class UserService {
       }
     }
 
+    // Kiểm tra nếu email khác và đã tồn tại (chỉ nếu email được cung cấp)
+    if (updateData.email && updateData.email.trim() && updateData.email !== user.email) {
+      const existing = await userRepository.findByEmail(updateData.email);
+      if (existing) {
+        throw new Error("Email đã được sử dụng");
+      }
+    }
+
     const updated = await userRepository.updateProfile(user_id, updateData);
+    
+    if (!updated) {
+      throw new Error("Cập nhật hồ sơ thất bại");
+    }
+
     const { password, ...userWithoutPassword } = updated;
     return userWithoutPassword;
   }

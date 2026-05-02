@@ -24,15 +24,20 @@ class UserRepository {
   }
 
   async updateProfile(user_id, data) {
+    const updateFields = {};
+    
+    if (data.full_name) updateFields.full_name = data.full_name;
+    if (data.phone) updateFields.phone = data.phone;
+    if (data.gender) updateFields.gender = data.gender;
+    if (data.area) updateFields.area = data.area;
+    // Only update email if provided and not empty
+    if (data.email && data.email.trim()) {
+      updateFields.email = data.email.trim();
+    }
+    
     return User.findOneAndUpdate(
       { user_id },
-      { 
-        full_name: data.full_name,
-        phone: data.phone,
-        email: data.email,
-        gender: data.gender,
-        area: data.area,
-      },
+      updateFields,
       { new: true }
     ).lean();
   }

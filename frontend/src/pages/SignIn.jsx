@@ -161,7 +161,7 @@ const SignIn = () => {
             </div>
 
             {/* PASSWORD */}
-            <div className="mb-7 relative">
+            <div className="mb-3 relative">
               <label className="text-sm font-medium">Password</label>
 
               <input
@@ -181,6 +181,20 @@ const SignIn = () => {
               >
                 {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
+            </div>
+
+            <div className="mb-7 text-left">
+              <a
+                href="#"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // TODO: Điều hướng đến trang forgot password
+                  navigate("/forgot-password");
+                }}
+              >
+                Forgot Password?
+              </a>
             </div>
 
             <button

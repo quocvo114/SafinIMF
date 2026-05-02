@@ -10,6 +10,9 @@ router.get("/", ReportController.getAllReports);
 // GET /api/reports/user/:userId - Lấy báo cáo của 1 user (phải đặt trước /:id)
 router.get("/user/:userId", ReportController.getReportsByUserId);
 
+// GET /api/reports/map-markers - Dữ liệu nhẹ cho marker bản đồ
+router.get("/map-markers", ReportController.getMapReports);
+
 // GET /api/reports/management - Dữ liệu cho trang quản lý báo cáo
 router.get(
 	"/management",

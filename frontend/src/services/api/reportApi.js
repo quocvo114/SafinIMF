@@ -34,6 +34,19 @@ export const reportApi = {
     }
   },
 
+  // Lấy dữ liệu nhẹ cho marker bản đồ
+  getMapReports: async () => {
+    try {
+      const response = await axiosClient.get("/reports", {
+        params: { view: "map" },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu marker bản đồ:", error);
+      throw error;
+    }
+  },
+
   // Lấy 1 báo cáo theo ID
   getReportById: async (id) => {
     try {
