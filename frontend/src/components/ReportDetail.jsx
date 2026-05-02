@@ -98,7 +98,7 @@ export default function ReportDetail({ data, close }) {
   if (!isOpen) return null;
 
   const beforeImage = resolveImage(data, 0);
-  const afterImage = resolveImage(data, 1);
+  const afterImage = data.afterImg || resolveImage(data, 1);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
 
@@ -218,6 +218,19 @@ export default function ReportDetail({ data, close }) {
                 </p>
               </div>
             </div>
+
+            {data.progressNote && (
+              <div>
+                <p className="mb-1 text-[11px] font-medium uppercase text-[#A3A3A3]">
+                  Ghi chú từ đội xử lý
+                </p>
+                <div className="rounded-[10px] border border-green-100 bg-green-50 px-3 py-2.5 sm:px-3.5 sm:py-3">
+                  <p className="text-xs italic leading-snug text-green-800">
+                    {data.progressNote}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-3 md:grid-cols-2">
               <Card className="gap-0 rounded-[12px] border border-[#dce9ff] bg-[#f6faff] py-0 ring-0 shadow-sm">

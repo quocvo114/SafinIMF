@@ -35,8 +35,42 @@ export default function MaintenanceReportDetail({
 
   if (!isOpen || !report) return null;
 
-  const reportImageUrl = report?.image || report?.images?.[0] || "";
-  const allImages = [reportImageUrl, report?.afterImg].filter(Boolean);
+  // Hàm dùng chung cho lấy ảnh (giống bên ReportDetail-QLKV)
+  function resolveImage(data, index) {
+    const imageCandidate =
+      data && Array.isArray(data.images) ? data.images[index] : "";
+    if (typeof imageCandidate === "string") {
+      const normalizedCandidate = imageCandidate.trim().toLowerCase();
+      if (
+        normalizedCandidate &&
+        normalizedCandidate !== "null" &&
+        normalizedCandidate !== "undefined"
+      ) {
+        return imageCandidate;
+      }
+    } else if (imageCandidate) {
+      return imageCandidate;
+    }
+    if (data && index === 0 && data.image) {
+      if (typeof data.image === "string") {
+        const normalizedSingleImage = data.image.trim().toLowerCase();
+        if (
+          normalizedSingleImage &&
+          normalizedSingleImage !== "null" &&
+          normalizedSingleImage !== "undefined"
+        ) {
+          return data.image;
+        }
+      } else {
+        return data.image;
+      }
+    }
+    return "";
+  }
+
+  const reportImageUrl = resolveImage(report, 0) || report?.imageUrl || "";
+  const afterImageUrl = resolveImage(report, 1) || report?.afterImg || "";
+  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(Boolean);
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
@@ -106,7 +140,7 @@ export default function MaintenanceReportDetail({
       const base64Image = await convertImageToBase64(selectedImageFile);
       const reportId = report?.id || report?._id || report?.report_id;
       const response = await reportApi.updateProgress(reportId, {
-        afterImg: base64Image,
+        afterImage: base64Image,
         progressNote: progressNote.trim() || undefined,
       });
       if (response.success) {
