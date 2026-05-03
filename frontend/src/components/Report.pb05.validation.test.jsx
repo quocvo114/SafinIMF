@@ -159,7 +159,7 @@ describe("PB05 Report form UI validation", () => {
     expect(mockCreateReport).not.toHaveBeenCalled();
   });
 
-  test("allows submit with one valid image", async () => {
+  test("accepts submit with one image", async () => {
     render(
       <ReportForm onClose={vi.fn()} initialImage={makeBase64ImageDataUrl()} />,
     );

@@ -45,6 +45,14 @@ const ReportSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    reportLatitude: {
+      type: Number,
+      default: null,
+    },
+    reportLongitude: {
+      type: Number,
+      default: null,
+    },
 
     lat: {
       type: Number,
@@ -96,6 +104,12 @@ const ReportSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    progressNote: {
+      type: String,
+      default: "",
+    },
+
     aiPercent: {
       type: Number,
       default: null,
@@ -115,6 +129,20 @@ const ReportSchema = new mongoose.Schema(
     aiSource: {
       type: String,
       default: "",
+    },
+    exifMetadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    confidenceScore: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100,
+    },
+    scoringDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
   },
   {

@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { reportApi } from "../services/api/reportApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import ReportDetailQLKV from "../components/ReportDetail-QLKV";
+import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
 
 const DISTRICTS = [
   "all",
@@ -30,12 +32,50 @@ const STATUS_OPTIONS = ["all", "Đang Chờ", "Đang Xử Lý", "Đã Giải Quy
 
 const CATEGORY_COLORS = {
   "Giao Thông": "#f97316",
-  "Điện": "#fdca00",
+  Điện: "#fdca00",
   "Cây Xanh": "#16a34a",
   CTCC: "#b78ff2",
 };
 
 const STATUS_FLOW = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
+
+function mapMaintenanceTeamsToAssignOptions(teams = []) {
+  return teams
+    .map((team) => {
+      const teamId = team?.team_id || team?.id;
+      if (!teamId) return null;
+
+      const rawCases =
+        team?.cases ??
+        team?.caseCount ??
+        team?.currentCases ??
+        team?.assignedCount ??
+        0;
+      const rawMaxCases =
+        team?.maxCases ?? team?.capacity ?? team?.max_cases ?? 5;
+
+      const cases = Number.isFinite(Number(rawCases)) ? Number(rawCases) : 0;
+      const maxCases = Number.isFinite(Number(rawMaxCases))
+        ? Number(rawMaxCases)
+        : 5;
+
+      return {
+        id: teamId,
+        name: team?.name || "Đội xử lý",
+        status: team?.status || "active",
+        specialty:
+          team?.specialty ||
+          team?.field ||
+          team?.domain ||
+          team?.area ||
+          "Chưa rõ lĩnh vực",
+        distance: team?.distance || "--",
+        cases,
+        maxCases: Math.max(maxCases, 1),
+      };
+    })
+    .filter(Boolean);
+}
 
 function getNextStatus(currentStatus) {
   const index = STATUS_FLOW.indexOf(currentStatus);
@@ -60,6 +100,8 @@ const ReceptForm = () => {
   const [errorMessage, setErrorMessage] = useState("");
   // const [page, setPage] = useState(2);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [assigningReport, setAssigningReport] = useState(null);
+  const [assignTeams, setAssignTeams] = useState(null);
 
   const filteredReports = useMemo(() => {
     const searchTerm = query.trim().toLowerCase();
@@ -104,7 +146,8 @@ const ReceptForm = () => {
         setReports([]);
         setTotalPages(1);
         setErrorMessage(
-          error?.response?.data?.message || "Không tải được dữ liệu đơn tiếp nhận"
+          error?.response?.data?.message ||
+            "Không tải được dữ liệu đơn tiếp nhận",
         );
       } finally {
         setLoading(false);
@@ -151,10 +194,18 @@ const ReceptForm = () => {
         team: selectedReport.team || selectedReport.handlerTeam,
         reporter: selectedReport.reporter,
         location: selectedReport.location || "Chưa có vị trí",
-        description: selectedReport.description || "Chưa có mô tả cho báo cáo này.",
+        description:
+          selectedReport.description || "Chưa có mô tả cho báo cáo này.",
+        lat: selectedReport.lat,
+        lng: selectedReport.lng,
+        reportLatitude: selectedReport.reportLatitude,
+        reportLongitude: selectedReport.reportLongitude,
+        confidenceScore: selectedReport.confidenceScore,
+        scoringDetails: selectedReport.scoringDetails,
         image: selectedReport.image || selectedReport.images?.[0] || "",
         images:
-          Array.isArray(selectedReport.images) && selectedReport.images.length > 0
+          Array.isArray(selectedReport.images) &&
+          selectedReport.images.length > 0
             ? selectedReport.images
             : [selectedReport.image || "", selectedReport.afterImage || ""],
       }
@@ -162,16 +213,24 @@ const ReceptForm = () => {
 
   const handleCloseDetail = () => setSelectedReport(null);
 
-  const syncReportStatus = (reportId, nextStatus) => {
+  const syncReportStatus = (reportId, nextStatus, assignedTeamName) => {
+    const teamPatch = assignedTeamName
+      ? { team: assignedTeamName, handlerTeam: assignedTeamName }
+      : {};
+
     setReports((prev) =>
       prev.map((item) => {
         const itemId = item.id || item.report_id;
-        return itemId === reportId ? { ...item, status: nextStatus } : item;
+        return itemId === reportId
+          ? { ...item, status: nextStatus, ...teamPatch }
+          : item;
       }),
     );
 
     setSelectedReport((prev) =>
-      prev ? { ...prev, status: nextStatus } : prev,
+      prev && (prev.id || prev.report_id) === reportId
+        ? { ...prev, status: nextStatus, ...teamPatch }
+        : prev,
     );
   };
 
@@ -191,20 +250,55 @@ const ReceptForm = () => {
       syncReportStatus(reportId, nextStatus);
     } catch (error) {
       setErrorMessage(
-        error?.response?.data?.message || "Không thể cập nhật trạng thái báo cáo",
+        error?.response?.data?.message ||
+          "Không thể cập nhật trạng thái báo cáo",
       );
     }
   };
 
   const handleSendProcess = async (report) => {
-    const reportId = report?.report_id || report?.id;
+    if (!report) {
+      return;
+    }
+
+    setSelectedReport(null);
+    setAssigningReport(report);
+    setAssignTeams(null);
+
+    try {
+      const response = await maintenanceTeamApi.getTeams({
+        page: 1,
+        limit: 50,
+        status: "active",
+      });
+      setAssignTeams(mapMaintenanceTeamsToAssignOptions(response?.data || []));
+    } catch (error) {
+      setAssignTeams(null);
+    }
+  };
+
+  const handleCloseAssignTeam = () => {
+    setAssigningReport(null);
+    setAssignTeams(null);
+  };
+
+  const handleCancelAssignTeam = () => {
+    if (assigningReport) {
+      setSelectedReport(assigningReport);
+    }
+    handleCloseAssignTeam();
+  };
+
+  const handleAssignTeam = async (team) => {
+    const reportId = assigningReport?.report_id || assigningReport?.id;
     if (!reportId) {
       return;
     }
 
     try {
       await reportApi.updateReportStatus(reportId, "Đang Xử Lý");
-      syncReportStatus(reportId, "Đang Xử Lý");
+      syncReportStatus(reportId, "Đang Xử Lý", team?.name);
+      handleCloseAssignTeam();
     } catch (error) {
       setErrorMessage(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
@@ -315,7 +409,7 @@ const ReceptForm = () => {
             <SelectContent>
               <SelectItem value="all">Chọn ngày</SelectItem>
               <SelectItem value="recent">Mới nhất</SelectItem>
-              <SelectItem value="old">CÅ© hÆ¡n</SelectItem>
+              <SelectItem value="old">Cũ nhất</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -341,60 +435,59 @@ const ReceptForm = () => {
             const date = report.date || report.time || "-";
 
             return (
-          <div
-            key={`${report.id || report.report_id}-${report.location}-${index}`}
-            className="relative h-[214px] cursor-pointer overflow-hidden rounded-[22px]"
-            onClick={() => setSelectedReport(report)}
-          >
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${imageUrl})` }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/65" />
-
-            <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
-              <div className="rounded-full bg-white px-4 py-1 text-[11px] font-semibold text-[#424242]">
-                {report.id}
-              </div>
               <div
-                className="rounded-full px-4 py-1 text-[11px] font-medium text-white"
-                style={{
-                  backgroundColor:
-                    CATEGORY_COLORS[category] || "#64748b",
-                }}
+                key={`${report.id || report.report_id}-${report.location}-${index}`}
+                className="relative h-[214px] cursor-pointer overflow-hidden rounded-[22px]"
+                onClick={() => setSelectedReport(report)}
               >
-                {String(category).toLowerCase()}
-              </div>
-            </div>
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{ backgroundImage: `url(${imageUrl})` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/65" />
 
-            <div className="absolute bottom-[82px] left-1/2 flex -translate-x-1/2 items-center gap-1">
-              <span className="h-[6px] w-[6px] rounded-full bg-white" />
-              <span className="h-[6px] w-[6px] rounded-full bg-white/50" />
-              <span className="h-[6px] w-[6px] rounded-full bg-white/50" />
-            </div>
+                <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
+                  <div className="rounded-full bg-white px-4 py-1 text-[11px] font-semibold text-[#424242]">
+                    {report.id}
+                  </div>
+                  <div
+                    className="rounded-full px-4 py-1 text-[11px] font-medium text-white"
+                    style={{
+                      backgroundColor: CATEGORY_COLORS[category] || "#64748b",
+                    }}
+                  >
+                    {String(category).toLowerCase()}
+                  </div>
+                </div>
 
-            <div className="absolute bottom-3 left-4 right-4 text-white">
-              <div className="mb-1.5 flex items-start justify-between gap-3">
-                <h3 className="max-w-[210px] text-[14px] font-semibold leading-tight capitalize">
-                  {report.title}
-                </h3>
-                <div className="rounded-full bg-black/45 px-3 py-1 text-xs font-medium lowercase leading-none">
-                  {report.status}
+                <div className="absolute bottom-[82px] left-1/2 flex -translate-x-1/2 items-center gap-1">
+                  <span className="h-[6px] w-[6px] rounded-full bg-white" />
+                  <span className="h-[6px] w-[6px] rounded-full bg-white/50" />
+                  <span className="h-[6px] w-[6px] rounded-full bg-white/50" />
+                </div>
+
+                <div className="absolute bottom-3 left-4 right-4 text-white">
+                  <div className="mb-1.5 flex items-start justify-between gap-3">
+                    <h3 className="max-w-[210px] text-[14px] font-semibold leading-tight capitalize">
+                      {report.title}
+                    </h3>
+                    <div className="rounded-full bg-black/45 px-3 py-1 text-xs font-medium lowercase leading-none">
+                      {report.status}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-xs font-medium text-[#d7d7d7]">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span>{report.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>{date}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div className="space-y-1 text-xs font-medium text-[#d7d7d7]">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>{report.location}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>{date}</span>
-                </div>
-              </div>
-            </div>
-          </div>
             );
           })}
       </div>
@@ -473,6 +566,18 @@ const ReceptForm = () => {
         close={handleCloseDetail}
         onUpdateStatus={handleUpdateStatus}
         onSendProcess={handleSendProcess}
+      />
+
+      <AssignMaintenanceTeam
+        open={Boolean(assigningReport)}
+        reportCode={
+          assigningReport?.id || assigningReport?.report_id || "BCGT3101"
+        }
+        reportType={assigningReport?.type || assigningReport?.category}
+        teams={assignTeams ?? []}
+        onClose={handleCloseAssignTeam}
+        onCancel={handleCancelAssignTeam}
+        onAssign={handleAssignTeam}
       />
     </div>
   );

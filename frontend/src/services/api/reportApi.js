@@ -102,4 +102,18 @@ export const reportApi = {
       throw error;
     }
   },
+
+  // PB14: Cập nhật tiến độ xử lý (Đội xử lý upload ảnh sau khắc phục)
+  updateProgress: async (reportId, { afterImg, progressNote }) => {
+    try {
+      const response = await axiosClient.patch(`/reports/${reportId}/progress`, {
+        afterImg,
+        progressNote,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi cập nhật tiến độ xử lý:", error);
+      throw error;
+    }
+  },
 };

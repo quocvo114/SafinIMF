@@ -64,8 +64,8 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng, -180, 180);
+  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
+  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }
@@ -441,9 +441,10 @@ const Dashboard = () => {
   const hasCachedReportsRef = useRef(false);
   const { user } = useAuth();
 
+  const userName = user?.full_name || user?.name || null;
+  const userAvatar = user?.avatar || null;
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
-  const userName = currentUser.full_name || currentUser.name || "Người dùng";
-  const userAvatar = currentUser.avatar || null;
+
 
   useEffect(() => {
     hasCachedReportsRef.current = reports.length > 0;
@@ -465,6 +466,7 @@ const Dashboard = () => {
       } catch (error) {
         console.error("Lỗi tải danh sách báo cáo trên bản đồ:", error);
         if (isMounted && !hasCachedReportsRef.current) {
+          
           toast.error("Không thể tải dữ liệu sự cố từ hệ thống");
         }
       }

@@ -29,8 +29,8 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng, -180, 180);
+  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
+  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }

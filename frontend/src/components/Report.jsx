@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Camera,
@@ -26,7 +26,7 @@ import {
 } from "./ui/select";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5050/api";
 
 const LEGACY_INCIDENT_OPTIONS = [
   { value: "Giao Thông", label: "Giao Thông" },
@@ -37,7 +37,8 @@ const LEGACY_INCIDENT_OPTIONS = [
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const MAX_IMAGES = 5;
+const MIN_IMAGES = 1;
+const MAX_IMAGES = 3;
 
 function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     lng: null,
   });
   const [gpsCoordinates, setGpsCoordinates] = useState(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [incidentOptions, setIncidentOptions] = useState(
     LEGACY_INCIDENT_OPTIONS,
@@ -284,9 +286,15 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { latitude, longitude } = position.coords;
+        const { latitude, longitude, accuracy } = position.coords;
         setLocationCoordinates({ lat: latitude, lng: longitude });
         setGpsCoordinates({ latitude, longitude });
+        setGpsAccuracy(accuracy);
+
+        console.log(`📍 GPS accuracy: ${Math.round(accuracy)}m`);
+        if (accuracy > 100) {
+          console.warn("⚠️ GPS accuracy thấp (>100m). Vị trí có thể không chính xác.");
+        }
 
         try {
           const response = await fetch(
@@ -336,7 +344,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0,
       },
     );
@@ -413,6 +421,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     setLocation("");
     setLocationCoordinates({ lat: null, lng: null });
     setGpsCoordinates(null);
+    setGpsAccuracy(null);
     setHasFetchedLocation(false);
     setDragActive(false);
   };
@@ -421,6 +430,29 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     closeCamera();
     resetForm();
     onClose && onClose();
+  };
+
+  const geocodeAddress = async (address) => {
+    if (!address) return { lat: null, lng: null };
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&addressdetails=1&accept-language=vi`,
+        {
+          headers: {
+            "User-Agent": "ReportApp/1.0 (Contact: admin@example.com)",
+          },
+        },
+      );
+      if (!response.ok) return { lat: null, lng: null };
+      const result = await response.json();
+      if (!Array.isArray(result) || result.length === 0) return { lat: null, lng: null };
+      const lat = parseFloat(result[0]?.lat);
+      const lng = parseFloat(result[0]?.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+      return { lat: null, lng: null };
+    } catch {
+      return { lat: null, lng: null };
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -438,8 +470,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       return;
     }
 
-    if (trimmedDescription.length < 10 || trimmedDescription.length > 100) {
-      showErrorToast("Mô tả phải từ 10 đến 100 ký tự.");
+    if (trimmedDescription.length < 5 || trimmedDescription.length > 500) {
+      showErrorToast("Mô tả phải từ 5 đến 500 ký tự.");
       return;
     }
 
@@ -467,21 +499,30 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
     let keepSubmitting = false;
 
     try {
+      let submitLat = null;
+      let submitLng = null;
+
+      if (Number.isFinite(locationCoordinates.lat) && Number.isFinite(locationCoordinates.lng)) {
+        submitLat = Number(locationCoordinates.lat);
+        submitLng = Number(locationCoordinates.lng);
+      } else if (gpsCoordinates) {
+        submitLat = gpsCoordinates.latitude;
+        submitLng = gpsCoordinates.longitude;
+      } else if (location) {
+        const geocoded = await geocodeAddress(location);
+        submitLat = geocoded.lat;
+        submitLng = geocoded.lng;
+      }
+
       const reportData = {
         userId,
         title: trimmedTitle,
         type: incidentType,
-        location: gpsCoordinates
-          ? `${gpsCoordinates.latitude}, ${gpsCoordinates.longitude}${location ? ` (${location})` : ""}`
-          : location,
-        latitude: gpsCoordinates?.latitude,
-        longitude: gpsCoordinates?.longitude,
-        lat: Number.isFinite(locationCoordinates.lat)
-          ? Number(locationCoordinates.lat)
-          : undefined,
-        lng: Number.isFinite(locationCoordinates.lng)
-          ? Number(locationCoordinates.lng)
-          : undefined,
+        location: location || (gpsCoordinates ? `${gpsCoordinates.latitude}, ${gpsCoordinates.longitude}` : "Chưa xác định"),
+        latitude: submitLat,
+        longitude: submitLng,
+        lat: submitLat,
+        lng: submitLng,
         description: trimmedDescription,
         images: uploadedImages,
       };
@@ -636,7 +677,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                       Hình ảnh sự cố
                     </h3>
                     <p className="mt-0.5 text-xs text-[#8b8b8b]">
-                      Định dạng JPG, PNG (Tối đa 5MB)
+                      Định dạng JPG, PNG (1-3 ảnh, tối đa 5MB/ảnh)
                     </p>
                   </div>
 
@@ -759,6 +800,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                         onChange={(e) => {
                           setLocation(e.target.value);
                           setLocationCoordinates({ lat: null, lng: null });
+                          setGpsAccuracy(null);
                         }}
                         disabled={locationLoading}
                         placeholder="Nhập vị trí sự cố (Ví dụ: 03 Quang Trung, Hải Châu, ĐN)"
@@ -773,6 +815,21 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                         cho đội xử lý tiến hành khắc phục.
                       </p>
                     </div>
+                    {gpsAccuracy !== null && gpsAccuracy > 100 && (
+                      <div className="mt-2 flex items-start gap-1.5 leading-4 text-amber-600">
+                        <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                        <p className="text-[10.5px] tracking-tight">
+                          ⚠️ Độ chính xác GPS thấp (~{Math.round(gpsAccuracy)}m). Nên nhập địa chỉ thủ công để chính xác hơn.
+                        </p>
+                      </div>
+                    )}
+                    {gpsAccuracy !== null && gpsAccuracy <= 100 && (
+                      <div className="mt-2 flex items-start gap-1.5 leading-4 text-green-600">
+                        <p className="text-[10.5px] tracking-tight">
+                          ✓ GPS chính xác ~{Math.round(gpsAccuracy)}m
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-auto flex flex-col-reverse gap-2 pt-6 sm:flex-row sm:justify-end">

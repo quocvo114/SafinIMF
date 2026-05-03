@@ -166,6 +166,7 @@ function extractAiResult(payload, sourceUrl) {
     aiLabel: String(bestDetection?.class_name || "Unknown"),
     aiTotalObjects: Number(payload?.total_objects || detections.length || 0),
     aiSource: sourceUrl,
+    detections, // raw detections array với bbox — dùng cho scoring
   };
 }
 
@@ -280,6 +281,10 @@ async function verifyAllImages(images) {
 
   // Tất cả ảnh đã pass → lấy summary từ ảnh đầu tiên để lưu vào DB
   const first = results[0];
+
+  // Gộp tất cả detections từ mọi ảnh (dùng cho scoring damage_percentage)
+  const allDetections = results.flatMap((r) => Array.isArray(r.detections) ? r.detections : []);
+
   logger.info(
     `✅ Tất cả ${images.length} ảnh đã qua xác thực AI. Summary từ ảnh 1: label=${first.aiLabel}, confidence=${first.aiPercent}%`,
   );
@@ -293,6 +298,7 @@ async function verifyAllImages(images) {
       aiSource: first.aiSource,
       aiTotalObjects: first.aiTotalObjects,
       aiVerified: true,
+      allDetections, // tất cả detections để tính scoring
     },
   };
 }

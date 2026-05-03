@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import ReportDetailQLKV from "../components/ReportDetail-QLKV";
+import { formatLocationDisplay } from "../utils/formatLocation";
 import { reportApi } from "../services/api/reportApi";
 import incidentApi from "../services/api/incidentApi";
 
@@ -235,8 +237,8 @@ const ReportManagement = () => {
                           {report.type}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-sm text-gray-700">
-                        {report.location}
+                      <td className="w-1/4 px-4 py-3 text-sm font-medium text-gray-900 border-b border-gray-100 max-w-[200px] truncate">
+                        {formatLocationDisplay(report.location)}
                       </td>
                       <td className="py-4 px-4">
                         <span

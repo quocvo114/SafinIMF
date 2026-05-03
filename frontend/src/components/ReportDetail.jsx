@@ -14,6 +14,7 @@ import {
 } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
+import ImageViewer from "./ImageViewer";
 
 function getTypeLabel(type) {
   if (!type) return "khac";
@@ -99,6 +100,13 @@ export default function ReportDetail({ data, close }) {
   const beforeImage = resolveImage(data, 0);
   const afterImage = resolveImage(data, 1);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
+  const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
+
+  const allImages = [beforeImage, afterImage].filter(Boolean);
+
+  const openImageViewer = (index) => {
+    setImageViewer({ open: true, index });
+  };
 
   useEffect(() => {
     setAfterImageFailed(false);
@@ -107,11 +115,12 @@ export default function ReportDetail({ data, close }) {
   const showAfterImage = Boolean(afterImage) && !afterImageFailed;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && close?.()}>
-      <DialogContent
-        showCloseButton={false}
-        className="z-[60] flex max-h-[90vh] w-[min(92vw,760px)] flex-col gap-0 overflow-hidden rounded-[18px] border border-[#d8e6ff] bg-white p-0 shadow-2xl sm:w-[min(88vw,760px)] sm:max-w-[760px]"
-      >
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && close?.()}>
+        <DialogContent
+          showCloseButton={false}
+          className="z-[60] flex max-h-[90vh] w-[min(92vw,760px)] flex-col gap-0 overflow-hidden rounded-[18px] border border-[#d8e6ff] bg-white p-0 shadow-2xl sm:w-[min(88vw,760px)] sm:max-w-[760px]"
+        >
         <DialogHeader className="rounded-t-[18px] bg-white px-4 pt-3 sm:px-5 sm:pt-4 md:px-6 md:pt-4">
           <div className="flex items-start justify-between gap-3">
             <DialogTitle className="pr-2 text-base font-semibold leading-snug text-zinc-900 sm:text-lg lg:text-xl">
@@ -177,7 +186,17 @@ export default function ReportDetail({ data, close }) {
                   overflow: "hidden",
                 }}
               >
-                {data.location || "Chua co vi tri"}
+                {(() => {
+                  const loc = data.location;
+                  if (!loc) return "Chưa có vị trí";
+                  const match = loc.match(/\(([^)]+)\)/);
+                  if (match && match[1]) {
+                    const inside = match[1].trim();
+                    if (!/^[\d.-]+,\s*[\d.-]+$/.test(inside)) return inside;
+                  }
+                  if (/^[\d.-]+,\s*[\d.-]+$/.test(loc.trim())) return "Chưa cập nhật địa chỉ cụ thể";
+                  return loc;
+                })()}
               </p>
             </div>
 
@@ -214,7 +233,8 @@ export default function ReportDetail({ data, close }) {
                       <img
                         src={beforeImage}
                         alt="Anh su co"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageViewer(0)}
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-xs text-zinc-400 sm:text-sm">
@@ -238,7 +258,8 @@ export default function ReportDetail({ data, close }) {
                       <img
                         src={afterImage}
                         alt="Anh sau khac phuc"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageViewer(allImages.indexOf(afterImage))}
                         onError={() => setAfterImageFailed(true)}
                       />
                     ) : (
@@ -260,5 +281,13 @@ export default function ReportDetail({ data, close }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <ImageViewer
+      images={allImages}
+      initialIndex={imageViewer.index}
+      isOpen={imageViewer.open}
+      onClose={() => setImageViewer({ open: false, index: 0 })}
+    />
+    </>
   );
 }

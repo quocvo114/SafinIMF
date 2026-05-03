@@ -85,7 +85,9 @@ const IncidentManagement = () => {
   const fetchIncidentTypes = async () => {
     try {
       setLoading(true);
-      const response = await incidentApi.getIncidentTypes({ includeUsage: true });
+      const response = await incidentApi.getIncidentTypes({
+        includeUsage: true,
+      });
 
       if (response?.success) {
         setIncidentTypes(response.data || []);
@@ -131,12 +133,15 @@ const IncidentManagement = () => {
 
     try {
       setActionLoading(true);
-      const response = await incidentApi.updateIncidentType(editingIncident._id, {
-        name: editName.trim(),
-        description: editDescription.trim(),
-        iconKey: editIconKey,
-        color: editColor,
-      });
+      const response = await incidentApi.updateIncidentType(
+        editingIncident._id,
+        {
+          name: editName.trim(),
+          description: editDescription.trim(),
+          iconKey: editIconKey,
+          color: editColor,
+        },
+      );
 
       if (response?.success) {
         toast.success("Cập nhật loại sự cố thành công");
@@ -179,7 +184,9 @@ const IncidentManagement = () => {
         toast.error("Thêm loại sự cố thất bại");
       }
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Không thể thêm loại sự cố");
+      toast.error(
+        error?.response?.data?.message || "Không thể thêm loại sự cố",
+      );
     } finally {
       setActionLoading(false);
     }
@@ -195,7 +202,9 @@ const IncidentManagement = () => {
 
     try {
       setActionLoading(true);
-      const response = await incidentApi.deleteIncidentType(deletingIncident._id);
+      const response = await incidentApi.deleteIncidentType(
+        deletingIncident._id,
+      );
 
       if (response?.success) {
         toast.success("Xóa loại sự cố thành công");
@@ -222,7 +231,7 @@ const IncidentManagement = () => {
 
   return (
     <div className="h-full bg-transparent px-1 py-2 sm:px-3 sm:py-3">
-      <div className="mx-auto flex h-full w-full max-w-[1322px] flex-col">
+      <div className="mx-auto flex h-full w-full flex-col">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative rounded-xl bg-white w-full lg:w-[410px]">
             <Search
@@ -255,13 +264,16 @@ const IncidentManagement = () => {
           <>
             <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:grid-rows-2">
               {pageIncidents.map((type) => {
-                const IconComponent = INCIDENT_ICON_MAP[type.iconKey] || Building2;
+                const IconComponent =
+                  INCIDENT_ICON_MAP[type.iconKey] || Building2;
 
                 return (
                   <Card
                     key={type._id || type.id}
                     className="h-full min-h-[240px] gap-0 overflow-hidden rounded-[34px] border border-[#eceef3] bg-white py-0 shadow-none ring-0"
-                    style={{ boxShadow: getCardShadow(type.color || "#f97316") }}
+                    style={{
+                      boxShadow: getCardShadow(type.color || "#f97316"),
+                    }}
                   >
                     <CardContent className="flex h-full flex-col items-center gap-3 px-4 py-5 text-center sm:px-5">
                       <div
@@ -315,7 +327,9 @@ const IncidentManagement = () => {
                         setCurrentPage((prev) => Math.max(prev - 1, 1));
                       }}
                       className={
-                        currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : ""
                       }
                     />
                   </PaginationItem>
@@ -344,7 +358,9 @@ const IncidentManagement = () => {
                       text="Sau"
                       onClick={(e) => {
                         e.preventDefault();
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+                        setCurrentPage((prev) =>
+                          Math.min(prev + 1, totalPages),
+                        );
                       }}
                       className={
                         currentPage === totalPages

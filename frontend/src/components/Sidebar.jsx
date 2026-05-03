@@ -1,8 +1,27 @@
-import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { LibraryBig, Folder, Bell, LogOut, Settings } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  LibraryBig,
+  Folder,
+  Bell,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useIsMobile } from "../hooks/use-mobile";
 import { toast } from "sonner";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "./ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 const menuItems = [
   {
@@ -27,8 +46,30 @@ const menuItems = [
 
 const SidebarAdmin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const isMobile = useIsMobile();
+
+  const sidebarGap = 20;
+  const collapsedWidth = 72;
+  const expandedWidth = 240;
+  const sidebarWidth = isCollapsed ? collapsedWidth : expandedWidth;
+  const contentOffset = isMobile ? sidebarGap : sidebarWidth + sidebarGap;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--admin-sidebar-width", `${sidebarWidth}px`);
+    root.style.setProperty("--admin-sidebar-offset", `${contentOffset}px`);
+    root.style.setProperty("--admin-sidebar-gap", `${sidebarGap}px`);
+
+    return () => {
+      root.style.removeProperty("--admin-sidebar-width");
+      root.style.removeProperty("--admin-sidebar-offset");
+      root.style.removeProperty("--admin-sidebar-gap");
+    };
+  }, [sidebarWidth, contentOffset, sidebarGap]);
 
   const handleLogout = () => {
     toast.success("Đăng xuất thành công!");
@@ -71,56 +112,115 @@ const SidebarAdmin = () => {
         </div>
       )}
 
-      <div className="fixed left-0 top-0 h-screen w-[100px] flex items-center justify-center p-3 z-30">
-        <aside className="w-full h-[85vh] rounded-2xl shadow-2xl bg-white flex flex-col items-center py-6 px-2 gap-4">
-          {/* Logo */}
-          <div className="flex justify-center mb-1">
-            <h1 className="font-['Inter'] font-bold text-[24px] text-blue-600">
-              S
-            </h1>
-          </div>
-
-          {/* Menu Icons */}
-          <nav className="flex flex-col gap-4 items-center justify-center">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.key}
-                  to={item.path}
-                  end
-                  title={item.label}
-                  className={({ isActive }) =>
-                    `flex items-center justify-center w-12 h-12 rounded-[14px] transition-all duration-200 relative group
-                     ${isActive 
-                       ? "bg-black text-white" 
-                       : "text-gray-800 hover:bg-gray-100"
-                     }`
-                  }
-                >
-                  <Icon className="w-6 h-6" />
-                </NavLink>
-              );
-            })}
-          </nav>
-
-          {/* Avatar (Bottom) */}
-          <div className="mt-auto flex flex-col gap-3 items-center">
-            {/* Avatar Circle */}
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center cursor-pointer hover:shadow-md transition-all">
-              <span className="text-white text-lg font-bold">👤</span>
-            </div>
-            
-            {/* Logout Button */}
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="flex items-center justify-center w-12 h-12 rounded-[14px] text-gray-800 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
-              title="Đăng xuất"
+      <div
+        className="absolute left-0 top-0 bottom-8 z-50 transition-all duration-300"
+        style={{ width: sidebarWidth }}
+      >
+        <Sidebar
+          className="rounded-2xl border border-gray-200 overflow-hidden shadow-lg h-full flex flex-col bg-white"
+          collapsible="none"
+        >
+          <SidebarHeader className="w-full flex items-center justify-between px-3 py-4">
+            <div
+              className={`flex items-center ${isCollapsed ? "justify-center w-full" : "gap-2"}`}
             >
-              <LogOut className="w-6 h-6" />
-            </button>
-          </div>
-        </aside>
+              <div className="flex items-center whitespace-nowrap -tracking-widest">
+                <span className="text-[#0033FF] text-2xl font-bold not-italic">
+                  S
+                </span>
+                <span className="text-black text-2xl italic font-bold">
+                  afin
+                </span>
+              </div>
+            </div>
+          </SidebarHeader>
+
+          <SidebarContent className="flex flex-col py-4">
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1 px-2">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <SidebarMenuItem key={item.key}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton
+                            onClick={() => navigate(item.path)}
+                            className={`relative flex items-center transition-all overflow-visible ${
+                              isCollapsed
+                                ? "w-12 h-12 mx-auto justify-center rounded-lg"
+                                : "w-full h-11 px-3 rounded-xl"
+                            } ${
+                              isActive
+                                ? "bg-[#2563EB] text-white shadow-md shadow-blue-500/40 hover:bg-blue-600 hover:text-white hover:shadow-lg hover:shadow-blue-500/60 hover:scale-[1.02]"
+                                : "text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:shadow-md hover:shadow-blue-200/50 hover:scale-[1.02] hover:-translate-y-0.5"
+                            }`}
+                          >
+                            <Icon className="h-6 w-6" />
+                            {!isCollapsed && (
+                              <span className="ml-3 font-medium">
+                                {item.label}
+                              </span>
+                            )}
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="right"
+                          className="bg-gray-900 text-white text-xs px-2 py-1"
+                        >
+                          <p>{item.label}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarContent>
+
+          <SidebarFooter className="flex flex-col gap-2 py-4 px-2 mt-auto hover:bg-blue-50/50 transition-colors">
+            <div
+              className={`flex items-center ${
+                isCollapsed
+                  ? "w-12 h-12 mx-auto justify-center"
+                  : "w-full px-3 py-2 gap-3"
+              }`}
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                <span className="text-lg">👤</span>
+              </div>
+            </div>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className={`relative flex items-center transition-all ${
+                    isCollapsed
+                      ? "w-12 h-12 mx-auto justify-center rounded-lg"
+                      : "w-full h-11 px-3 rounded-xl"
+                  } text-red-600 hover:bg-red-50 hover:text-red-700`}
+                >
+                  <LogOut className="h-6 w-6" />
+                  {!isCollapsed && (
+                    <span className="ml-3 font-medium">Đăng xuất</span>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
+
+        <button
+          onClick={() => setIsCollapsed((prev) => !prev)}
+          className="absolute -right-9 top-16 p-1.5 bg-white border border-gray-200 rounded-lg shadow-md hover:bg-gray-50 transition-colors z-50"
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="h-4 w-4 text-gray-600" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4 text-gray-600" />
+          )}
+        </button>
       </div>
     </>
   );
