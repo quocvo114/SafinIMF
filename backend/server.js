@@ -13,6 +13,7 @@ const userRoutes = require("./src/services/user/user.routes");
 const reportRoutes = require("./src/routes/reportRoutes");
 const geocodeRoutes = require("./src/routes/geocodeRoutes");
 const maintenanceTeamRoutes = require("./src/routes/maintenanceTeamRoutes");
+const areaRoutes = require("./src/routes/areaRoutes");
 const incidentTypeRoutes = require("./src/routes/incidentTypeRoutes");
 
 const app = express();
@@ -46,7 +47,7 @@ app.use(
       callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
@@ -68,6 +69,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/geocode", geocodeRoutes);
 app.use("/api/maintenance-teams", maintenanceTeamRoutes);
+app.use("/api/areas", areaRoutes);
 app.use("/api/incident-types", incidentTypeRoutes);
 
 // Start server
