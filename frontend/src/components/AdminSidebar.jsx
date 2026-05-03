@@ -103,7 +103,7 @@ const AdminSidebar = () => {
       id: "stats",
       path: "/admin/statistics",
       icon: <BarChart3 className="h-6 w-6" />,
-      label: "Thống kê",
+      label: "Statistics",
     },
   ];
 

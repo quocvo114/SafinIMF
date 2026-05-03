@@ -85,6 +85,16 @@ body {
     "Segoe UI Symbol";
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body.admin-scroll-lock {
+  overflow: hidden;
+}
+
 /* Toast animation */
 @keyframes slide-in {
   from {

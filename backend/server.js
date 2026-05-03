@@ -5,8 +5,6 @@ dns.setDefaultResultOrder("ipv4first");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
 const connectDB = require("./src/config/database");
 const authRoutes = require("./src/services/auth/auth.routes");
 const userRoutes = require("./src/services/user/user.routes");
@@ -15,6 +13,7 @@ const geocodeRoutes = require("./src/routes/geocodeRoutes");
 const maintenanceTeamRoutes = require("./src/routes/maintenanceTeamRoutes");
 const areaRoutes = require("./src/routes/areaRoutes");
 const incidentTypeRoutes = require("./src/routes/incidentTypeRoutes");
+const statisticsRoutes = require("./src/routes/statisticsRoutes");
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 5000;
@@ -71,6 +70,7 @@ app.use("/api/geocode", geocodeRoutes);
 app.use("/api/maintenance-teams", maintenanceTeamRoutes);
 app.use("/api/areas", areaRoutes);
 app.use("/api/incident-types", incidentTypeRoutes);
+app.use("/api/statistics", statisticsRoutes);
 
 // Start server
 app.listen(PORT, () => {

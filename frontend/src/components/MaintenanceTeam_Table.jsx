@@ -3,13 +3,6 @@ import { createPortal } from "react-dom";
 import { Search, Plus, X, Lock, Pencil, Trash2 } from "lucide-react";
 import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import {
   Select,
