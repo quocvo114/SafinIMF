@@ -150,10 +150,5 @@ def predict():
 def get_classes():
     return jsonify({'classes': CLASS_NAMES}), 200
 
-
-@app.route('/', methods=['GET'])
-def index():
-    return jsonify({'status': 'ok', 'routes': ['/health','/predict (POST)','/classes']}), 200
-
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

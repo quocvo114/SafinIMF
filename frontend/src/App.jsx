@@ -42,8 +42,9 @@ function App() {
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             {/* Public */}
-            <Route path="/" element={<PublicPage />} />
-            <Route path="/signin" element={<SignIn />} />
+            {/* <Route path="/" element={<PublicPage />} /> */}
+            <Route path="/" element={<SignIn />} />
+            {/* <Route path="/signin" element={<SignIn />} /> */}
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

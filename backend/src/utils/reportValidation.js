@@ -2,8 +2,6 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png"]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MIN_DESCRIPTION_LENGTH = 10;
 const MAX_DESCRIPTION_LENGTH = 100;
-const MIN_IMAGES = 3;
-const MAX_IMAGES = 5;
 
 const DA_NANG_BOUNDS = {
   minLat: 15.88,
@@ -116,14 +114,10 @@ function validateCreateReportPayload(payload) {
     };
   }
 
-  if (
-    !Array.isArray(images) ||
-    images.length < MIN_IMAGES ||
-    images.length > MAX_IMAGES
-  ) {
+  if (!Array.isArray(images) || images.length === 0) {
     return {
       valid: false,
-      message: `Cần tải từ ${MIN_IMAGES} đến ${MAX_IMAGES} ảnh`,
+      message: "Cần tải ít nhất 1 ảnh",
     };
   }
 

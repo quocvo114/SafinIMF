@@ -61,7 +61,7 @@ function App() {
   return (
     <div className="container">
       <div className="header">
-        <h1>🏙️ Urban Issues Detection</h1>
+        <h1>Urban Issues Detection</h1>
         <p>Detect urban infrastructure issues using AI</p>
       </div>
 

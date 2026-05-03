@@ -186,10 +186,10 @@ const UserSidebar = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-semibold text-gray-800 mb-3">
-              Xác nhận đăng xuất
+              Thông báo
             </h3>
             <p className="text-gray-600 mb-6">
-              Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?
+              Bạn có chắc chắn muốn đăng xuất ?
             </p>
             <div className="flex gap-3 justify-end">
               <button

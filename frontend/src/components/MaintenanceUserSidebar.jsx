@@ -188,10 +188,10 @@ const MaintenanceUserSidebar = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="mb-3 text-xl font-semibold text-gray-800">
-                Xác nhận đăng xuất
+                Thông báo
               </h3>
               <p className="mb-6 text-gray-600">
-                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?
+                Bạn có chắc chắn muốn đăng xuất ?
               </p>
               <div className="flex justify-end gap-3">
                 <button

@@ -37,7 +37,6 @@ const LEGACY_INCIDENT_OPTIONS = [
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const MIN_IMAGES = 3;
 const MAX_IMAGES = 5;
 
 function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
@@ -444,11 +443,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       return;
     }
 
-    if (
-      uploadedImages.length < MIN_IMAGES ||
-      uploadedImages.length > MAX_IMAGES
-    ) {
-      showErrorToast(`Bạn cần tải từ ${MIN_IMAGES} đến ${MAX_IMAGES} ảnh.`);
+    if (!uploadedImages.length) {
+      showErrorToast("Bạn cần tải ít nhất 1 ảnh.");
       return;
     }
 

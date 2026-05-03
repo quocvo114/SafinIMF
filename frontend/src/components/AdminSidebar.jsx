@@ -99,10 +99,10 @@ const AdminSidebar = () => {
         <DialogContent className="max-w-[420px] rounded-2xl border border-gray-100 bg-white p-0">
           <DialogHeader className="px-6 pt-6">
             <DialogTitle className="text-2xl font-semibold text-gray-800">
-              Xác nhận đăng xuất
+              Thông báo
             </DialogTitle>
             <DialogDescription className="text-base leading-6 text-gray-600">
-              Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?
+              Bạn có chắc chắn muốn đăng xuất ?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="px-6 pb-6">

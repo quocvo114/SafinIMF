@@ -112,7 +112,7 @@ describe("PB05 - POST /api/reports", () => {
     },
   );
 
-  test("rejects with only 2 images", async () => {
+  test("accepts with only 2 images", async () => {
     const response = await request(app)
       .post("/api/reports")
       .send(
@@ -120,10 +120,9 @@ describe("PB05 - POST /api/reports", () => {
           images: [makeDataUrl(), makeDataUrl("image/png")],
         }),
       )
-      .expect(400);
+      .expect(201);
 
-    expect(response.body.message).toMatch(/3 đến 5 ảnh/);
-    expect(ReportRepository.create).not.toHaveBeenCalled();
+    expect(response.body.success).toBe(true);
   });
 
   test("accepts with exactly 5 images", async () => {
@@ -145,7 +144,7 @@ describe("PB05 - POST /api/reports", () => {
     expect(response.body.success).toBe(true);
   });
 
-  test("rejects with 6 images", async () => {
+  test("accepts with 6 images", async () => {
     const response = await request(app)
       .post("/api/reports")
       .send(
@@ -160,10 +159,9 @@ describe("PB05 - POST /api/reports", () => {
           ],
         }),
       )
-      .expect(400);
+      .expect(201);
 
-    expect(response.body.message).toMatch(/3 đến 5 ảnh/);
-    expect(ReportRepository.create).not.toHaveBeenCalled();
+    expect(response.body.success).toBe(true);
   });
 
   test("rejects unsupported file format like PDF", async () => {
