@@ -189,6 +189,9 @@ function toReceptionItem(report) {
     team: assignedTeamName,
     handlerTeam: assignedTeamName,
     district: inferDistrict(report.location),
+    // Progress fields
+    afterImg: report.afterImg || "",
+    progressNote: report.progressNote || "",
     // AI fields for display
     aiPercent: report.aiPercent ?? null,
     aiVerified: report.aiVerified ?? false,
@@ -959,9 +962,10 @@ class ReportController {
   async updateProgress(req, res) {
     try {
       const { id } = req.params;
-      const { afterImg, progressNote } = req.body;
+      const { afterImg, afterImage, progressNote } = req.body;
+      const resolvedAfterImg = afterImg || afterImage;
 
-      if (!afterImg) {
+      if (!resolvedAfterImg) {
         return res.status(400).json({
           success: false,
           message: "Vui lòng upload ảnh sau khi khắc phục",
@@ -969,24 +973,37 @@ class ReportController {
       }
 
       // Tìm báo cáo
+      const queryConditions = [{ id: id }];
+
+      // Nếu id là một số hợp lệ, tìm thêm theo trường report_id
+      const numericId = Number(id);
+      if (!Number.isNaN(numericId)) {
+        queryConditions.push({ report_id: numericId });
+      }
+
+      // Nếu id là ObjectId hợp lệ, tìm theo _id
+      if (typeof id === "string" && /^[a-fA-F0-9]{24}$/.test(id)) {
+        queryConditions.push({ _id: id });
+      }
+
       const report = await Report.findOne({
-        $or: [{ id }, { report_id: id }],
+        $or: queryConditions,
       });
 
       if (!report) {
         return res.status(404).json({
           success: false,
-          message: "Không tìm thấy báo cáo",
+          message: "Không tìm thấy báo cáo để cập nhật tiến độ",
         });
       }
 
       // Upload ảnh sau khắc phục lên Cloudinary
-      let afterImgUrl = afterImg;
-      if (hasCloudinaryConfig() && isImageDataUrl(afterImg)) {
+      let afterImgUrl = resolvedAfterImg;
+      if (hasCloudinaryConfig() && isImageDataUrl(resolvedAfterImg)) {
         try {
           const folderRoot =
             process.env.CLOUDINARY_FOLDER || "urbaninfra_reports/reports";
-          const result = await cloudinary.uploader.upload(afterImg, {
+          const result = await cloudinary.uploader.upload(resolvedAfterImg, {
             folder: `${folderRoot}/${report.userId}`,
             resource_type: "image",
           });
@@ -998,14 +1015,21 @@ class ReportController {
 
       // Cập nhật báo cáo
       const updated = await Report.findOneAndUpdate(
-        { $or: [{ id }, { report_id: id }] },
+        { $or: queryConditions },
         {
           afterImg: afterImgUrl,
           status: "Đã Giải Quyết",
-          ...(progressNote ? { progressNote } : {}),
+          ...(progressNote !== undefined ? { progressNote: progressNote.trim() } : {}),
         },
         { new: true },
       );
+
+      if (!updated) {
+        return res.status(404).json({
+          success: false,
+          message: "Không thể cập nhật báo cáo. Có lỗi xảy ra.",
+        });
+      }
 
       console.log(
         `✅ Progress updated: Report ${id} → Đã Giải Quyết (afterImg uploaded)`,

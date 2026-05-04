@@ -3,13 +3,14 @@
     "module": "ESNext",              
     "moduleResolution": "bundler",
     "target": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
 
     "paths": {
       "@/*": ["./src/*"]
     },
 
-    "jsx": "react-jsx",
-    "types": ["react", "react-dom"]
+    "jsx": "react-jsx"
   },
   "include": ["src"],
   "exclude": ["node_modules"]

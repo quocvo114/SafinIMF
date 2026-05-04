@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import banner from "../image/banner-public.jpeg";
-import brick from "../image/brick.png";
+import brick from "../image/road.png";
 import pic_abt from "../image/pic-abt.png";
 import hat from "../image/hat.jpg";
 import map from "../image/VN_map.png";

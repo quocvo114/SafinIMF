@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Search, Plus, X, Lock, Pencil, Trash2 } from "lucide-react";
 import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
-
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -85,8 +85,8 @@ const inputClass =
 const MaintenanceTeam_Table = () => {
   const [teams, setTeams] = useState([]);
   const [search, setSearch] = useState("");
-  const [areaFilter, setAreaFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [areaFilter, setAreaFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
@@ -143,7 +143,7 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể thêm đội xử lý");
+      toast.error(error?.response?.data?.message || "Không thể thêm đội xử lý");
     }
   };
 
@@ -169,7 +169,9 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể cập nhật đội xử lý");
+      toast.error(
+        error?.response?.data?.message || "Không thể cập nhật đội xử lý",
+      );
     }
   };
 
@@ -179,7 +181,7 @@ const MaintenanceTeam_Table = () => {
       await maintenanceTeamApi.deleteTeam(id);
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể xóa đội xử lý");
+      toast.error(error?.response?.data?.message || "Không thể xóa đội xử lý");
     }
   };
 
@@ -189,7 +191,7 @@ const MaintenanceTeam_Table = () => {
       await maintenanceTeamApi.updateTeamStatus(id, nextStatus);
       await fetchTeams();
     } catch (error) {
-      alert(
+      toast.error(
         error?.response?.data?.message || "Không thể đổi trạng thái đội xử lý",
       );
     }
@@ -220,7 +222,7 @@ const MaintenanceTeam_Table = () => {
                 setCurrentPage(1);
               }}
               placeholder="Tìm kiếm đội..."
-              className="flex-1 bg-transparent outline-none text-sm placeholder-gray-400"
+              className="flex-1 bg-transparent outline-none text-sm placeholder-gray-400 h-full py-0"
             />
           </div>
         </div>
@@ -233,7 +235,7 @@ const MaintenanceTeam_Table = () => {
             }}
             className="min-w-[140px] px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:border-gray-400 outline-none"
           >
-            <option value="">Tất cả khu vực</option>
+            <option value="all">Tất cả khu vực</option>
             {AREA_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -248,7 +250,7 @@ const MaintenanceTeam_Table = () => {
             }}
             className="min-w-[140px] px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:border-gray-400 outline-none"
           >
-            <option value="">Tất cả trạng thái</option>
+            <option value="all">Tất cả trạng thái</option>
             {STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
