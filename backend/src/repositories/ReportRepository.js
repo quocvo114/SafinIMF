@@ -31,10 +31,12 @@ function normalizeText(value = "") {
 
 const NORMALIZED_DISTRICT_ALIAS_MAP = Object.entries(DISTRICT_ALIAS_MAP).reduce(
   (accumulator, [district, aliases]) => {
-    accumulator[normalizeText(district)] = aliases.map((alias) => normalizeText(alias));
+    accumulator[normalizeText(district)] = aliases.map((alias) =>
+      normalizeText(alias),
+    );
     return accumulator;
   },
-  {}
+  {},
 );
 
 function escapeRegex(value) {
@@ -62,7 +64,9 @@ function buildVietnameseRegexPattern(value = "") {
 
 function buildDistrictRegex(district) {
   const normalizedDistrict = normalizeText(district);
-  const aliases = NORMALIZED_DISTRICT_ALIAS_MAP[normalizedDistrict] || [normalizedDistrict];
+  const aliases = NORMALIZED_DISTRICT_ALIAS_MAP[normalizedDistrict] || [
+    normalizedDistrict,
+  ];
   const pattern = Array.from(new Set(aliases))
     .map((alias) => buildVietnameseRegexPattern(alias))
     .filter(Boolean)
@@ -124,7 +128,9 @@ class ReportRepository {
         },
       };
     } catch (error) {
-      throw new Error("Lỗi khi lấy danh sách quản lý báo cáo: " + error.message);
+      throw new Error(
+        "Lỗi khi lấy danh sách quản lý báo cáo: " + error.message,
+      );
     }
   }
 
@@ -216,7 +222,7 @@ class ReportRepository {
       return await Report.findOneAndUpdate(
         { $or: [{ id }, { report_id: id }] },
         { status },
-        { new: true }
+        { new: true },
       );
     } catch (error) {
       throw new Error("Lỗi khi cập nhật trạng thái báo cáo: " + error.message);

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { reportApi } from "../services/api/reportApi";
+import { toast } from "sonner";
 import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
@@ -295,12 +296,24 @@ const ReceptForm = () => {
       return;
     }
 
+    if (!team?.id) {
+      toast.error("Thiếu thông tin đội xử lý.");
+      return;
+    }
+
     try {
-      await reportApi.updateReportStatus(reportId, "Đang Xử Lý");
+      await reportApi.assignReport(reportId, {
+        teamId: team?.id,
+        teamName: team?.name,
+      });
       syncReportStatus(reportId, "Đang Xử Lý", team?.name);
       handleCloseAssignTeam();
+      toast.success("Phân công thành công!");
     } catch (error) {
       setErrorMessage(
+        error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
+      );
+      toast.error(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
       );
     }

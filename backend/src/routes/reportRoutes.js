@@ -16,18 +16,18 @@ router.get("/map-markers", ReportController.getMapReports);
 
 // GET /api/reports/management - Dữ liệu cho trang quản lý báo cáo
 router.get(
-	"/management",
-	authMiddleware,
-	requireRole("admin", "manager", "maintenance"),
-	ReportController.getManagementReports
+  "/management",
+  authMiddleware,
+  requireRole("admin", "manager", "maintenance"),
+  ReportController.getManagementReports,
 );
 
 // GET /api/reports/reception - Dữ liệu cho trang đơn tiếp nhận
 router.get(
-	"/reception",
-	authMiddleware,
-	requireRole("admin", "manager", "maintenance"),
-	ReportController.getReceptionReports
+  "/reception",
+  authMiddleware,
+  requireRole("admin", "manager", "maintenance"),
+  ReportController.getReceptionReports,
 );
 
 // POST /api/reports - Tạo báo cáo mới
@@ -35,18 +35,26 @@ router.post("/", requireAuth, ReportController.createReport);
 
 // PATCH /api/reports/:id/status - Cập nhật trạng thái báo cáo
 router.patch(
-	"/:id/status",
-	authMiddleware,
-	requireRole("admin", "manager", "maintenance"),
-	ReportController.updateReportStatus
+  "/:id/status",
+  authMiddleware,
+  requireRole("admin", "manager", "maintenance"),
+  ReportController.updateReportStatus,
+);
+
+// PATCH /api/reports/:id/assign - Phân công đội xử lý
+router.patch(
+  "/:id/assign",
+  authMiddleware,
+  requireRole("admin", "manager"),
+  ReportController.assignReport,
 );
 
 // PATCH /api/reports/:id/progress - PB14: Cập nhật tiến độ xử lý (Đội xử lý)
 router.patch(
-	"/:id/progress",
-	authMiddleware,
-	requireRole("maintenance"),
-	ReportController.updateProgress
+  "/:id/progress",
+  authMiddleware,
+  requireRole("maintenance"),
+  ReportController.updateProgress,
 );
 
 // GET /api/reports/:id - Lấy 1 báo cáo (phải đặt sau /user/:userId)

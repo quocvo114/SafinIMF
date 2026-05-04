@@ -1,4 +1,5 @@
 const ReportRepository = require("../repositories/ReportRepository");
+const MaintenanceTeamRepository = require("../repositories/MaintenanceTeamRepository");
 const cloudinary = require("../config/cloudinary");
 const AiValidationLog = require("../models/AiValidationLog");
 
@@ -155,6 +156,9 @@ function formatExifLocation(exifMetadata) {
 }
 
 function toReceptionItem(report) {
+  const assignedTeamName =
+    report.assignedTeamName || report.team || report.handlerTeam || "";
+
   return {
     _id: report._id,
     id: report.id || report.report_id,
@@ -180,6 +184,10 @@ function toReceptionItem(report) {
         ? report.time.split(",")[0]
         : formatDate(report.createdAt || report.updatedAt),
     status: report.status,
+    assignedTeamId: report.assignedTeamId || "",
+    assignedTeamName,
+    team: assignedTeamName,
+    handlerTeam: assignedTeamName,
     district: inferDistrict(report.location),
     // AI fields for display
     aiPercent: report.aiPercent ?? null,
@@ -845,6 +853,102 @@ class ReportController {
       });
     } catch (error) {
       res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async assignReport(req, res) {
+    try {
+      const { id } = req.params;
+      const { teamId, teamName } = req.body;
+
+      if (!teamId) {
+        return res.status(400).json({
+          success: false,
+          message: "Thiếu thông tin đội xử lý",
+        });
+      }
+
+      const team = await MaintenanceTeamRepository.findByTeamId(teamId);
+      if (!team) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy đội xử lý",
+        });
+      }
+
+      const report = await Report.findOne({ $or: [{ id }, { report_id: id }] });
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy báo cáo",
+        });
+      }
+
+      const previousTeamId = report.assignedTeamId;
+      const isSameTeam = previousTeamId && previousTeamId === teamId;
+      const nextTeamName = teamName || team.name;
+
+      const currentCases = Math.max(parseInt(team.currentCases, 10) || 0, 0);
+      const previousCases = currentCases;
+      let previousTeam = null;
+      let previousTeamCases = null;
+
+      if (!isSameTeam) {
+        if (previousTeamId) {
+          previousTeam =
+            await MaintenanceTeamRepository.findByTeamId(previousTeamId);
+          previousTeamCases = Math.max(
+            parseInt(previousTeam?.currentCases, 10) || 0,
+            0,
+          );
+        }
+
+        await MaintenanceTeamRepository.updateCaseCountByTeamId(
+          teamId,
+          currentCases + 1,
+        );
+
+        if (previousTeam) {
+          await MaintenanceTeamRepository.updateCaseCountByTeamId(
+            previousTeamId,
+            Math.max(previousTeamCases - 1, 0),
+          );
+        }
+      }
+
+      try {
+        report.status = "Đang Xử Lý";
+        report.assignedTeamId = teamId;
+        report.assignedTeamName = nextTeamName;
+        const updated = await report.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "Phân công đội xử lý thành công",
+          data: toReceptionItem(updated),
+        });
+      } catch (error) {
+        if (!isSameTeam) {
+          await MaintenanceTeamRepository.updateCaseCountByTeamId(
+            teamId,
+            previousCases,
+          );
+
+          if (previousTeam && previousTeamCases !== null) {
+            await MaintenanceTeamRepository.updateCaseCountByTeamId(
+              previousTeamId,
+              previousTeamCases,
+            );
+          }
+        }
+
+        throw error;
+      }
+    } catch (error) {
+      return res.status(500).json({
         success: false,
         message: error.message,
       });

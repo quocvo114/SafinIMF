@@ -77,6 +77,15 @@ class MaintenanceTeamRepository {
     ).lean();
   }
 
+  async updateCaseCountByTeamId(team_id, currentCases) {
+    const safeCases = Math.max(parseInt(currentCases, 10) || 0, 0);
+    return MaintenanceTeam.findOneAndUpdate(
+      { team_id },
+      { currentCases: safeCases },
+      { new: true },
+    ).lean();
+  }
+
   async deleteByTeamId(team_id) {
     return MaintenanceTeam.findOneAndDelete({ team_id }).lean();
   }

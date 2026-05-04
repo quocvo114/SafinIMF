@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Check, Wrench, X, Navigation, ArchiveIcon, Lock } from "lucide-react";
+import { Check, X, ArchiveIcon, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,18 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import {
+  BridgeIcon,
+  DropIcon,
+  LightbulbIcon,
+  MapPinSimpleAreaIcon,
+  RoadHorizonIcon,
+  SignpostIcon,
+  TrafficSignalIcon,
+  TreeIcon,
+  UsersThreeIcon,
+  HardHatIcon,
+} from "@phosphor-icons/react";
 
 const DEFAULT_TEAMS = [
   {
@@ -70,7 +82,100 @@ const normalizeText = (value = "") =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
+    .replace(/đ/g, "d")
     .trim();
+
+const REPORT_TYPE_ALIASES = {
+  "giao thong": "giao thong",
+  dien: "dien",
+  "cay xanh": "cay xanh",
+  ctcc: "ctcc",
+  "cong trinh cong cong": "ctcc",
+};
+
+const REPORT_TYPE_SPECIALTIES = {
+  "giao thong": ["cau duong", "bien bao & vach ke"],
+  dien: ["den chieu sang", "den tin hieu giao thong"],
+  "cay xanh": ["cay bong mat"],
+  ctcc: ["thoat nuoc", "cau cong", "via he"],
+};
+
+const SPECIALTY_ICON_MAP = [
+  { match: "cau duong", Icon: BridgeIcon },
+  { match: "bien bao", Icon: SignpostIcon },
+  { match: "den chieu sang", Icon: LightbulbIcon },
+  { match: "den tin hieu", Icon: TrafficSignalIcon },
+  { match: "cay bong mat", Icon: TreeIcon },
+  { match: "thoat nuoc", Icon: DropIcon },
+  { match: "cau cong", Icon: HardHatIcon },
+  { match: "via he", Icon: RoadHorizonIcon },
+];
+
+const SPECIALTY_TONE_MAP = [
+  {
+    match: "cau duong",
+    iconClass: "text-orange-600",
+    textClass: "text-orange-600",
+  },
+  {
+    match: "bien bao",
+    iconClass: "text-[#FF9C08]",
+    textClass: "text-[#FF9C08]",
+  },
+  {
+    match: "den chieu sang",
+    iconClass: "text-[#FFDE08]",
+    textClass: "text-[#FDCA00]",
+  },
+  {
+    match: "den tin hieu",
+    iconClass: "text-rose-500",
+    textClass: "text-rose-500",
+  },
+  {
+    match: "cay bong mat",
+    iconClass: "text-[#74C365]",
+    textClass: "text-[#74C365]",
+  },
+  {
+    match: "thoat nuoc",
+    iconClass: "text-sky-400",
+    textClass: "text-sky-400",
+  },
+  {
+    match: "cau cong",
+    iconClass: "text-[#B78FF2]",
+    textClass: "text-[#B78FF2]",
+  },
+  {
+    match: "via he",
+    iconClass: "text-zinc-500",
+    textClass: "text-zinc-500 ",
+  },
+];
+
+const getSpecialtyIcon = (specialty) => {
+  const normalized = normalizeText(specialty);
+  if (!normalized) return null;
+  return (
+    SPECIALTY_ICON_MAP.find((item) => normalized.includes(item.match))?.Icon ||
+    null
+  );
+};
+
+const getSpecialtyTone = (specialty) => {
+  const normalized = normalizeText(specialty);
+  if (!normalized) {
+    return { iconClass: "text-zinc-500", textClass: "text-zinc-600" };
+  }
+
+  return (
+    SPECIALTY_TONE_MAP.find((item) => normalized.includes(item.match)) || {
+      iconClass: "text-zinc-500",
+      textClass: "text-zinc-600",
+    }
+  );
+};
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -84,13 +189,23 @@ const isTeamAtCapacity = (team) => {
 };
 
 const isTeamMatchingReportType = (team, reportType) => {
-  if (!reportType || reportType === "all") return true;
-  const normalizedReportType = normalizeText(reportType);
+  if (!reportType || normalizeText(reportType) === "all") return true;
   const normalizedSpecialty = normalizeText(team?.specialty || "");
-  if (!normalizedReportType || !normalizedSpecialty) return false;
+  if (!normalizedSpecialty) return false;
+
+  const normalizedType = normalizeText(reportType);
+  const typeKey = REPORT_TYPE_ALIASES[normalizedType] || normalizedType;
+  const allowedSpecialties = REPORT_TYPE_SPECIALTIES[typeKey] || [];
+
+  if (allowedSpecialties.length) {
+    return allowedSpecialties.some((specialty) =>
+      normalizedSpecialty.includes(specialty),
+    );
+  }
+
   return (
-    normalizedSpecialty.includes(normalizedReportType) ||
-    normalizedReportType.includes(normalizedSpecialty)
+    normalizedSpecialty.includes(normalizedType) ||
+    normalizedType.includes(normalizedSpecialty)
   );
 };
 
@@ -101,6 +216,8 @@ const TeamCard = ({ team, selected, onSelect }) => {
   const isSelected = selected && !isAtCapacity;
   const badgeClass = statusStyle[isAtCapacity ? "busy" : "ready"].badge;
   const specialtyLabel = team?.specialty || "Chưa rõ lĩnh vực";
+  const SpecialtyIcon = getSpecialtyIcon(team?.specialty);
+  const specialtyTone = getSpecialtyTone(team?.specialty);
   const statusLabel = isAtCapacity ? "đang bận" : "sẵn sàng";
 
   return (
@@ -117,7 +234,12 @@ const TeamCard = ({ team, selected, onSelect }) => {
     >
       <div className="flex min-w-0 items-center gap-4 sm:gap-[25px]">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[15px] bg-[rgb(233,235,236)]">
-          <Wrench className="h-7 w-7 text-zinc-500" strokeWidth={1.9} />
+          <UsersThreeIcon
+            weight="fill"
+            color="#3B3B3B"
+            className="h-7 w-7"
+            strokeWidth={1.9}
+          />
         </div>
 
         <div className="min-w-0 space-y-2 sm:space-y-[15px]">
@@ -136,14 +258,27 @@ const TeamCard = ({ team, selected, onSelect }) => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-[#3B3B3B] sm:gap-5">
-            <span>{specialtyLabel}</span>
-            <Navigation
+            <span className="flex items-center gap-2">
+              {SpecialtyIcon && (
+                <SpecialtyIcon
+                  weight="fill"
+                  className={`h-4 w-4 ${specialtyTone.iconClass}`}
+                />
+              )}
+              <span className={specialtyTone.textClass}>{specialtyLabel}</span>
+            </span>
+            <MapPinSimpleAreaIcon
+              weight="fill"
               className="h-4 w-4 -mr-3"
               strokeWidth={1.9}
-            ></Navigation>
+            ></MapPinSimpleAreaIcon>
             <span>{team.distance}</span>
             <span className="flex items-center gap-2">
-              <ArchiveIcon className="h-4 w-4 " strokeWidth={1.9}></ArchiveIcon>
+              <ArchiveIcon
+                weight="fill"
+                className="h-4 w-4 text-[#3B3B3B]"
+                strokeWidth={1.9}
+              ></ArchiveIcon>
               {cases}/{maxCases} Cases
             </span>
           </div>

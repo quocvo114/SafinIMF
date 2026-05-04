@@ -265,7 +265,6 @@ const MaintenanceTeam_Table = () => {
         </div>
       </div>
 
-      {/* ✅ BLOCK 1: FORM THÊM MỚI (Viết trực tiếp, không tách component) */}
       {showAddModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-[420px] p-5 animate-in fade-in zoom-in duration-200">
@@ -432,7 +431,6 @@ const MaintenanceTeam_Table = () => {
         </div>
       )}
 
-      {/* ✅ BLOCK 2: FORM CHỈNH SỬA (Viết trực tiếp, không tách component) */}
       {showEditModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-[420px] p-5 animate-in fade-in zoom-in duration-200">
@@ -706,7 +704,7 @@ const MaintenanceTeam_Table = () => {
               ))}
           </tbody>
         </table>
-        <div className="flex items-center justify-center gap-4 px-4 py-3 text-sm text-gray-500 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-center gap-4 px-4 py-3 text-sm text-gray-500 border-t border-gray-200 ">
           <button
             onClick={handlePrev}
             disabled={safePage === 1}
