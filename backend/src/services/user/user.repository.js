@@ -1,4 +1,4 @@
-﻿const User = require("./user.model");  
+const User = require("./user.model");  
 
 class UserRepository {
   async findByPhone(phone) {
@@ -112,16 +112,25 @@ class UserRepository {
   }
 
   async updateUserByAdmin(user_id, data) {
+    const updateFields = {
+      full_name: data.full_name,
+      phone: data.phone,
+      role: data.role,
+      area: data.area,
+      account_status: data.account_status,
+    };
+    
+    const updateQuery = { $set: updateFields };
+    
+    if (data.email && data.email.trim() !== "") {
+      updateFields.email = data.email.trim();
+    } else if (data.email === "") {
+      updateQuery.$unset = { email: 1 };
+    }
+
     return User.findOneAndUpdate(
       { user_id },
-      {
-        full_name: data.full_name,
-        phone: data.phone,
-        email: data.email,
-        role: data.role,
-        area: data.area,
-        account_status: data.account_status,
-      },
+      updateQuery,
       { new: true, projection: { password: 0 } }
     ).lean();
   }

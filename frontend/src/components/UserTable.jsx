@@ -1,14 +1,41 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Search, Plus, Pencil, Trash2, Lock, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import {
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  Lock,
+  Unlock,
+  X,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Map,
+} from "lucide-react";
 import userApi from "../services/api/userApi";
 
 const ROLE_OPTIONS = [
   { value: "all", label: "Tất cả vai trò" },
   { value: "User", label: "User" },
-  { value: "Admin", label: "Admin" },
-  { value: "QTV", label: "QTV" },
-  { value: "KTV", label: "KTV" },
+  { value: "QTV", label: "QLKV" },
+  { value: "KTV", label: "ĐXL" },
 ];
+
+const roleLabels = {
+  User: "User",
+  QTV: "QLKV",
+  KTV: "ĐXL",
+};
+
+const normalizeRole = (role) => {
+  if (!role) return "User";
+  if (role === "citizen" || role === "User") return "User";
+  if (role === "admin" || role === "QTV" || role === "Admin") return "QTV";
+  if (role === "maintenance" || role === "KTV") return "KTV";
+  return role;
+};
 
 const AREA_OPTIONS = [
   { value: "all", label: "Tất cả khu vực" },
@@ -41,9 +68,10 @@ const statusLabel = {
 const emptyForm = {
   name: "",
   phone: "",
-  role: "User",
+  role: "QTV",
   area: "Sơn Trà",
   status: "active",
+  password: "",
 };
 
 const normalizeUser = (user) => ({
@@ -51,7 +79,7 @@ const normalizeUser = (user) => ({
   user_id: user.user_id,
   name: user.name || user.full_name || "",
   phone: user.phone || "",
-  role: user.role || "User",
+  role: normalizeRole(user.role),
   area: user.area || "",
   status: user.status || user.account_status || "active",
 });
@@ -76,7 +104,7 @@ export default function UserTable() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const pageSize = 10;
+  const pageSize = 6;
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -85,6 +113,17 @@ export default function UserTable() {
 
   // Form states
   const [formData, setFormData] = useState(emptyForm);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const generateRandomPassword = () => {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let pass = "";
+    for (let i = 0; i < 12; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData((prev) => ({ ...prev, password: pass }));
+  };
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -107,7 +146,7 @@ export default function UserTable() {
       setUsers([]);
       setTotalPages(1);
       setErrorMessage(
-        error?.response?.data?.message || "Không thể tải danh sách người dùng"
+        error?.response?.data?.message || "Không thể tải danh sách người dùng",
       );
     } finally {
       setLoading(false);
@@ -136,6 +175,7 @@ export default function UserTable() {
       await userApi.createManagementUser(formData);
       setShowAddModal(false);
       setFormData(emptyForm);
+      setShowPassword(false);
       await fetchUsers();
     } catch (error) {
       alert(error?.response?.data?.message || "Không thể thêm người dùng");
@@ -206,16 +246,18 @@ export default function UserTable() {
       await userApi.updateManagementUserStatus(userId, nextStatus);
       await fetchUsers();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể đổi trạng thái người dùng");
+      alert(
+        error?.response?.data?.message || "Không thể đổi trạng thái người dùng",
+      );
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full flex flex-col flex-1 min-w-0">
       {/* Hàng filter trên cùng */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         {/* Search */}
-        <div className="flex-1">
+        <div className="flex-1 w-full lg:w-auto">
           <div className="flex items-center gap-2 px-4 py-2 rounded-full border text-sm bg-[#f8fafc] border-gray-200 text-gray-700">
             <Search className="w-4 h-4 opacity-70" />
             <input
@@ -232,60 +274,69 @@ export default function UserTable() {
         </div>
 
         {/* Droplist + button */}
-        <div className="flex flex-wrap lg:flex-nowrap gap-2 lg:gap-3">
+        <div className="flex flex-wrap lg:flex-nowrap gap-2 lg:gap-3 w-full lg:w-auto">
           {/* Vai trò */}
-          <select
-            value={roleFilter}
-            onChange={(e) => {
-              setRoleFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="min-w-[150px] px-3 py-2 text-sm rounded-full border bg-white"
-          >
-            {ROLE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative flex-1 lg:flex-none min-w-[140px]">
+            <select
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full appearance-none pl-4 pr-10 py-2.5 lg:py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+            >
+              {ROLE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
 
           {/* Khu vực */}
-          <select
-            value={areaFilter}
-            onChange={(e) => {
-              setAreaFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="min-w-[150px] px-3 py-2 text-sm rounded-full border bg-white"
-          >
-            {AREA_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative flex-1 lg:flex-none min-w-[140px]">
+            <select
+              value={areaFilter}
+              onChange={(e) => {
+                setAreaFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full appearance-none pl-4 pr-10 py-2.5 lg:py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+            >
+              {AREA_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
 
           {/* Trạng thái */}
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="min-w-[150px] px-3 py-2 text-sm rounded-full border bg-white"
-          >
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative flex-1 lg:flex-none min-w-[140px]">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full appearance-none pl-4 pr-10 py-2.5 lg:py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
 
           {/* Nút Thêm User */}
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="ml-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white shadow-sm transition"
+            className="ml-auto flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white shadow-sm transition whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             Thêm User
@@ -294,247 +345,307 @@ export default function UserTable() {
       </div>
 
       {/* Add User Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Thêm User Mới</h3>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setFormData(emptyForm);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
+      {showAddModal &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 py-6">
+            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-[500px] max-h-full flex flex-col overflow-hidden">
+              <div className="bg-[#0b5cd6] p-4 sm:p-5 text-white pb-5 sm:pb-6 shrink-0">
+                <h3 className="text-xl sm:text-2xl font-bold mb-1">
+                  Thêm Người Dùng Mới
+                </h3>
+                <p className="text-blue-100 text-xs sm:text-sm">
+                  Điền thông tin chi tiết để cấp quyền truy cập hệ thống.
+                </p>
+              </div>
+
+              <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                    Họ và tên người dùng
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium"
+                    placeholder="Nhập tên đầy đủ..."
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium"
+                      placeholder="xxx-xxxx"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                      Vai trò
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={formData.role}
+                        onChange={(e) =>
+                          setFormData({ ...formData, role: e.target.value })
+                        }
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium appearance-none cursor-pointer"
+                      >
+                        <option value="QTV">QLKV</option>
+                        <option value="KTV">ĐXL</option>
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                    Khu vực
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.area}
+                      onChange={(e) =>
+                        setFormData({ ...formData, area: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium appearance-none cursor-pointer"
+                    >
+                      <option value="Sơn Trà">Sơn Trà</option>
+                      <option value="Liên Chiểu">Liên Chiểu</option>
+                      <option value="Hải Châu">Hải Châu</option>
+                      <option value="Hòa Xuân">Hòa Xuân</option>
+                      <option value="Khuê Trung">Khuê Trung</option>
+                    </select>
+                    <Map className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                    Mật khẩu
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium pr-12 tracking-widest placeholder:tracking-normal"
+                      placeholder="••••••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="flex items-center gap-2 mt-2.5 text-sm font-semibold text-[#0b5cd6] hover:text-blue-800 focus:outline-none"
+                  >
+                    <RefreshCw size={16} /> Tạo mật khẩu ngẫu nhiên
+                  </button>
+                </div>
+
+                <div className="flex gap-3 sm:gap-4 pt-1">
+                  <button
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setFormData(emptyForm);
+                      setShowPassword(false);
+                    }}
+                    className="flex-1 py-2 sm:py-2.5 px-4 border-2 border-[#0b5cd6] rounded-full text-[#0b5cd6] font-semibold hover:bg-blue-50 transition-colors text-sm sm:text-base"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleAddUser}
+                    className="flex-1 py-2 sm:py-2.5 px-4 bg-[#0b5cd6] text-white rounded-full font-semibold hover:bg-[#094bb0] transition-colors shadow-lg shadow-blue-500/30 text-sm sm:text-base"
+                  >
+                    Thêm
+                  </button>
+                </div>
+              </div>
             </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="Nhập tên"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số điện thoại
-                </label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="(xxx) xxx-xxxx"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Vai trò
-                </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
-                >
-                  <option value="User">User</option>
-                  <option value="Admin">Admin</option>
-                  <option value="QTV">QTV</option>
-                  <option value="KTV">KTV</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Khu vực
-                </label>
-                <select
-                  value={formData.area}
-                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
-                >
-                  <option value="Sơn Trà">Sơn Trà</option>
-                  <option value="Liên Chiểu">Liên Chiểu</option>
-                  <option value="Hải Châu">Hải Châu</option>
-                  <option value="Hòa Xuân">Hòa Xuân</option>
-                  <option value="Khuê Trung">Khuê Trung</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trạng thái
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
-                >
-                  <option value="active">Hoạt động</option>
-                  <option value="locked">Bị Khóa</option>
-                  <option value="banned">Bị Cấm</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setFormData(emptyForm);
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleAddUser}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Thêm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Edit User Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Chỉnh Sửa User</h3>
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingUser(null);
-                  setFormData(emptyForm);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
+      {showEditModal &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4 py-6">
+            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-[500px] max-h-full flex flex-col overflow-hidden">
+              <div className="bg-[#0b5cd6] p-4 sm:p-5 text-white pb-5 sm:pb-6 shrink-0">
+                <h3 className="text-xl sm:text-2xl font-bold mb-1">
+                  Chỉnh Sửa User
+                </h3>
+                <p className="text-blue-100 text-xs sm:text-sm">
+                  Cập nhật thông tin chi tiết của người dùng này.
+                </p>
+              </div>
+
+              <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                    Họ và tên người dùng
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium"
+                    placeholder="Nhập tên"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium"
+                      placeholder="(xxx) xxx-xxxx"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                      Vai trò
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={formData.role}
+                        onChange={(e) =>
+                          setFormData({ ...formData, role: e.target.value })
+                        }
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium appearance-none cursor-pointer"
+                      >
+                        <option value="User">User</option>
+                        <option value="QTV">Quản lý khu vực</option>
+                        <option value="KTV">ĐXL</option>
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                      Khu vực
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={formData.area}
+                        onChange={(e) =>
+                          setFormData({ ...formData, area: e.target.value })
+                        }
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium appearance-none cursor-pointer"
+                      >
+                        <option value="Sơn Trà">Sơn Trà</option>
+                        <option value="Liên Chiểu">Liên Chiểu</option>
+                        <option value="Hải Châu">Hải Châu</option>
+                        <option value="Hòa Xuân">Hòa Xuân</option>
+                        <option value="Khuê Trung">Khuê Trung</option>
+                      </select>
+                      <Map className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                      Trạng thái
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={formData.status}
+                        onChange={(e) =>
+                          setFormData({ ...formData, status: e.target.value })
+                        }
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 font-medium appearance-none cursor-pointer"
+                      >
+                        <option value="active">Hoạt động</option>
+                        <option value="locked">Bị Khóa</option>
+                        <option value="banned">Bị Cấm</option>
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 sm:gap-4 pt-1">
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingUser(null);
+                      setFormData(emptyForm);
+                    }}
+                    className="flex-1 py-2 sm:py-2.5 px-4 border-2 border-[#0b5cd6] rounded-full text-[#0b5cd6] font-semibold hover:bg-blue-50 transition-colors text-sm sm:text-base"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="flex-1 py-2 sm:py-2.5 px-4 bg-[#0b5cd6] text-white rounded-full font-semibold hover:bg-[#094bb0] transition-colors shadow-lg shadow-blue-500/30 text-sm sm:text-base"
+                  >
+                    Lưu
+                  </button>
+                </div>
+              </div>
             </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="Nhập tên"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số điện thoại
-                </label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="(xxx) xxx-xxxx"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Vai trò
-                </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
-                >
-                  <option value="User">User</option>
-                  <option value="Admin">Admin</option>
-                  <option value="QTV">QTV</option>
-                  <option value="KTV">KTV</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Khu vực
-                </label>
-                <select
-                  value={formData.area}
-                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
-                >
-                  <option value="Sơn Trà">Sơn Trà</option>
-                  <option value="Liên Chiểu">Liên Chiểu</option>
-                  <option value="Hải Châu">Hải Châu</option>
-                  <option value="Hòa Xuân">Hòa Xuân</option>
-                  <option value="Khuê Trung">Khuê Trung</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trạng thái
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
-                >
-                  <option value="active">Hoạt động</option>
-                  <option value="locked">Bị Khóa</option>
-                  <option value="banned">Bị Cấm</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingUser(null);
-                  setFormData(emptyForm);
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Lưu
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Bảng */}
-      <div className="overflow-x-auto rounded-2xl border shadow-sm bg-white border-gray-100">
+      <div className="w-full overflow-x-auto rounded-xl lg:rounded-2xl border shadow-sm bg-white border-gray-100 flex-1">
         <table className="min-w-full text-sm">
           <thead className="bg-[#f9fafb] text-gray-500">
             <tr>
-              <th className="px-4 py-3 font-medium text-left">ID</th>
-              <th className="px-4 py-3 font-medium text-left">Tên</th>
-              <th className="px-4 py-3 font-medium text-left">SĐT</th>
-              <th className="px-4 py-3 font-medium text-left">Vai trò</th>
-              <th className="px-4 py-3 font-medium text-left">Khu vực</th>
-              <th className="px-4 py-3 font-medium text-left">Trạng thái</th>
-              <th className="px-4 py-3 font-medium text-center">Actions</th>
+              <th className="px-4 py-3 font-medium text-left whitespace-nowrap">
+                ID
+              </th>
+              <th className="px-4 py-3 font-medium text-left whitespace-nowrap">
+                Tên
+              </th>
+              <th className="px-4 py-3 font-medium text-left whitespace-nowrap">
+                SĐT
+              </th>
+              <th className="px-4 py-3 font-medium text-left whitespace-nowrap">
+                Vai trò
+              </th>
+              <th className="px-4 py-3 font-medium text-left whitespace-nowrap">
+                Khu vực
+              </th>
+              <th className="px-4 py-3 font-medium text-left whitespace-nowrap">
+                Trạng thái
+              </th>
+              <th className="px-4 py-3 font-medium text-center whitespace-nowrap">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -560,56 +671,75 @@ export default function UserTable() {
               </tr>
             )}
 
-            {!loading && pageUsers.map((u) => (
-              <tr
-                key={u.id}
-                className="border-t border-gray-100 hover:bg-gray-50"
-              >
-                <td className="px-4 py-3 font-medium text-gray-800">{u.id}</td>
+            {!loading &&
+              pageUsers.map((u) => (
+                <tr
+                  key={u.id}
+                  className="border-t border-gray-100 hover:bg-gray-50"
+                >
+                  <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">
+                    {u.id}
+                  </td>
 
-                <td className="px-4 py-3 font-medium">{u.name}</td>
-                <td className="px-4 py-3 whitespace-nowrap">{u.phone}</td>
-                <td className="px-4 py-3">{u.role}</td>
-                <td className="px-4 py-3">{u.area}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                      statusStyle[u.status]
-                    }`}
-                  >
-                    {statusLabel[u.status]}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleLock(u)}
-                      className="text-amber-500 hover:text-amber-600"
-                      title="Khóa / mở khóa"
+                  <td className="px-4 py-3 font-medium whitespace-nowrap">
+                    {u.name}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">{u.phone}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {roleLabels[u.role] || u.role}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">{u.area}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                        statusStyle[u.status]
+                      }`}
                     >
-                      <Lock className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleEditClick(u)}
-                      className="text-blue-500 hover:text-blue-600"
-                      title="Sửa"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(u)}
-                      className="text-red-500 hover:text-red-600"
-                      title="Xóa"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {statusLabel[u.status]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLock(u)}
+                        className={`${
+                          u.status === "active"
+                            ? "text-amber-500 hover:text-amber-600"
+                            : "text-emerald-500 hover:text-emerald-600"
+                        }`}
+                        title={
+                          u.status === "active"
+                            ? "Khóa tài khoản"
+                            : "Mở khóa tài khoản"
+                        }
+                      >
+                        {u.status === "active" ? (
+                          <Lock className="w-4 h-4" />
+                        ) : (
+                          <Unlock className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(u)}
+                        className="text-blue-500 hover:text-blue-600"
+                        title="Sửa"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(u)}
+                        className="text-red-500 hover:text-red-600"
+                        title="Xóa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
 

@@ -26,7 +26,7 @@ import {
 } from "./ui/select";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5050/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 const LEGACY_INCIDENT_OPTIONS = [
   { value: "Giao Thông", label: "Giao Thông" },
@@ -293,7 +293,9 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
         console.log(`📍 GPS accuracy: ${Math.round(accuracy)}m`);
         if (accuracy > 100) {
-          console.warn("⚠️ GPS accuracy thấp (>100m). Vị trí có thể không chính xác.");
+          console.warn(
+            "⚠️ GPS accuracy thấp (>100m). Vị trí có thể không chính xác.",
+          );
         }
 
         try {
@@ -393,7 +395,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
     const imageData = canvas.toDataURL("image/jpeg");
 
-    const shouldGetLocation = !hasFetchedLocation && uploadedImages.length === 0;
+    const shouldGetLocation =
+      !hasFetchedLocation && uploadedImages.length === 0;
 
     setUploadedImages((prev) => [...prev, imageData]);
 
@@ -445,7 +448,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       );
       if (!response.ok) return { lat: null, lng: null };
       const result = await response.json();
-      if (!Array.isArray(result) || result.length === 0) return { lat: null, lng: null };
+      if (!Array.isArray(result) || result.length === 0)
+        return { lat: null, lng: null };
       const lat = parseFloat(result[0]?.lat);
       const lng = parseFloat(result[0]?.lon);
       if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
@@ -505,7 +509,10 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       let submitLat = null;
       let submitLng = null;
 
-      if (Number.isFinite(locationCoordinates.lat) && Number.isFinite(locationCoordinates.lng)) {
+      if (
+        Number.isFinite(locationCoordinates.lat) &&
+        Number.isFinite(locationCoordinates.lng)
+      ) {
         submitLat = Number(locationCoordinates.lat);
         submitLng = Number(locationCoordinates.lng);
       } else if (gpsCoordinates) {
@@ -521,7 +528,11 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
         userId,
         title: trimmedTitle,
         type: incidentType,
-        location: location || (gpsCoordinates ? `${gpsCoordinates.latitude}, ${gpsCoordinates.longitude}` : "Chưa xác định"),
+        location:
+          location ||
+          (gpsCoordinates
+            ? `${gpsCoordinates.latitude}, ${gpsCoordinates.longitude}`
+            : "Chưa xác định"),
         latitude: submitLat,
         longitude: submitLng,
         lat: submitLat,
@@ -613,7 +624,10 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                         Loại sự cố
                       </Label>
 
-                      <Select value={incidentType} onValueChange={setIncidentType}>
+                      <Select
+                        value={incidentType}
+                        onValueChange={setIncidentType}
+                      >
                         <SelectTrigger
                           style={{ width: "100%", height: "44px" }}
                           className={`flex !h-11 py-0 items-center justify-between rounded-xl border px-4 text-left text-sm transition focus:outline-none focus:ring-4 focus:ring-[#5d5fef]/10 hover:!bg-[#e8e9eb] [&_svg]:!size-5 [&_svg]:!text-[#9b9b9b] [&_svg]:opacity-100 shadow-none ${
@@ -822,7 +836,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                       <div className="mt-2 flex items-start gap-1.5 leading-4 text-amber-600">
                         <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                         <p className="text-[10.5px] tracking-tight">
-                          ⚠️ Độ chính xác GPS thấp (~{Math.round(gpsAccuracy)}m). Nên nhập địa chỉ thủ công để chính xác hơn.
+                          ⚠️ Độ chính xác GPS thấp (~{Math.round(gpsAccuracy)}
+                          m). Nên nhập địa chỉ thủ công để chính xác hơn.
                         </p>
                       </div>
                     )}
