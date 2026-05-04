@@ -213,16 +213,16 @@ const Info_Management = ({ onClose }) => {
           {/* Personal Information Section */}
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-                <User size={16} className="text-white" />
+                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                  <User size={16} className="text-white" />
+                </div>
+                <h3 className="text-sm font-bold text-blue-600">
+                  THÔNG TIN CÁ NHÂN
+                </h3>
               </div>
-              <h3 className="text-sm font-bold text-blue-600">
-                THÔNG TIN CÁ NHÂN
-              </h3>
-            </div>
 
             {/* Two Column Layout */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Left Column */}
               <div className="space-y-4">
                 {/* Full Name Card */}
@@ -428,13 +428,7 @@ const Info_Management = ({ onClose }) => {
                 setShowPasswordForm(false);
                 setPasswordData({ oldPassword: "", newPassword: "", confirmPassword: "" });
               } else if (isEditing) {
-                setIsEditing(false);
-                setFormData({
-                  full_name: user?.full_name || "",
-                  email: user?.email || "",
-                  phone: user?.phone || "",
-                  gender: user?.gender || "Nam",
-                });
+                handleCancel();
               } else {
                 handleCloseModal();
               }

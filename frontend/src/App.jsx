@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -8,6 +8,7 @@ import {
 
 import "./App.css";
 
+import PublicPage from "./pages/Public_page.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import MyReports from "./components/MyReports.jsx";
 import MaintenanceDashboard from "./pages/MaintenanceDashboard.jsx";
@@ -33,6 +34,7 @@ import Info_Management from "./pages/Info_Management.jsx";
 
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
+import { Toaster } from "sonner";
 
 function App() {
   return (
@@ -43,7 +45,7 @@ function App() {
         >
           <Routes>
             {/* Public */}
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<PublicPage />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />
@@ -51,7 +53,14 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Citizen */}
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/myreport"
@@ -106,6 +115,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
+        <Toaster position="top-right" richColors />
       </TooltipProvider>
     </AuthProvider>
   );

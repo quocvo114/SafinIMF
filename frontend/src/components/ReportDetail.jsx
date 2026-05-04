@@ -286,11 +286,16 @@ export default function ReportDetail({ data, close }) {
         </ScrollArea>
 
         <DialogFooter className="!mx-0 !mb-0 !border-t-0 shrink-0 bg-white px-4 py-2.5 sm:px-5 md:px-6">
-          <DialogClose asChild>
-            <Button className="h-9 w-full rounded-[10px] bg-[#2562e9] text-sm font-semibold text-white hover:bg-[#1f56d1] sm:h-10 sm:w-[160px]">
-              Đóng
-            </Button>
-          </DialogClose>
+          <div className="flex gap-2 w-full">
+            <DialogClose asChild>
+              <Button
+                variant="outline"
+                className="h-9 flex-1 rounded-[10px] text-sm font-semibold sm:h-10"
+              >
+                Đóng
+              </Button>
+            </DialogClose>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
