@@ -192,6 +192,10 @@ const ReceptForm = () => {
   const [selectedArea, setSelectedArea] = useState("all");
   const [searchAreaQuery, setSearchAreaQuery] = useState("");
   const [isAreaOpen, setIsAreaOpen] = useState(false);
+  
+  const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
+  const [updateReportData, setUpdateReportData] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     const fetchAreas = async () => {
@@ -855,6 +859,19 @@ const ReceptForm = () => {
         onClose={handleCloseAssignTeam}
         onCancel={handleCancelAssignTeam}
         onAssign={handleAssignTeam}
+      />
+
+      <Update_Status
+        isOpen={showUpdateStatusModal}
+        reportId={updateReportData?.report_id || updateReportData?.id}
+        reportCode={updateReportData?.id}
+        currentStatus={updateReportData?.status}
+        onClose={() => {
+          setShowUpdateStatusModal(false);
+          setUpdateReportData(null);
+        }}
+        onUpdate={handleConfirmUpdateStatus}
+        loading={updatingStatus}
       />
     </div>
   );
