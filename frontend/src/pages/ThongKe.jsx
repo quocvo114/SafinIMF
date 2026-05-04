@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Calendar, Download } from "lucide-react";
 import {
   PieChart,
@@ -12,12 +12,32 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import dashboardApi from "../services/api/dashboardApi";
 
 const ThongKe = () => {
   const [selectedDate, setSelectedDate] = useState(new Date("2025-08-28"));
   const [timeFilter, setTimeFilter] = useState("day");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [summary, setSummary] = useState({
+    totalReports: 0,
+    byArea: [],
+    byStatus: [],
+    byIncidentType: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  const CHART_COLORS = [
+    "#f97316",
+    "#eab308",
+    "#22c55e",
+    "#3b82f6",
+    "#a855f7",
+    "#ef4444",
+    "#84cc16",
+    "#0ea5e9",
+  ];
 
   const formatDate = (date) => {
     const day = String(date.getDate()).padStart(2, "0");
@@ -26,34 +46,53 @@ const ThongKe = () => {
     return `${day}/${month}/${year}`;
   };
 
-  // Dữ liệu mẫu cho khu vực (bar chart ngang)
-  const areaData = [
-    { name: "Liên Chiểu", value: 278, color: "#a855f7" },
-    { name: "Ngũ Hành Sơn", value: 647, color: "#84cc16" },
-    { name: "Sơn Trà", value: 573, color: "#eab308" },
-    { name: "Thanh Khê", value: 689, color: "#22c55e" },
-    { name: "Hòa Vang", value: 856, color: "#eab308" },
-    { name: "Cẩm Lệ", value: 732, color: "#a855f7" },
-    { name: "Hải Châu", value: 725, color: "#f97316" },
-    { name: "Hoàng Sa", value: 891, color: "#f97316" },
-  ];
+  useEffect(() => {
+    let isActive = true;
 
-  // Dữ liệu cho biểu đồ tròn - Loại Trạng Thái
-  const statusData = [
-    { name: "Đang Chờ", value: 78, color: "#ef4444" },
-    { name: "Đang Xử Lý", value: 156, color: "#3b82f6" },
-    { name: "Đã Giải Quyết", value: 3210, color: "#84cc16" },
-  ];
+    const fetchSummary = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+        const data = await dashboardApi.getSummary();
+        if (isActive) {
+          setSummary(data);
+        }
+      } catch (error) {
+        if (isActive) {
+          setLoadError("Không thể tải dữ liệu thống kê.");
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
 
-  // Dữ liệu cho biểu đồ cột - Loại Sự Cố
-  const incidentData = [
-    { name: "Giao Thông Vận Tải", value: 950, fill: "#f97316" },
-    { name: "Điện", value: 780, fill: "#eab308" },
-    { name: "Cây Xanh", value: 620, fill: "#22c55e" },
-    { name: "Công Trình Công Cộng", value: 680, fill: "#a855f7" },
-  ];
+    fetchSummary();
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
-  const totalReports = 3444;
+  const areaData = summary.byArea.map((area, index) => ({
+    name: area.name,
+    value: area.total,
+    color: CHART_COLORS[index % CHART_COLORS.length],
+  }));
+
+  const statusData = summary.byStatus.map((status, index) => ({
+    name: status.name,
+    value: status.total,
+    color: CHART_COLORS[index % CHART_COLORS.length],
+  }));
+
+  const incidentData = summary.byIncidentType.map((incident, index) => ({
+    name: incident.name,
+    value: incident.total,
+    fill: CHART_COLORS[index % CHART_COLORS.length],
+  }));
+
+  const totalReports = summary.totalReports || 0;
 
   const handleExportFile = () => {
     // Tạo dữ liệu để xuất
@@ -185,7 +224,12 @@ const ThongKe = () => {
             <h3 className="text-lg font-semibold text-gray-400 mb-4">
               Số Lượng Đơn
             </h3>
-            <p className="text-5xl font-bold text-gray-800">{totalReports}</p>
+            <p className="text-5xl font-bold text-gray-800">
+              {isLoading ? "..." : totalReports}
+            </p>
+            {loadError ? (
+              <p className="mt-2 text-sm text-red-500">{loadError}</p>
+            ) : null}
           </div>
 
           {/* Khu Vực - Horizontal Bar Chart */}
@@ -203,7 +247,11 @@ const ThongKe = () => {
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
-                        width: `${(area.value / Math.max(...areaData.map(a => a.value))) * 100}%`,
+                        width: `${
+                          (area.value /
+                            Math.max(...areaData.map((item) => item.value), 1)) *
+                          100
+                        }%`,
                         backgroundColor: area.color
                       }}
                     ></div>
