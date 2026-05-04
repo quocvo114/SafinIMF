@@ -16,7 +16,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useIsMobile } from "../hooks/use-mobile";
 import { toast } from "sonner";
-import InfoManagement from "../pages/Info_Management";
+import Info_Management from "../pages/Info_Management";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -103,7 +103,7 @@ const AdminSidebar = () => {
       id: "stats",
       path: "/admin/statistics",
       icon: <BarChart3 className="h-6 w-6" />,
-      label: "Statistics",
+      label: "Thống kê",
     },
   ];
 
@@ -330,13 +330,14 @@ const AdminSidebar = () => {
           portalTarget,
         )}
 
-      {showInfoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      {showInfoModal &&
+        portalTarget &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
             <Info_Management onClose={() => setShowInfoModal(false)} />
-          </div>
-        </div>
-      )}
+          </div>,
+          portalTarget,
+        )}
     </>
   );
 };
