@@ -41,6 +41,7 @@ export default function Assigned_report() {
         search: "",
         page: 1,
         limit: 100,
+        view: "list",
       });
 
       if (response.success && Array.isArray(response.data)) {
@@ -156,7 +157,26 @@ export default function Assigned_report() {
                         {currentReports.map((report) => (
                           <TableRow
                             key={report?._id || report?.id || report?.report_id}
-                            onClick={() => setSelectedReport(report)}
+                            onClick={async () => {
+                              const reportId =
+                                report?.id || report?.report_id || report?._id;
+                              setSelectedReport(report);
+
+                              if (!reportId) return;
+
+                              try {
+                                const response =
+                                  await reportApi.getReportById(reportId);
+                                if (response?.success && response?.data) {
+                                  setSelectedReport(response.data);
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "Không thể tải chi tiết báo cáo:",
+                                  error,
+                                );
+                              }
+                            }}
                             className="hover:bg-blue-50/50 cursor-pointer transition-colors"
                           >
                             <TableCell className="px-3 py-3 text-center font-semibold text-blue-600 whitespace-nowrap text-sm">

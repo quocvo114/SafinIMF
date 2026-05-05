@@ -327,7 +327,9 @@ const IncidentManagement = () => {
                         setCurrentPage((prev) => Math.max(prev - 1, 1));
                       }}
                       className={
-                        currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : ""
                       }
                     />
                   </PaginationItem>
@@ -356,7 +358,9 @@ const IncidentManagement = () => {
                       text="Sau"
                       onClick={(e) => {
                         e.preventDefault();
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+                        setCurrentPage((prev) =>
+                          Math.min(prev + 1, totalPages),
+                        );
                       }}
                       className={
                         currentPage === totalPages

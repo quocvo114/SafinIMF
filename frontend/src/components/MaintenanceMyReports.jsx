@@ -41,6 +41,7 @@ export default function Assigned_report() {
         search: "",
         page: 1,
         limit: 100,
+        view: "list",
       });
 
       if (response.success && Array.isArray(response.data)) {

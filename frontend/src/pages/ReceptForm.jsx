@@ -192,7 +192,7 @@ const ReceptForm = () => {
   const [selectedArea, setSelectedArea] = useState("all");
   const [searchAreaQuery, setSearchAreaQuery] = useState("");
   const [isAreaOpen, setIsAreaOpen] = useState(false);
-  
+
   const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
   const [updateReportData, setUpdateReportData] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -227,6 +227,7 @@ const ReceptForm = () => {
           date: dateFilter === "old" ? "old" : "recent",
           page,
           limit: pageSize,
+          view: "list",
         });
 
         setReports(response?.data || []);
@@ -247,7 +248,6 @@ const ReceptForm = () => {
   }, [query, typeFilter, statusFilter, dateFilter, page, selectedArea]);
 
   const safePage = Math.min(page, totalPages);
-  // Use reports directly from API - backend already filters by type, status, search, district
   const visibleReports = reports;
 
   useEffect(() => {
@@ -685,7 +685,22 @@ const ReceptForm = () => {
                 <div
                   key={`${report.id || report.report_id}-${report.location}-${index}`}
                   className="group relative h-[210px] xl:h-[224px] cursor-pointer overflow-hidden rounded-[24px] shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ring-1 ring-black/5"
-                  onClick={() => setSelectedReport(report)}
+                  onClick={async () => {
+                    const reportId =
+                      report?.id || report?.report_id || report?._id;
+                    setSelectedReport(report);
+
+                    if (!reportId) return;
+
+                    try {
+                      const response = await reportApi.getReportById(reportId);
+                      if (response?.success && response?.data) {
+                        setSelectedReport(response.data);
+                      }
+                    } catch (error) {
+                      console.error("Không thể tải chi tiết báo cáo:", error);
+                    }
+                  }}
                 >
                   <div
                     className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"

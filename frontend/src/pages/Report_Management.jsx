@@ -32,6 +32,7 @@ const ReportManagement = () => {
         status: selectedStatus,
         page: currentPage,
         limit,
+        view: "list",
       });
 
       setReports(response?.data || []);
