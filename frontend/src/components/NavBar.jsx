@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, MapPin, LogOut, Settings, User, BookOpen, Folder, Zap, AlertCircle, Trees, Building2, CloudSun, Navigation } from "lucide-react";
+import {
+  Bell,
+  MapPin,
+  LogOut,
+  Settings,
+  User,
+  BookOpen,
+  Folder,
+  Zap,
+  AlertCircle,
+  Trees,
+  Building2,
+  CloudSun,
+  Navigation,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import Toast from "./Toast";
 import { Button } from "@/components/ui/button";
@@ -191,174 +205,176 @@ export default function Navbar() {
         className="relative z-40"
         style={{ transition: "background-color 300ms ease, color 300ms ease" }}
       >
-      <div
-        className="bg-white/95 backdrop-blur border-b border-gray-200 
+        <div
+          className="bg-white/95 backdrop-blur border-b border-gray-200 
                    px-4 py-3 flex items-center justify-between gap-4 flex-wrap"
-        style={{ minHeight: "70px" }}
-      >
-        {/* LOCATION + USER INFO */}
-        <div className="flex items-center gap-4">
-          <div
-            className="flex items-center gap-2 rounded-full 
+          style={{ minHeight: "70px" }}
+        >
+          {/* LOCATION + USER INFO */}
+          <div className="flex items-center gap-4">
+            <div
+              className="flex items-center gap-2 rounded-full 
                         bg-gray-100/90 
                         text-gray-700 
                         px-3 py-2 shadow-sm text-sm"
-          >
-            <MapPin className="h-4 w-4 opacity-70" />
-            <span className="font-medium">{location.city}</span>
-            {location.country && (
-              <>
-                <span className="text-gray-400">|</span>
-                <span className="text-xs">{formatDate(currentDate)}</span>
-              </>
-            )}
+            >
+              <MapPin className="h-4 w-4 opacity-70" />
+              <span className="font-medium">{location.city}</span>
+              {location.country && (
+                <>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-xs">{formatDate(currentDate)}</span>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>
+                Xin chào,{" "}
+                <span className="font-semibold text-gray-800">
+                  {user?.full_name || "Người dùng"}
+                </span>{" "}
+                👋
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span>
-              Xin chào,{" "}
-              <span className="font-semibold text-gray-800">
-                {user?.full_name || "Người dùng"}
-              </span>{" "}
-              👋
-            </span>
-          </div>
-        </div>
-
-        {/* RIGHT ACTIONS */}
-        <div className="flex items-center gap-3">
-          {/* 🔔 Notification */}
-          <div className="relative" ref={notiRef}>
-            <button
-              onClick={() => setOpenNoti((v) => !v)}
-              className="relative h-10 w-10 rounded-full 
+          {/* RIGHT ACTIONS */}
+          <div className="flex items-center gap-3">
+            {/* 🔔 Notification */}
+            <div className="relative" ref={notiRef}>
+              <button
+                onClick={() => setOpenNoti((v) => !v)}
+                className="relative h-10 w-10 rounded-full 
                        bg-white 
                        border border-gray-200 
                        shadow-sm hover:bg-gray-50"
-            >
-              <Bell className="mx-auto h-5 w-5 text-gray-800" />
-              {noti.some((n) => n.unread) && (
-                <span className="absolute -top-0.5 -right-0.5 inline-block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-              )}
-            </button>
-
-            {openNoti && (
-              <div
-                className="absolute right-0 mt-2 w-80 rounded-2xl border border-gray-200 
-                           bg-white/95 backdrop-blur shadow-lg p-2"
               >
-                <div className="flex items-center justify-between px-2 py-1">
-                  <p className="text-sm font-semibold text-gray-800">Thông báo</p>
-                  <button
-                    onClick={markAllRead}
-                    className="text-xs rounded-full px-2 py-1 hover:bg-gray-100 text-gray-600"
-                  >
-                    Đánh dấu đã đọc
-                  </button>
-                </div>
+                <Bell className="mx-auto h-5 w-5 text-gray-800" />
+                {noti.some((n) => n.unread) && (
+                  <span className="absolute -top-0.5 -right-0.5 inline-block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+                )}
+              </button>
 
-                <div className="max-h-80 overflow-auto pr-1">
-                  {noti.length === 0 ? (
-                    <p className="text-xs text-gray-500 px-3 py-6 text-center">
-                      Không có thông báo
+              {openNoti && (
+                <div
+                  className="absolute right-0 mt-2 w-80 rounded-2xl border border-gray-200 
+                           bg-white/95 backdrop-blur shadow-lg p-2"
+                >
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <p className="text-sm font-semibold text-gray-800">
+                      Thông báo
                     </p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {noti.map((n) => (
-                        <li
-                          key={n.id}
-                          className={`flex gap-3 rounded-xl px-3 py-2 hover:bg-gray-50 ${
-                            n.unread ? "bg-gray-50" : ""
-                          }`}
-                        >
-                          <div className="pt-1">
-                            <span
-                              className={`inline-block h-2 w-2 rounded-full ${
-                                n.severity === "critical"
-                                  ? "bg-red-500"
-                                  : n.severity === "warning"
-                                  ? "bg-amber-500"
-                                  : "bg-blue-500"
-                              }`}
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate text-gray-800">
-                              {n.title}
-                            </p>
-                            {n.message && (
-                              <p className="text-xs text-gray-600 overflow-hidden text-ellipsis">
-                                {n.message}
-                              </p>
-                            )}
-                            <p className="text-[10px] text-gray-400 mt-1">
-                              {new Date(n.createdAt).toLocaleString()}
-                            </p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+                    <button
+                      onClick={markAllRead}
+                      className="text-xs rounded-full px-2 py-1 hover:bg-gray-100 text-gray-600"
+                    >
+                      Đánh dấu đã đọc
+                    </button>
+                  </div>
 
-          {/* 👤 User */}
-          <div className="relative" ref={userRef}>
-            <button
-              onClick={() => setOpenUser((v) => !v)}
-              className="group flex items-center gap-3 
+                  <div className="max-h-80 overflow-auto pr-1">
+                    {noti.length === 0 ? (
+                      <p className="text-xs text-gray-500 px-3 py-6 text-center">
+                        Không có thông báo
+                      </p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {noti.map((n) => (
+                          <li
+                            key={n.id}
+                            className={`flex gap-3 rounded-xl px-3 py-2 hover:bg-gray-50 ${
+                              n.unread ? "bg-gray-50" : ""
+                            }`}
+                          >
+                            <div className="pt-1">
+                              <span
+                                className={`inline-block h-2 w-2 rounded-full ${
+                                  n.severity === "critical"
+                                    ? "bg-red-500"
+                                    : n.severity === "warning"
+                                      ? "bg-amber-500"
+                                      : "bg-blue-500"
+                                }`}
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate text-gray-800">
+                                {n.title}
+                              </p>
+                              {n.message && (
+                                <p className="text-xs text-gray-600 overflow-hidden text-ellipsis">
+                                  {n.message}
+                                </p>
+                              )}
+                              <p className="text-[10px] text-gray-400 mt-1">
+                                {new Date(n.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 👤 User */}
+            <div className="relative" ref={userRef}>
+              <button
+                onClick={() => setOpenUser((v) => !v)}
+                className="group flex items-center gap-3 
                          rounded-full 
                          bg-amber-50 
                          px-4 py-2 shadow-sm 
                          hover:bg-amber-100"
-            >
-              <User className="h-4 w-4" />
-            </button>
+              >
+                <User className="h-4 w-4" />
+              </button>
 
-            {openUser && (
-              <div
-                className="absolute right-0 mt-2 w-56 rounded-2xl 
+              {openUser && (
+                <div
+                  className="absolute right-0 mt-2 w-56 rounded-2xl 
                             border border-gray-200 
                             bg-white/95 
                             backdrop-blur shadow-lg p-2 z-50"
-              >
-                <ul className="space-y-1">
-                  <li>
-                    <button
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 
+                >
+                  <ul className="space-y-1">
+                    <li>
+                      <button
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 
                                        hover:bg-gray-50 text-sm text-gray-800"
-                    >
-                      <User className="h-4 w-4" /> Hồ sơ
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 
+                      >
+                        <User className="h-4 w-4" /> Hồ sơ
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 
                                        hover:bg-gray-50 text-sm text-gray-800"
-                    >
-                      <Settings className="h-4 w-4" /> Cài đặt
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => {
-                        setOpenUser(false);
-                        setShowLogoutConfirm(true);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 
+                      >
+                        <Settings className="h-4 w-4" /> Cài đặt
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setOpenUser(false);
+                          setShowLogoutConfirm(true);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 
                                  hover:bg-gray-50 text-sm text-red-600"
-                    >
-                      <LogOut className="h-4 w-4" /> Đăng xuất
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            )}
+                      >
+                        <LogOut className="h-4 w-4" /> Đăng xuất
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       </header>
     </>
   );
@@ -589,4 +605,3 @@ export function NavbarAdmin() {
     </>
   );
 }
-

@@ -51,7 +51,7 @@ frontend/src/
 | File | Vấn đề |
 |------|--------|
 | `pages/Assigned_report.jsx` | Dữ liệu report hardcode thay vì gọi API |
-| `pages/ThongKe.jsx` | Toàn bộ thống kê là mock data |
+| `pages/Statistics.jsx` | Toàn bộ statistics là mock data |
 | `components/MaintenanceMyReports.jsx` | Mock data thay vì API |
 
 ### 5. Port API không nhất quán
@@ -233,7 +233,7 @@ frontend/src/
 | 33 | `pages/Overview.jsx` | OK |
 | 34 | `pages/MaintenanceTeam_Management.jsx` | OK - delegate component |
 | 35 | `pages/incident_management.jsx` | **MINOR** - rename sang PascalCase |
-| 36 | `pages/ThongKe.jsx` | **REFACTOR** - connect API thay vì mock |
+| 36 | `pages/Statistics.jsx` | **REFACTOR** - connect API thay vì mock |
 | 37 | `pages/UserManagement.jsx` | OK - delegate component |
 | 38 | `pages/Info_Management.jsx` | OK |
 | 39 | `pages/TestPhoneAuth.jsx` | Kiểm tra có cần giữ không |
@@ -318,7 +318,7 @@ frontend/src/
 2. ✅ Gộp/xóa duplicate `MyReports` → `pages/MyReports.jsx` + `components/MyReports.jsx`
 3. ✅ Xóa duplicate `dialog.jsx` → `components/ui/dialog.jsx`
 4. ✅ Thống nhất API base URL → `axiosClient.js` + `Report.jsx`
-5. ✅ Thay mock data bằng API → `Assigned_report.jsx`, `ThongKe.jsx`, `MaintenanceMyReports.jsx`
+5. ✅ Thay mock data bằng API → `Assigned_report.jsx`, `Statistics.jsx`, `MaintenanceMyReports.jsx`
 
 ### Phase 2 - Major (làm tiếp)
 6. ✅ Extract shared map utils → `lib/mapUtils.js` (từ 3 Dashboard files)
@@ -341,7 +341,7 @@ frontend/src/
 
 ---
 
-## 📊 Thống kê
+## 📊 Statistics
 
 | Metric | Count |
 |--------|-------|

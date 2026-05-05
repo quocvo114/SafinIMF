@@ -74,6 +74,17 @@ const ReportSchema = new mongoose.Schema(
       default: "Đang Chờ",
     },
 
+    assignedTeamId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    assignedTeamName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     time: {
       type: String,
       required: true,

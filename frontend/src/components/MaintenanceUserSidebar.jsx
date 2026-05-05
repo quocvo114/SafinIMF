@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Map,
-  FolderOpen,
   Bell,
   LogOut,
   User,
@@ -14,20 +13,28 @@ import {
   FileText,
   ShieldAlert,
   Clock3,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useIsMobile } from "../hooks/use-mobile";
 import Toast from "./Toast";
 import Info_Management from "../pages/Info_Management";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroupContent,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "./ui/sidebar";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 const MOCK_NOTIFICATIONS = [
   {
@@ -79,6 +86,30 @@ const MaintenanceUserSidebar = () => {
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [toast, setToast] = useState(null);
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const isMobile = useIsMobile();
+
+  const sidebarGap = 20;
+  const collapsedWidth = 72;
+  const expandedWidth = 240;
+  const sidebarWidth = isCollapsed ? collapsedWidth : expandedWidth;
+  const contentOffset = isMobile ? sidebarGap : sidebarWidth + sidebarGap;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--maintenance-sidebar-width", `${sidebarWidth}px`);
+    root.style.setProperty(
+      "--maintenance-sidebar-offset",
+      `${contentOffset}px`,
+    );
+    root.style.setProperty("--maintenance-sidebar-gap", `${sidebarGap}px`);
+
+    return () => {
+      root.style.removeProperty("--maintenance-sidebar-width");
+      root.style.removeProperty("--maintenance-sidebar-offset");
+      root.style.removeProperty("--maintenance-sidebar-gap");
+    };
+  }, [sidebarWidth, contentOffset, sidebarGap]);
 
   const unreadCount = notifications.filter((item) => !item.isRead).length;
   const portalTarget = typeof document !== "undefined" ? document.body : null;
@@ -87,19 +118,19 @@ const MaintenanceUserSidebar = () => {
     {
       id: "dashboard",
       path: "/maintenance/dashboard",
-      icon: <Map className="h-5 w-5" />,
+      icon: <Map className="h-6 w-6" />,
       title: "Trang chủ",
     },
     {
       id: "myreports",
       path: "/maintenance/assigned_report",
-      icon: <FileText className="h-5 w-5" />,
-      title: "Báo cáo của tôi",
+      icon: <FileText className="h-6 w-6 rotate-12" />,
+      title: "Việc của tôi",
     },
     {
       id: "notifications",
       path: "/notifications",
-      icon: <Bell className="h-5 w-5" />,
+      icon: <Bell className="h-6 w-6" />,
       title: "Thông báo",
     },
   ];
@@ -188,10 +219,10 @@ const MaintenanceUserSidebar = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="mb-3 text-xl font-semibold text-gray-800">
-                Xác nhận đăng xuất
+                Thông báo
               </h3>
               <p className="mb-6 text-gray-600">
-                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?
+                Bạn có chắc chắn muốn đăng xuất ?
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -212,66 +243,134 @@ const MaintenanceUserSidebar = () => {
           portalTarget,
         )}
 
-      {/* ICON-ONLY SIDEBAR - Floating */}
-      <Sidebar
-        className="w-20 rounded-2xl border border-gray-200 overflow-hidden shadow-lg"
-        style={{ height: "calc(100vh - 40px)" }}
+      {/* SIDEBAR - Collapsible */}
+      <div
+        className="absolute left-0 top-0 bottom-8 z-50 transition-all duration-300"
+        style={{ width: sidebarWidth }}
       >
-        <SidebarHeader className="flex items-center justify-center pb-4">
-          <div className="flex items-center gap-0.5">
-            <span className="text-2xl font-bold text-blue-600">S</span>
-            <span className="text-lg font-semibold text-black">afin</span>
-          </div>
-        </SidebarHeader>
+        <Sidebar
+          className="rounded-2xl border border-gray-200 overflow-hidden shadow-lg h-full flex flex-col bg-white"
+          collapsible="none"
+        >
+          <SidebarHeader className="w-full flex items-center justify-between px-3 py-4">
+            <div
+              className={`flex items-center ${isCollapsed ? "justify-center w-full" : "gap-2"}`}
+            >
+              <div className="flex items-center whitespace-nowrap -tracking-widest">
+                <span className="text-[#0033FF] text-2xl font-bold not-italic">
+                  S
+                </span>
+                <span className="text-black text-2xl italic font-bold">
+                  afin
+                </span>
+              </div>
+            </div>
+          </SidebarHeader>
 
-        <SidebarContent className="flex flex-col items-center py-4 gap-4">
-          {mainMenuItems.map((item) => {
-            const isNotificationItem = item.id === "notifications";
-            const isActive = isNotificationItem
-              ? showNotificationsPopup
-              : !showNotificationsPopup && location.pathname === item.path;
+          <SidebarContent className="flex flex-col py-4">
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1 px-2">
+                {mainMenuItems.map((item) => {
+                  const isNotificationItem = item.id === "notifications";
+                  const isActive = isNotificationItem
+                    ? showNotificationsPopup
+                    : !showNotificationsPopup &&
+                      location.pathname === item.path;
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleMainMenuClick(item)}
-                title={item.title}
-                className={`relative w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
-                  isActive
-                    ? "bg-black text-white shadow-md"
-                    : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                }`}
-              >
-                {item.icon}
-                {isNotificationItem && unreadCount > 0 && (
-                  <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton
+                            onClick={() => handleMainMenuClick(item)}
+                            className={`relative flex items-center transition-all overflow-visible ${
+                              isCollapsed
+                                ? "w-12 h-12 mx-auto justify-center rounded-lg"
+                                : "w-full h-11 px-3 rounded-xl"
+                            } ${
+                              isActive
+                                ? "bg-[#2563EB] text-white shadow-md shadow-blue-500/40 hover:bg-blue-600 hover:text-white hover:shadow-lg hover:shadow-blue-500/60 hover:scale-[1.02]"
+                                : "text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:shadow-md hover:shadow-blue-200/50 hover:scale-[1.02] hover:-translate-y-0.5"
+                            }`}
+                          >
+                            {item.icon}
+                            {!isCollapsed && (
+                              <span className="ml-3 font-medium">
+                                {item.title}
+                              </span>
+                            )}
+                            {isNotificationItem && unreadCount > 0 && (
+                              <span
+                                className={`absolute z-20 inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white ${
+                                  isCollapsed
+                                    ? "-right-2 -top-2 h-4 min-w-4"
+                                    : "right-3 -top-2 h-5 min-w-5 text-xs"
+                                }`}
+                              >
+                                {unreadCount > 9 ? "9+" : unreadCount}
+                              </span>
+                            )}
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="right"
+                          className="bg-gray-900 text-white text-xs px-2 py-1"
+                        >
+                          <p>{item.title}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarContent>
+
+          <SidebarFooter className="flex flex-col gap-2 py-4 px-2 mt-auto hover:bg-blue-50/50 transition-colors">
+            <button
+              onClick={() => setShowAvatarMenu(!showAvatarMenu)}
+              className={`flex items-center transition-all ${
+                isCollapsed
+                  ? "w-12 h-12 mx-auto justify-center"
+                  : "w-full px-3 py-2 gap-3"
+              }`}
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                {userInfo.avatar ? (
+                  <img
+                    src={userInfo.avatar}
+                    alt={userInfo.name}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  userInfo.name.charAt(0).toUpperCase()
                 )}
-              </button>
-            );
-          })}
-        </SidebarContent>
+              </div>
+              {!isCollapsed && (
+                <div className="flex flex-col text-left flex-1 min-w-0">
+                  <span className="font-semibold text-sm text-gray-900 truncate">
+                    {userInfo.name}
+                  </span>
+                  <span className="text-xs text-gray-500 truncate">
+                    {userInfo.email}
+                  </span>
+                </div>
+              )}
+            </button>
+          </SidebarFooter>
+        </Sidebar>
 
-        <SidebarFooter className="flex flex-col items-center gap-2 py-4 relative">
-          {/* User Avatar Button */}
-          <button
-            onClick={() => setShowAvatarMenu(!showAvatarMenu)}
-            title={userInfo.name}
-            className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-semibold text-sm hover:shadow-md transition-all relative z-40"
-          >
-            {userInfo.avatar ? (
-              <img
-                src={userInfo.avatar}
-                alt={userInfo.name}
-                className="w-full h-full object-cover rounded-full"
-              />
-            ) : (
-              userInfo.name.charAt(0).toUpperCase()
-            )}
-          </button>
-        </SidebarFooter>
-      </Sidebar>
+        <button
+          onClick={() => setIsCollapsed((prev) => !prev)}
+          className="absolute -right-9 top-16 p-1.5 bg-white border border-gray-200 rounded-lg shadow-md hover:bg-gray-50 transition-colors z-50"
+        >
+          {isCollapsed ? (
+            <PanelLeftOpen className="h-4 w-4 text-gray-600" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4 text-gray-600" />
+          )}
+        </button>
+      </div>
 
       {/* Dropdown Menu - Positioned outside sidebar */}
       {showAvatarMenu &&
@@ -286,7 +385,8 @@ const MaintenanceUserSidebar = () => {
 
             {/* Dropdown */}
             <div
-              className="fixed bottom-[4.5rem] left-24 z-[2000] w-56 rounded-xl border border-gray-100 bg-white shadow-lg"
+              className="fixed bottom-[4.5rem] z-[2000] w-56 rounded-xl border border-gray-100 bg-white shadow-lg"
+              style={{ left: "var(--maintenance-sidebar-offset, 6rem)" }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* User Info Header */}
@@ -354,7 +454,8 @@ const MaintenanceUserSidebar = () => {
 
             {/* Notifications Panel */}
             <div
-              className="fixed left-24 top-20 z-[2000] w-[380px] max-w-[calc(100vw-7.5rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+              className="fixed top-20 z-[2000] w-[380px] max-w-[calc(100vw-7.5rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+              style={{ left: "var(--maintenance-sidebar-offset, 6rem)" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="border-b border-gray-100 bg-gradient-to-r from-slate-50 via-white to-blue-50 px-4 py-3">
@@ -464,7 +565,9 @@ const MaintenanceUserSidebar = () => {
                                     size="sm"
                                     variant="link"
                                     className="h-auto px-0 text-[11px] text-slate-700 hover:text-slate-900"
-                                    onClick={() => markNotificationRead(item.id)}
+                                    onClick={() =>
+                                      markNotificationRead(item.id)
+                                    }
                                   >
                                     Đã đọc
                                   </Button>

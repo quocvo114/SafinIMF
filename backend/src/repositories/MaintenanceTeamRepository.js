@@ -61,10 +61,11 @@ class MaintenanceTeamRepository {
         name: data.name,
         leader: data.leader,
         memberCount: data.memberCount,
+        specialty: data.specialty,
         area: data.area,
         status: data.status,
       },
-      { new: true }
+      { new: true },
     ).lean();
   }
 
@@ -72,7 +73,16 @@ class MaintenanceTeamRepository {
     return MaintenanceTeam.findOneAndUpdate(
       { team_id },
       { status },
-      { new: true }
+      { new: true },
+    ).lean();
+  }
+
+  async updateCaseCountByTeamId(team_id, currentCases) {
+    const safeCases = Math.max(parseInt(currentCases, 10) || 0, 0);
+    return MaintenanceTeam.findOneAndUpdate(
+      { team_id },
+      { currentCases: safeCases },
+      { new: true },
     ).lean();
   }
 

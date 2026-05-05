@@ -103,6 +103,19 @@ export const reportApi = {
     }
   },
 
+  assignReport: async (reportId, { teamId, teamName }) => {
+    try {
+      const response = await axiosClient.patch(`/reports/${reportId}/assign`, {
+        teamId,
+        teamName,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi phân công báo cáo:", error);
+      throw error;
+    }
+  },
+
   // PB14: Cập nhật tiến độ xử lý (Đội xử lý upload ảnh sau khắc phục)
   updateProgress: async (reportId, { afterImg, afterImage, progressNote }) => {
     try {

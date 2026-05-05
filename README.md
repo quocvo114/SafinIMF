@@ -54,7 +54,7 @@ Quản lý toàn bộ báo cáo
 
 Phân công xử lý
 
-Xem thống kê & hot spots
+Xem statistics & hot spots
 
 Bản đồ tương tác
 
@@ -146,7 +146,7 @@ Quản lý danh mục sự cố
 
 📊 Analytics
 
-Thống kê số lượng báo cáo
+Statistics số lượng báo cáo
 
 Xác định khu vực “hot spots”
 

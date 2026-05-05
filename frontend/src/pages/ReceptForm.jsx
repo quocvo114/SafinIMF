@@ -9,18 +9,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { reportApi } from "../services/api/reportApi";
 import { areaApi } from "../services/api/areaApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import ReportDetailQLKV from "../components/ReportDetail-QLKV";
+import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
 import Update_Status from "../components/Update_Status";
+
+const DISTRICTS = [
+  "all",
+  "Hải Châu",
+  "Sơn Trà",
+  "Liên Chiểu",
+  "Hoàng Sa",
+  "Thanh Khê",
+  "Ngũ Hành Sơn",
+  "Cẩm Lệ",
+  "Hòa Vang",
+];
 
 const TYPE_OPTIONS = ["all", "Giao Thông", "Điện", "Cây Xanh", "CTCC"];
 const STATUS_OPTIONS = ["all", "Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
 
 const CATEGORY_COLORS = {
   "Giao Thông": "#f97316",
-  "Điện": "#fdca00",
+  Điện: "#fdca00",
   "Cây Xanh": "#16a34a",
   CTCC: "#b78ff2",
 };
@@ -28,32 +46,115 @@ const CATEGORY_COLORS = {
 const getStatusConfig = (status) => {
   switch (status) {
     case "Đang Chờ":
-      return { bg: "bg-amber-500/30", border: "border-amber-500/50", color: "text-amber-300", dot: "bg-amber-400" };
+      return {
+        bg: "bg-amber-500/30",
+        border: "border-amber-500/50",
+        color: "text-amber-300",
+        dot: "bg-amber-400",
+      };
     case "Đang Xử Lý":
-      return { bg: "bg-blue-500/30", border: "border-blue-500/50", color: "text-blue-300", dot: "bg-blue-400" };
+      return {
+        bg: "bg-blue-500/30",
+        border: "border-blue-500/50",
+        color: "text-blue-300",
+        dot: "bg-blue-400",
+      };
     case "Đã Giải Quyết":
-      return { bg: "bg-emerald-500/30", border: "border-emerald-500/50", color: "text-emerald-300", dot: "bg-emerald-400" };
+      return {
+        bg: "bg-emerald-500/30",
+        border: "border-emerald-500/50",
+        color: "text-emerald-300",
+        dot: "bg-emerald-400",
+      };
     default:
-      return { bg: "bg-gray-500/30", border: "border-gray-500/50", color: "text-gray-300", dot: "bg-gray-400" };
+      return {
+        bg: "bg-gray-500/30",
+        border: "border-gray-500/50",
+        color: "text-gray-300",
+        dot: "bg-gray-400",
+      };
   }
 };
 
 const getCategoryConfig = (category) => {
   switch (category) {
     case "Giao Thông":
-      return { bg: "bg-orange-500/30", border: "border-orange-500/50", color: "text-orange-300", dot: "bg-orange-400" };
+      return {
+        bg: "bg-orange-500/30",
+        border: "border-orange-500/50",
+        color: "text-orange-300",
+        dot: "bg-orange-400",
+      };
     case "Điện":
-      return { bg: "bg-yellow-500/30", border: "border-yellow-500/50", color: "text-yellow-300", dot: "bg-yellow-400" };
+      return {
+        bg: "bg-yellow-500/30",
+        border: "border-yellow-500/50",
+        color: "text-yellow-300",
+        dot: "bg-yellow-400",
+      };
     case "Cây Xanh":
-      return { bg: "bg-green-500/30", border: "border-green-500/50", color: "text-green-300", dot: "bg-green-400" };
+      return {
+        bg: "bg-green-500/30",
+        border: "border-green-500/50",
+        color: "text-green-300",
+        dot: "bg-green-400",
+      };
     case "CTCC":
-      return { bg: "bg-purple-500/30", border: "border-purple-500/50", color: "text-purple-300", dot: "bg-purple-400" };
+      return {
+        bg: "bg-purple-500/30",
+        border: "border-purple-500/50",
+        color: "text-purple-300",
+        dot: "bg-purple-400",
+      };
     default:
-      return { bg: "bg-slate-500/30", border: "border-slate-500/50", color: "text-slate-300", dot: "bg-slate-400" };
+      return {
+        bg: "bg-slate-500/30",
+        border: "border-slate-500/50",
+        color: "text-slate-300",
+        dot: "bg-slate-400",
+      };
   }
 };
 
 const STATUS_FLOW = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
+
+function mapMaintenanceTeamsToAssignOptions(teams = []) {
+  return teams
+    .map((team) => {
+      const teamId = team?.team_id || team?.id;
+      if (!teamId) return null;
+
+      const rawCases =
+        team?.cases ??
+        team?.caseCount ??
+        team?.currentCases ??
+        team?.assignedCount ??
+        0;
+      const rawMaxCases =
+        team?.maxCases ?? team?.capacity ?? team?.max_cases ?? 5;
+
+      const cases = Number.isFinite(Number(rawCases)) ? Number(rawCases) : 0;
+      const maxCases = Number.isFinite(Number(rawMaxCases))
+        ? Number(rawMaxCases)
+        : 5;
+
+      return {
+        id: teamId,
+        name: team?.name || "Đội xử lý",
+        status: team?.status || "active",
+        specialty:
+          team?.specialty ||
+          team?.field ||
+          team?.domain ||
+          team?.area ||
+          "Chưa rõ lĩnh vực",
+        distance: team?.distance || "--",
+        cases,
+        maxCases: Math.max(maxCases, 1),
+      };
+    })
+    .filter(Boolean);
+}
 
 function getNextStatus(currentStatus) {
   const index = STATUS_FLOW.indexOf(currentStatus);
@@ -67,7 +168,10 @@ function getNextStatus(currentStatus) {
 
 const removeAccents = (str) => {
   if (!str) return "";
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 };
 
 const ReceptForm = () => {
@@ -81,9 +185,8 @@ const ReceptForm = () => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedReport, setSelectedReport] = useState(null);
-  const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
-  const [updateReportData, setUpdateReportData] = useState(null);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [assigningReport, setAssigningReport] = useState(null);
+  const [assignTeams, setAssignTeams] = useState(null);
 
   const [areas, setAreas] = useState([]);
   const [selectedArea, setSelectedArea] = useState("all");
@@ -107,7 +210,8 @@ const ReceptForm = () => {
   const filteredReports = useMemo(() => {
     const searchTerm = query.trim().toLowerCase();
 
-    const normalizedSelectedArea = selectedArea !== "all" ? removeAccents(selectedArea) : "all";
+    const normalizedSelectedArea =
+      selectedArea !== "all" ? removeAccents(selectedArea) : "all";
 
     return reports.filter((item) => {
       const byType = typeFilter === "all" || item.category === typeFilter;
@@ -150,7 +254,8 @@ const ReceptForm = () => {
         setReports([]);
         setTotalPages(1);
         setErrorMessage(
-          error?.response?.data?.message || "Không tải được dữ liệu đơn tiếp nhận"
+          error?.response?.data?.message ||
+            "Không tải được dữ liệu đơn tiếp nhận",
         );
       } finally {
         setLoading(false);
@@ -197,7 +302,8 @@ const ReceptForm = () => {
         team: selectedReport.team || selectedReport.handlerTeam,
         reporter: selectedReport.reporter,
         location: selectedReport.location || "Chưa có vị trí",
-        description: selectedReport.description || "Chưa có mô tả cho báo cáo này.",
+        description:
+          selectedReport.description || "Chưa có mô tả cho báo cáo này.",
         lat: selectedReport.lat,
         lng: selectedReport.lng,
         reportLatitude: selectedReport.reportLatitude,
@@ -208,7 +314,8 @@ const ReceptForm = () => {
         afterImg: selectedReport.afterImg || "",
         progressNote: selectedReport.progressNote || "",
         images:
-          Array.isArray(selectedReport.images) && selectedReport.images.length > 0
+          Array.isArray(selectedReport.images) &&
+          selectedReport.images.length > 0
             ? selectedReport.images
             : [selectedReport.image || "", selectedReport.afterImg || ""],
       }
@@ -216,16 +323,24 @@ const ReceptForm = () => {
 
   const handleCloseDetail = () => setSelectedReport(null);
 
-  const syncReportStatus = (reportId, nextStatus) => {
+  const syncReportStatus = (reportId, nextStatus, assignedTeamName) => {
+    const teamPatch = assignedTeamName
+      ? { team: assignedTeamName, handlerTeam: assignedTeamName }
+      : {};
+
     setReports((prev) =>
       prev.map((item) => {
         const itemId = item.id || item.report_id;
-        return itemId === reportId ? { ...item, status: nextStatus } : item;
+        return itemId === reportId
+          ? { ...item, status: nextStatus, ...teamPatch }
+          : item;
       }),
     );
 
     setSelectedReport((prev) =>
-      prev ? { ...prev, status: nextStatus } : prev,
+      prev && (prev.id || prev.report_id) === reportId
+        ? { ...prev, status: nextStatus, ...teamPatch }
+        : prev,
     );
   };
 
@@ -237,7 +352,12 @@ const ReceptForm = () => {
       return;
     }
 
-    console.log("Setting modal state - reportId:", reportId, "status:", report?.status);
+    console.log(
+      "Setting modal state - reportId:",
+      reportId,
+      "status:",
+      report?.status,
+    );
     setUpdateReportData(report);
     setShowUpdateStatusModal(true);
     setSelectedReport(null); // Đóng detail modal
@@ -247,7 +367,7 @@ const ReceptForm = () => {
     try {
       setUpdatingStatus(true);
       await reportApi.updateReportStatus(reportId, newStatus);
-      
+
       // Cập nhật reports list
       setReports((prev) =>
         prev.map((item) => {
@@ -255,18 +375,19 @@ const ReceptForm = () => {
           return itemId === reportId ? { ...item, status: newStatus } : item;
         }),
       );
-      
+
       // Cập nhật selectedReport + mở lại detail modal
-      const updatedReport = updateReportData 
+      const updatedReport = updateReportData
         ? { ...updateReportData, status: newStatus }
         : null;
       setSelectedReport(updatedReport);
-      
+
       setShowUpdateStatusModal(false);
       setUpdateReportData(null);
     } catch (error) {
       setErrorMessage(
-        error?.response?.data?.message || "Không thể cập nhật trạng thái báo cáo",
+        error?.response?.data?.message ||
+          "Không thể cập nhật trạng thái báo cáo",
       );
     } finally {
       setUpdatingStatus(false);
@@ -274,16 +395,62 @@ const ReceptForm = () => {
   };
 
   const handleSendProcess = async (report) => {
-    const reportId = report?.report_id || report?.id;
+    if (!report) {
+      return;
+    }
+
+    setSelectedReport(null);
+    setAssigningReport(report);
+    setAssignTeams(null);
+
+    try {
+      const response = await maintenanceTeamApi.getTeams({
+        page: 1,
+        limit: 50,
+        status: "active",
+      });
+      setAssignTeams(mapMaintenanceTeamsToAssignOptions(response?.data || []));
+    } catch (error) {
+      setAssignTeams(null);
+    }
+  };
+
+  const handleCloseAssignTeam = () => {
+    setAssigningReport(null);
+    setAssignTeams(null);
+  };
+
+  const handleCancelAssignTeam = () => {
+    if (assigningReport) {
+      setSelectedReport(assigningReport);
+    }
+    handleCloseAssignTeam();
+  };
+
+  const handleAssignTeam = async (team) => {
+    const reportId = assigningReport?.report_id || assigningReport?.id;
     if (!reportId) {
       return;
     }
 
+    if (!team?.id) {
+      toast.error("Thiếu thông tin đội xử lý.");
+      return;
+    }
+
     try {
-      await reportApi.updateReportStatus(reportId, "Đang Xử Lý");
-      syncReportStatus(reportId, "Đang Xử Lý");
+      await reportApi.assignReport(reportId, {
+        teamId: team?.id,
+        teamName: team?.name,
+      });
+      syncReportStatus(reportId, "Đang Xử Lý", team?.name);
+      handleCloseAssignTeam();
+      toast.success("Phân công thành công!");
     } catch (error) {
       setErrorMessage(
+        error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
+      );
+      toast.error(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
       );
     }
@@ -309,11 +476,32 @@ const ReceptForm = () => {
           <Popover open={isAreaOpen} onOpenChange={setIsAreaOpen}>
             <PopoverTrigger asChild>
               <button className="flex !h-[45px] w-[145px] shrink-0 items-center justify-between rounded-[10px] border border-[#dfe3e8] bg-white px-[15px] py-0 text-sm font-normal text-gray-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] hover:bg-gray-50 focus-visible:border-[#cdd5df] focus-visible:ring-0 focus-visible:ring-offset-0 outline-none transition-colors data-[state=open]:bg-white">
-                <span className="truncate text-left flex-1">{selectedArea === "all" ? "Phường/Xã" : areas.find(a => a.name === selectedArea)?.name || "Phường/Xã"}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down opacity-50 shrink-0 ml-2 h-4 w-4"><path d="m6 9 6 6 6-6"/></svg>
+                <span className="truncate text-left flex-1">
+                  {selectedArea === "all"
+                    ? "Phường/Xã"
+                    : areas.find((a) => a.name === selectedArea)?.name ||
+                      "Phường/Xã"}
+                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-chevron-down opacity-50 shrink-0 ml-2 h-4 w-4"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[200px] p-2 bg-white border border-gray-200 shadow-xl rounded-xl z-50" align="end">
+            <PopoverContent
+              className="w-[200px] p-2 bg-white border border-gray-200 shadow-xl rounded-xl z-50"
+              align="end"
+            >
               <Input
                 placeholder="Tìm phường/xã..."
                 value={searchAreaQuery}
@@ -329,11 +517,28 @@ const ReceptForm = () => {
                     setPage(1);
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`mr-2 h-4 w-4 lucide lucide-check ${selectedArea === "all" ? "opacity-100" : "opacity-0"}`}><path d="M20 6 9 17l-5-5"/></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`mr-2 h-4 w-4 lucide lucide-check ${selectedArea === "all" ? "opacity-100" : "opacity-0"}`}
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
                   Tất cả phường/xã
                 </div>
                 {areas
-                  .filter((a) => removeAccents(a.name).includes(removeAccents(searchAreaQuery)))
+                  .filter((a) =>
+                    removeAccents(a.name).includes(
+                      removeAccents(searchAreaQuery),
+                    ),
+                  )
                   .map((area) => (
                     <div
                       key={area.area_id}
@@ -344,7 +549,20 @@ const ReceptForm = () => {
                         setPage(1);
                       }}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`mr-2 h-4 w-4 lucide lucide-check ${selectedArea === area.name ? "opacity-100" : "opacity-0"}`}><path d="M20 6 9 17l-5-5"/></svg>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={`mr-2 h-4 w-4 lucide lucide-check ${selectedArea === area.name ? "opacity-100" : "opacity-0"}`}
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
                       {area.name}
                     </div>
                   ))}
@@ -362,12 +580,41 @@ const ReceptForm = () => {
             <SelectTrigger className="flex !h-[45px] w-[145px] shrink-0 items-center justify-between rounded-[10px] border border-[#dfe3e8] bg-[#f5f5f5] px-[15px] py-0 text-sm font-normal text-gray-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] hover:bg-white focus-visible:border-[#cdd5df] focus-visible:ring-0 focus-visible:ring-offset-0 outline-none transition-colors data-[state=open]:bg-white [&>span]:truncate [&>span]:text-left [&>span]:flex-1 [&>svg]:opacity-50">
               <SelectValue placeholder="Loại sự cố" />
             </SelectTrigger>
-            <SelectContent position="popper" sideOffset={5} className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden">
-              <SelectItem value="all" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">Loại sự cố</SelectItem>
-              <SelectItem value="Giao Thông" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">Giao thông</SelectItem>
-              <SelectItem value="Điện" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">Điện</SelectItem>
-              <SelectItem value="Cây Xanh" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">Cây xanh</SelectItem>
-              <SelectItem value="CTCC" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">CTCC</SelectItem>
+            <SelectContent
+              position="popper"
+              sideOffset={5}
+              className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden"
+            >
+              <SelectItem
+                value="all"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                Loại sự cố
+              </SelectItem>
+              <SelectItem
+                value="Giao Thông"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                Giao thông
+              </SelectItem>
+              <SelectItem
+                value="Điện"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                Điện
+              </SelectItem>
+              <SelectItem
+                value="Cây Xanh"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                Cây xanh
+              </SelectItem>
+              <SelectItem
+                value="CTCC"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                CTCC
+              </SelectItem>
             </SelectContent>
           </Select>
 
@@ -381,11 +628,24 @@ const ReceptForm = () => {
             <SelectTrigger className="flex !h-[45px] w-[145px] shrink-0 items-center justify-between rounded-[10px] border border-[#dfe3e8] bg-[#f5f5f5] px-[15px] py-0 text-sm font-normal text-gray-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] hover:bg-white focus-visible:border-[#cdd5df] focus-visible:ring-0 focus-visible:ring-offset-0 outline-none transition-colors data-[state=open]:bg-white [&>span]:truncate [&>span]:text-left [&>span]:flex-1 [&>svg]:opacity-50">
               <SelectValue placeholder="Trạng thái" />
             </SelectTrigger>
-            <SelectContent position="popper" sideOffset={5} className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden">
-              <SelectItem value="all" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">Trạng thái</SelectItem>
+            <SelectContent
+              position="popper"
+              sideOffset={5}
+              className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden"
+            >
+              <SelectItem
+                value="all"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                Trạng thái
+              </SelectItem>
               {STATUS_OPTIONS.filter((option) => option !== "all").map(
                 (option) => (
-                  <SelectItem key={option} value={option} className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">
+                  <SelectItem
+                    key={option}
+                    value={option}
+                    className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+                  >
                     {option}
                   </SelectItem>
                 ),
@@ -403,10 +663,29 @@ const ReceptForm = () => {
             <SelectTrigger className="flex !h-[45px] w-[145px] shrink-0 items-center justify-between rounded-[10px] border border-[#dfe3e8] bg-[#f5f5f5] px-[15px] py-0 text-sm font-normal text-gray-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] hover:bg-white focus-visible:border-[#cdd5df] focus-visible:ring-0 focus-visible:ring-offset-0 outline-none transition-colors data-[state=open]:bg-white [&>span]:truncate [&>span]:text-left [&>span]:flex-1 [&>svg]:opacity-50">
               <SelectValue placeholder="Chọn ngày" />
             </SelectTrigger>
-            <SelectContent position="popper" sideOffset={5} className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden">
-              <SelectItem value="all" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">Chọn ngày</SelectItem>
-              <SelectItem value="recent" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">Mới nhất</SelectItem>
-              <SelectItem value="old" className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto">Cũ hơn</SelectItem>
+            <SelectContent
+              position="popper"
+              sideOffset={5}
+              className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden"
+            >
+              <SelectItem
+                value="all"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                Chọn ngày
+              </SelectItem>
+              <SelectItem
+                value="recent"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                Mới nhất
+              </SelectItem>
+              <SelectItem
+                value="old"
+                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              >
+                Cũ hơn
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -433,57 +712,70 @@ const ReceptForm = () => {
               const date = report.date || report.time || "-";
 
               return (
-            <div
-              key={`${report.id || report.report_id}-${report.location}-${index}`}
-              className="group relative h-[210px] xl:h-[224px] cursor-pointer overflow-hidden rounded-[24px] shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ring-1 ring-black/5"
-              onClick={() => setSelectedReport(report)}
-            >
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                style={{ backgroundImage: `url(${imageUrl})` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/40 opacity-90 transition-opacity duration-300 group-hover:opacity-100" />
+                <div
+                  key={`${report.id || report.report_id}-${report.location}-${index}`}
+                  className="group relative h-[210px] xl:h-[224px] cursor-pointer overflow-hidden rounded-[24px] shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ring-1 ring-black/5"
+                  onClick={() => setSelectedReport(report)}
+                >
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${imageUrl})` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/40 opacity-90 transition-opacity duration-300 group-hover:opacity-100" />
 
-              <div className="absolute left-4 right-4 top-4 flex items-center justify-between z-10">
-                <div className="flex shrink-0 items-center rounded-full bg-black/40 px-3 py-1 backdrop-blur-md border border-white/20 shadow-sm transition-colors group-hover:bg-black/50">
-                  <span className="text-[11px] font-bold tracking-wider text-white/95">
-                    {report.id}
-                  </span>
+                  <div className="absolute left-4 right-4 top-4 flex items-center justify-between z-10">
+                    <div className="flex shrink-0 items-center rounded-full bg-black/40 px-3 py-1 backdrop-blur-md border border-white/20 shadow-sm transition-colors group-hover:bg-black/50">
+                      <span className="text-[11px] font-bold tracking-wider text-white/95">
+                        {report.id}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110 ${getStatusConfig(report.status).bg} ${getStatusConfig(report.status).border}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor] ${getStatusConfig(report.status).dot}`}
+                        />
+                        <span
+                          className={`text-[11px] font-bold tracking-wide ${getStatusConfig(report.status).color}`}
+                        >
+                          {report.status}
+                        </span>
+                      </div>
+                      <div
+                        className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110 ${getCategoryConfig(category).bg} ${getCategoryConfig(category).border}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor] ${getCategoryConfig(category).dot}`}
+                        />
+                        <span
+                          className={`text-[11px] font-bold tracking-wide capitalize ${getCategoryConfig(category).color}`}
+                        >
+                          {String(category).toLowerCase()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-2 z-10">
+                    <h3 className="text-[15px] font-bold leading-snug text-white/95 line-clamp-2 drop-shadow-md transition-transform duration-300 group-hover:translate-x-1">
+                      {report.title}
+                    </h3>
+
+                    <div className="flex flex-col gap-1.5 text-[12px] font-medium text-white/80 transition-all duration-300 group-hover:translate-x-1">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-white/60" />
+                        <span className="truncate drop-shadow-sm">
+                          {report.location}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3.5 w-3.5 shrink-0 text-white/60" />
+                        <span className="drop-shadow-sm">{date}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110 ${getStatusConfig(report.status).bg} ${getStatusConfig(report.status).border}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor] ${getStatusConfig(report.status).dot}`} />
-                    <span className={`text-[11px] font-bold tracking-wide ${getStatusConfig(report.status).color}`}>
-                      {report.status}
-                    </span>
-                  </div>
-                  <div className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110 ${getCategoryConfig(category).bg} ${getCategoryConfig(category).border}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor] ${getCategoryConfig(category).dot}`} />
-                    <span className={`text-[11px] font-bold tracking-wide capitalize ${getCategoryConfig(category).color}`}>
-                      {String(category).toLowerCase()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-
-              <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-2 z-10">
-                <h3 className="text-[15px] font-bold leading-snug text-white/95 line-clamp-2 drop-shadow-md transition-transform duration-300 group-hover:translate-x-1">
-                  {report.title}
-                </h3>
-
-                <div className="flex flex-col gap-1.5 text-[12px] font-medium text-white/80 transition-all duration-300 group-hover:translate-x-1">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-white/60" />
-                    <span className="truncate drop-shadow-sm">{report.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-3.5 w-3.5 shrink-0 text-white/60" />
-                    <span className="drop-shadow-sm">{date}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
               );
             })}
         </div>
@@ -565,17 +857,16 @@ const ReceptForm = () => {
         onSendProcess={handleSendProcess}
       />
 
-      <Update_Status
-        isOpen={showUpdateStatusModal}
-        reportId={updateReportData?.report_id || updateReportData?.id}
-        reportCode={updateReportData?.id}
-        currentStatus={updateReportData?.status}
-        onClose={() => {
-          setShowUpdateStatusModal(false);
-          setUpdateReportData(null);
-        }}
-        onUpdate={handleConfirmUpdateStatus}
-        loading={updatingStatus}
+      <AssignMaintenanceTeam
+        open={Boolean(assigningReport)}
+        reportCode={
+          assigningReport?.id || assigningReport?.report_id || "BCGT3101"
+        }
+        reportType={assigningReport?.type || assigningReport?.category}
+        teams={assignTeams ?? []}
+        onClose={handleCloseAssignTeam}
+        onCancel={handleCancelAssignTeam}
+        onAssign={handleAssignTeam}
       />
     </div>
   );

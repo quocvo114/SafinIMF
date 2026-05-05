@@ -110,7 +110,9 @@ export default function HomeOverlayUI({
       }, 100);
     } catch (error) {
       console.error(error);
-      toast.error("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.");
+      toast.error(
+        "Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.",
+      );
     }
   };
 
@@ -151,14 +153,17 @@ export default function HomeOverlayUI({
         )}
 
         {/* Floating Sidebar - Left Top (aligned with categories) */}
-        <div className="absolute left-6 top-4 z-10">
+        <div className="absolute left-3 top-4 z-10">
           <SidebarProvider>
             <UserSidebar />
           </SidebarProvider>
         </div>
 
         {/* Floating Categories - Right Top (next to sidebar) */}
-        <div className="absolute left-28 top-4 right-4 z-10 flex gap-2 overflow-x-auto scrollbar-hide">
+        <div
+          className="absolute top-4 right-4 z-10 flex gap-2 overflow-x-auto scrollbar-hide"
+          style={{ left: "var(--user-sidebar-offset, 6rem)" }}
+        >
           <button
             onClick={() => setSelectedCategory("all")}
             className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
@@ -167,7 +172,7 @@ export default function HomeOverlayUI({
             style={{
               backgroundColor: "#2563EB",
               color: "#ffffff",
-              border: "none"
+              border: "none",
             }}
           >
             <span className="icon-wrap">
@@ -185,7 +190,7 @@ export default function HomeOverlayUI({
               style={{
                 backgroundColor: c.bgColor,
                 color: "#ffffff",
-                border: "none"
+                border: "none",
               }}
             >
               <span className="icon-wrap">{c.icon}</span>
@@ -224,11 +229,11 @@ export default function HomeOverlayUI({
       {/* Report Form Modal */}
       {isReportOpen && (
         <div className="interactive">
-          <ReportForm 
+          <ReportForm
             onClose={() => {
               setIsReportOpen(false);
               setCapturedImage(null);
-            }} 
+            }}
             initialImage={capturedImage}
           />
         </div>
