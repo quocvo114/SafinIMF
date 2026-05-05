@@ -85,9 +85,7 @@ const IncidentManagement = () => {
   const fetchIncidentTypes = async () => {
     try {
       setLoading(true);
-      const response = await incidentApi.getIncidentTypes({
-        includeUsage: true,
-      });
+      const response = await incidentApi.getIncidentTypes();
 
       if (response?.success) {
         setIncidentTypes(response.data || []);
@@ -327,7 +325,9 @@ const IncidentManagement = () => {
                         setCurrentPage((prev) => Math.max(prev - 1, 1));
                       }}
                       className={
-                        currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : ""
                       }
                     />
                   </PaginationItem>
@@ -356,7 +356,9 @@ const IncidentManagement = () => {
                       text="Sau"
                       onClick={(e) => {
                         e.preventDefault();
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+                        setCurrentPage((prev) =>
+                          Math.min(prev + 1, totalPages),
+                        );
                       }}
                       className={
                         currentPage === totalPages

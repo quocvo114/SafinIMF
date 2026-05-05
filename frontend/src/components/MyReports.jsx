@@ -209,8 +209,8 @@ export default function MyReports() {
         typeof reportApi.getTestReportsByUserId === "function";
 
       const response = useTestEndpoint
-        ? await reportApi.getTestReportsByUserId(userId)
-        : await reportApi.getReportsByUserId(userId);
+        ? await reportApi.getTestReportsByUserId(userId, { view: "list" })
+        : await reportApi.getReportsByUserId(userId, { view: "list" });
 
       if (response?.success) {
         const normalizedReports = Array.isArray(response.data)
@@ -522,9 +522,33 @@ export default function MyReports() {
                           <TableRow
                             key={item.id}
                             className="cursor-pointer border-b border-gray-100 transition hover:bg-gray-50"
-                            onClick={() => {
+                            onClick={async () => {
+                              const reportId =
+                                item.id || item.report_id || item._id;
                               setSelected(item);
                               setShowDetail(true);
+
+                              if (!reportId) return;
+
+                              try {
+                                const response =
+                                  await reportApi.getReportById(reportId);
+                                if (response?.success && response?.data) {
+                                  const detail = response.data;
+                                  setSelected({
+                                    ...detail,
+                                    id:
+                                      detail.id ||
+                                      detail.report_id ||
+                                      detail._id,
+                                  });
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "Không thể tải chi tiết báo cáo:",
+                                  error,
+                                );
+                              }
                             }}
                           >
                             <TableCell className="px-4 py-3 font-semibold text-gray-700">

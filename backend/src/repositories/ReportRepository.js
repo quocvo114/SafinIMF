@@ -21,6 +21,23 @@ const VIETNAMESE_CHAR_CLASS_MAP = {
   y: "[yỳýỵỷỹ]",
 };
 
+const LIST_PROJECTION = {
+  _id: 1,
+  id: 1,
+  report_id: 1,
+  title: 1,
+  type: 1,
+  location: 1,
+  status: 1,
+  time: 1,
+  aiPercent: 1,
+  aiVerified: 1,
+  userId: 1,
+  user_id: 1,
+  createdAt: 1,
+  updatedAt: 1,
+};
+
 function normalizeText(value = "") {
   return String(value)
     .normalize("NFD")
@@ -108,16 +125,28 @@ class ReportRepository {
   /**
    * Trang quản lý (admin)
    */
-  async getManagementList({ search, type, status, page = 1, limit = 10 }) {
+  async getManagementList({
+    search,
+    type,
+    status,
+    page = 1,
+    limit = 10,
+    view,
+  }) {
     try {
       const query = this.buildFilterQuery({ search, type, status });
+      const projection = view === "list" ? LIST_PROJECTION : undefined;
 
       const safePage = Math.max(parseInt(page, 10) || 1, 1);
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
       const skip = (safePage - 1) * safeLimit;
 
       const [items, total] = await Promise.all([
-        Report.find(query).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
+        Report.find(query, projection)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(safeLimit)
+          .lean(),
         Report.countDocuments(query),
       ]);
 
@@ -148,6 +177,7 @@ class ReportRepository {
     sortByDate = "recent",
     page = 1,
     limit = 10,
+    view,
   }) {
     try {
       const query = this.buildFilterQuery({
@@ -175,10 +205,29 @@ class ReportRepository {
             },
           },
         },
-        { $sort: { resolvedOrder: 1, createdAt: sortDirection } },
-        { $skip: skip },
-        { $limit: safeLimit },
       ];
+
+      pipeline.push({ $sort: { resolvedOrder: 1, createdAt: sortDirection } });
+
+      if (view === "list") {
+        pipeline.push({
+          $project: {
+            _id: 1,
+            id: 1,
+            report_id: 1,
+            title: 1,
+            type: 1,
+            location: 1,
+            status: 1,
+            time: 1,
+            image: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        });
+      }
+
+      pipeline.push({ $skip: skip }, { $limit: safeLimit });
 
       const [items, total] = await Promise.all([
         Report.aggregate(pipeline),
@@ -209,15 +258,42 @@ class ReportRepository {
 
   async getById(id) {
     try {
-      return await Report.findOne({ $or: [{ id }, { report_id: id }] });
+      const queryConditions = [{ id }, { report_id: id }];
+      const numericId = Number(id);
+      if (!Number.isNaN(numericId)) {
+        queryConditions.push({ report_id: numericId });
+      }
+
+      if (typeof id === "string" && /^[a-fA-F0-9]{24}$/.test(id)) {
+        queryConditions.push({ _id: id });
+      }
+
+      return await Report.findOne({ $or: queryConditions }).lean();
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo: " + error.message);
     }
   }
 
-  async getByUserId(userId) {
+  async getByUserId(userId, view) {
     try {
-      return await Report.find({ userId }).sort({ createdAt: -1 });
+      const projection = view === "list" ? LIST_PROJECTION : undefined;
+      const normalizedUserId = userId !== undefined ? String(userId) : "";
+      const numericUserId = Number(userId);
+      const queryConditions = [];
+
+      if (normalizedUserId) {
+        queryConditions.push({ userId: normalizedUserId });
+      }
+
+      if (Number.isInteger(numericUserId)) {
+        queryConditions.push({ user_id: numericUserId });
+      }
+
+      const query = queryConditions.length > 0 ? { $or: queryConditions } : {};
+
+      return await Report.find(query, projection)
+        .sort({ createdAt: -1 })
+        .lean();
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo của user: " + error.message);
     }

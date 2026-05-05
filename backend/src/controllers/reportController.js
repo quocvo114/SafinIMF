@@ -361,6 +361,7 @@ class ReportController {
         status = "all",
         page = 1,
         limit = 10,
+        view,
       } = req.query;
 
       const result = await ReportRepository.getManagementList({
@@ -369,6 +370,7 @@ class ReportController {
         status,
         page,
         limit,
+        view,
       });
 
       res.status(200).json({
@@ -485,6 +487,7 @@ class ReportController {
         date = "recent",
         page = 1,
         limit = 10,
+        view = "default",
       } = req.query;
 
       const result = await ReportRepository.getReceptionList({
@@ -495,6 +498,7 @@ class ReportController {
         sortByDate: date,
         page,
         limit,
+        view,
       });
 
       res.status(200).json({
@@ -537,9 +541,10 @@ class ReportController {
   async getReportsByUserId(req, res) {
     try {
       const { userId } = req.params;
+      const { view } = req.query;
       console.log("🔍 Getting reports for userId:", userId);
 
-      const reports = await ReportRepository.getByUserId(userId);
+      const reports = await ReportRepository.getByUserId(userId, view);
       console.log("✅ Found reports:", reports.length);
 
       res.status(200).json({
@@ -915,7 +920,9 @@ class ReportController {
         {
           afterImg: afterImgUrl,
           status: "Đã Giải Quyết",
-          ...(progressNote !== undefined ? { progressNote: progressNote.trim() } : {}),
+          ...(progressNote !== undefined
+            ? { progressNote: progressNote.trim() }
+            : {}),
         },
         { new: true },
       );

@@ -45,7 +45,7 @@ function App() {
         >
           <Routes>
             {/* Public */}
-            <Route path="/" element={<PublicPage />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />
