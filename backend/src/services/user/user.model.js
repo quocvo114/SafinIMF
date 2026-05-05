@@ -21,8 +21,22 @@ const UserSchema = new mongoose.Schema({
 
   role: {
     type: String,
-    enum: ["citizen", "manager", "maintenance", "admin"],
-    default: "citizen",
+    enum: ["user", "admin", "maintenance"],
+    default: "user",
+  },
+
+  failed_login_attempts: {
+    type: Number,
+    default: 0,
+  },
+
+  lock_until: {
+    type: Date,
+  },
+
+  token_version: {
+    type: Number,
+    default: 0,
   },
 
   area: {
