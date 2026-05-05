@@ -25,6 +25,18 @@ const DISTRICT_ALIAS_MAP = {
   "Hòa Vang": ["hoa vang"],
 };
 
+// Pre-compute normalized aliases to avoid expensive string normalization on every request
+const NORMALIZED_DISTRICT_MAP = {};
+Object.entries(DISTRICT_ALIAS_MAP).forEach(([district, aliases]) => {
+  NORMALIZED_DISTRICT_MAP[district] = aliases.map((alias) =>
+    String(alias)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim(),
+  );
+});
+
 function normalizeText(value = "") {
   return String(value)
     .normalize("NFD")
@@ -36,12 +48,15 @@ function normalizeText(value = "") {
 const RECEPTION_STATUS_OPTIONS = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
 
 function inferDistrict(location = "") {
-  const normalizedLocation = normalizeText(location);
+  const normalizedLocation = String(location)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
-  for (const [district, aliases] of Object.entries(DISTRICT_ALIAS_MAP)) {
-    if (
-      aliases.some((alias) => normalizedLocation.includes(normalizeText(alias)))
-    ) {
+  // Use pre-computed normalized aliases (computed at module load time)
+  for (const [district, normalizedAliases] of Object.entries(NORMALIZED_DISTRICT_MAP)) {
+    if (normalizedAliases.some((alias) => normalizedLocation.includes(alias))) {
       return district;
     }
   }

@@ -211,29 +211,6 @@ const ReceptForm = () => {
     fetchAreas();
   }, []);
 
-  const filteredReports = useMemo(() => {
-    const searchTerm = query.trim().toLowerCase();
-
-    const normalizedSelectedArea =
-      selectedArea !== "all" ? removeAccents(selectedArea) : "all";
-
-    return reports.filter((item) => {
-      const byType = typeFilter === "all" || item.category === typeFilter;
-      const byStatus = statusFilter === "all" || item.status === statusFilter;
-
-      const haystack = `${item.id} ${item.title}`.toLowerCase();
-      const bySearch = !searchTerm || haystack.includes(searchTerm);
-
-      let byArea = true;
-      if (selectedArea !== "all") {
-        const locationStr = removeAccents(item.location || "");
-        byArea = locationStr.includes(normalizedSelectedArea);
-      }
-
-      return byType && byStatus && bySearch && byArea;
-    });
-  }, [reports, query, typeFilter, statusFilter, selectedArea]);
-
   const pageSize = 6;
 
   useEffect(() => {
@@ -270,7 +247,8 @@ const ReceptForm = () => {
   }, [query, typeFilter, statusFilter, dateFilter, page, selectedArea]);
 
   const safePage = Math.min(page, totalPages);
-  const visibleReports = filteredReports;
+  // Use reports directly from API - backend already filters by type, status, search, district
+  const visibleReports = reports;
 
   useEffect(() => {
     if (page > totalPages) {

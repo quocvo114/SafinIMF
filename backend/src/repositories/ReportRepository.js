@@ -162,36 +162,77 @@ class ReportRepository {
       const skip = (safePage - 1) * safeLimit;
       const sortDirection = sortByDate === "old" ? 1 : -1;
 
+      // Optimized pipeline: Get data and total count in one aggregation
       const pipeline = [
         { $match: query },
         {
-          $addFields: {
-            resolvedOrder: {
-              $cond: {
-                if: { $eq: ["$status", "Đã Giải Quyết"] },
-                then: 1,
-                else: 0,
-              },
-            },
+          $project: {
+            // Only fetch fields needed for reception list view
+            id: 1,
+            report_id: 1,
+            title: 1,
+            type: 1,
+            location: 1,
+            description: 1,
+            image: 1,
+            images: 1,
+            afterImg: 1,
+            progressNote: 1,
+            confidenceScore: 1,
+            scoringDetails: 1,
+            lat: 1,
+            lng: 1,
+            status: 1,
+            time: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            aiPercent: 1,
+            aiVerified: 1,
+            aiLabel: 1,
+            reportLatitude: 1,
+            reportLongitude: 1,
           },
         },
-        { $sort: { resolvedOrder: 1, createdAt: sortDirection } },
-        { $skip: skip },
-        { $limit: safeLimit },
+        {
+          $facet: {
+            // Data fetch
+            data: [
+              {
+                $addFields: {
+                  resolvedOrder: {
+                    $cond: {
+                      if: { $eq: ["$status", "Đã Giải Quyết"] },
+                      then: 1,
+                      else: 0,
+                    },
+                  },
+                },
+              },
+              { $sort: { resolvedOrder: 1, createdAt: sortDirection } },
+              { $skip: skip },
+              { $limit: safeLimit },
+            ],
+            // Count total
+            total: [
+              {
+                $count: "count",
+              },
+            ],
+          },
+        },
       ];
 
-      const [items, total] = await Promise.all([
-        Report.aggregate(pipeline),
-        Report.countDocuments(query),
-      ]);
+      const result = await Report.aggregate(pipeline);
+      const items = result[0]?.data || [];
+      const totalCount = result[0]?.total[0]?.count || 0;
 
       return {
         items,
         pagination: {
           page: safePage,
           limit: safeLimit,
-          total,
-          totalPages: Math.max(Math.ceil(total / safeLimit), 1),
+          total: totalCount,
+          totalPages: Math.max(Math.ceil(totalCount / safeLimit), 1),
         },
       };
     } catch (error) {
