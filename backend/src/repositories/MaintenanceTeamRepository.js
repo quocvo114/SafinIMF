@@ -61,10 +61,11 @@ class MaintenanceTeamRepository {
         name: data.name,
         leader: data.leader,
         memberCount: data.memberCount,
+        specialty: data.specialty,
         area: data.area,
         status: data.status,
       },
-      { new: true }
+      { new: true },
     ).lean();
   }
 
@@ -72,7 +73,7 @@ class MaintenanceTeamRepository {
     return MaintenanceTeam.findOneAndUpdate(
       { team_id },
       { status },
-      { new: true }
+      { new: true },
     ).lean();
   }
 

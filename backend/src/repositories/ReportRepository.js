@@ -12,30 +12,13 @@ const DISTRICT_ALIAS_MAP = {
 };
 
 const VIETNAMESE_CHAR_CLASS_MAP = {
-  a: "[aàáạảãâầấậẩẫăằắặẳẵ]",
-  d: "[dđ]",
-  e: "[eèéẹẻẽêềếệểễ]",
-  i: "[iìíịỉĩ]",
-  o: "[oòóọỏõôồốộổỗơờớợởỡ]",
-  u: "[uùúụủũưừứựửữ]",
-  y: "[yỳýỵỷỹ]",
-};
-
-const LIST_PROJECTION = {
-  _id: 1,
-  id: 1,
-  report_id: 1,
-  title: 1,
-  type: 1,
-  location: 1,
-  status: 1,
-  time: 1,
-  aiPercent: 1,
-  aiVerified: 1,
-  userId: 1,
-  user_id: 1,
-  createdAt: 1,
-  updatedAt: 1,
+  a: "[a\\u00e0\\u00e1\\u1ea1\\u1ea3\\u00e3\\u00e2\\u1ea7\\u1ea5\\u1ead\\u1ea9\\u1eab\\u0103\\u1eb1\\u1eaf\\u1eb7\\u1eb3\\u1eb5]",
+  d: "[d\\u0111]",
+  e: "[e\\u00e8\\u00e9\\u1eb9\\u1ebb\\u1ebd\\u00ea\\u1ec1\\u1ebf\\u1ec7\\u1ec3\\u1ec5]",
+  i: "[i\\u00ec\\u00ed\\u1ecb\\u1ec9\\u0129]",
+  o: "[o\\u00f2\\u00f3\\u1ecd\\u1ecf\\u00f5\\u00f4\\u1ed3\\u1ed1\\u1ed9\\u1ed5\\u1ed7\\u01a1\\u1edd\\u1edb\\u1ee3\\u1edf\\u1ee1]",
+  u: "[u\\u00f9\\u00fa\\u1ee5\\u1ee7\\u0169\\u01b0\\u1eeb\\u1ee9\\u1ef1\\u1eed\\u1eef]",
+  y: "[y\\u1ef3\\u00fd\\u1ef5\\u1ef7\\u1ef9]",
 };
 
 function normalizeText(value = "") {
@@ -47,11 +30,11 @@ function normalizeText(value = "") {
 }
 
 const NORMALIZED_DISTRICT_ALIAS_MAP = Object.entries(DISTRICT_ALIAS_MAP).reduce(
-  (acc, [district, aliases]) => {
-    acc[normalizeText(district)] = aliases.map((alias) => normalizeText(alias));
-    return acc;
+  (accumulator, [district, aliases]) => {
+    accumulator[normalizeText(district)] = aliases.map((alias) => normalizeText(alias));
+    return accumulator;
   },
-  {},
+  {}
 );
 
 function escapeRegex(value) {
@@ -63,27 +46,27 @@ function buildVietnameseRegexPattern(value = "") {
 
   return normalized
     .split("")
-    .map((char) => {
-      if (char === " ") return "\\s+";
-      if (VIETNAMESE_CHAR_CLASS_MAP[char]) {
-        return VIETNAMESE_CHAR_CLASS_MAP[char];
+    .map((character) => {
+      if (character === " ") {
+        return "\\s+";
       }
-      return escapeRegex(char);
+
+      if (VIETNAMESE_CHAR_CLASS_MAP[character]) {
+        return VIETNAMESE_CHAR_CLASS_MAP[character];
+      }
+
+      return escapeRegex(character);
     })
     .join("");
 }
 
 function buildDistrictRegex(district) {
   const normalizedDistrict = normalizeText(district);
-  const aliases = NORMALIZED_DISTRICT_ALIAS_MAP[normalizedDistrict] || [
-    normalizedDistrict,
-  ];
-
+  const aliases = NORMALIZED_DISTRICT_ALIAS_MAP[normalizedDistrict] || [normalizedDistrict];
   const pattern = Array.from(new Set(aliases))
     .map((alias) => buildVietnameseRegexPattern(alias))
     .filter(Boolean)
     .join("|");
-
   return new RegExp(pattern, "iu");
 }
 
@@ -105,48 +88,34 @@ class ReportRepository {
 
     if (search) {
       const keyword = search.trim();
-
-      const orQuery = [
+      const numericKeyword = Number(keyword);
+      const searchConditions = [
         { id: { $regex: keyword, $options: "i" } },
         { title: { $regex: keyword, $options: "i" } },
       ];
-
-      const numKeyword = Number(keyword);
-      if (!isNaN(numKeyword)) {
-        orQuery.push({ report_id: numKeyword });
+      // Chỉ search report_id (Number) khi keyword là số nguyên hợp lệ
+      if (Number.isInteger(numericKeyword) && numericKeyword > 0) {
+        searchConditions.push({ report_id: numericKeyword });
       }
-
-      query.$or = orQuery;
+      query.$or = searchConditions;
     }
 
     return query;
   }
 
   /**
-   * Trang quản lý (admin)
+   * Lấy báo cáo cho trang quản lý (có lọc + phân trang)
    */
-  async getManagementList({
-    search,
-    type,
-    status,
-    page = 1,
-    limit = 10,
-    view,
-  }) {
+  async getManagementList({ search, type, status, page = 1, limit = 10 }) {
     try {
       const query = this.buildFilterQuery({ search, type, status });
-      const projection = view === "list" ? LIST_PROJECTION : undefined;
 
       const safePage = Math.max(parseInt(page, 10) || 1, 1);
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
       const skip = (safePage - 1) * safeLimit;
 
       const [items, total] = await Promise.all([
-        Report.find(query, projection)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(safeLimit)
-          .lean(),
+        Report.find(query).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
         Report.countDocuments(query),
       ]);
 
@@ -160,14 +129,12 @@ class ReportRepository {
         },
       };
     } catch (error) {
-      throw new Error(
-        "Lỗi khi lấy danh sách quản lý báo cáo: " + error.message,
-      );
+      throw new Error("Lỗi khi lấy danh sách quản lý báo cáo: " + error.message);
     }
   }
 
   /**
-   * Trang đơn tiếp nhận (theo quận)
+   * Lấy báo cáo cho trang đơn tiếp nhận (lọc theo quận/huyện + phân trang)
    */
   async getReceptionList({
     search,
@@ -177,60 +144,20 @@ class ReportRepository {
     sortByDate = "recent",
     page = 1,
     limit = 10,
-    view,
   }) {
     try {
-      const query = this.buildFilterQuery({
-        search,
-        type,
-        status,
-        district,
-      });
+      const query = this.buildFilterQuery({ search, type, status, district });
 
       const safePage = Math.max(parseInt(page, 10) || 1, 1);
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
       const skip = (safePage - 1) * safeLimit;
       const sortDirection = sortByDate === "old" ? 1 : -1;
 
-      const pipeline = [
-        { $match: query },
-        {
-          $addFields: {
-            resolvedOrder: {
-              $cond: {
-                if: { $eq: ["$status", "Đã Giải Quyết"] },
-                then: 1,
-                else: 0,
-              },
-            },
-          },
-        },
-      ];
-
-      pipeline.push({ $sort: { resolvedOrder: 1, createdAt: sortDirection } });
-
-      if (view === "list") {
-        pipeline.push({
-          $project: {
-            _id: 1,
-            id: 1,
-            report_id: 1,
-            title: 1,
-            type: 1,
-            location: 1,
-            status: 1,
-            time: 1,
-            image: 1,
-            createdAt: 1,
-            updatedAt: 1,
-          },
-        });
-      }
-
-      pipeline.push({ $skip: skip }, { $limit: safeLimit });
-
       const [items, total] = await Promise.all([
-        Report.aggregate(pipeline),
+        Report.find(query)
+          .sort({ createdAt: sortDirection })
+          .skip(skip)
+          .limit(safeLimit),
         Report.countDocuments(query),
       ]);
 
@@ -248,6 +175,9 @@ class ReportRepository {
     }
   }
 
+  /**
+   * Lấy tất cả báo cáo
+   */
   async getAll() {
     try {
       return await Report.find({}).sort({ createdAt: -1 });
@@ -255,50 +185,39 @@ class ReportRepository {
       throw new Error("Lỗi khi lấy danh sách báo cáo: " + error.message);
     }
   }
-
   async getById(id) {
     try {
-      const queryConditions = [{ id }, { report_id: id }];
-      const numericId = Number(id);
-      if (!Number.isNaN(numericId)) {
-        queryConditions.push({ report_id: numericId });
+      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+      if (!normalizedId) return null;
+
+      const conditions = [{ id: normalizedId }];
+
+      // Chỉ query report_id (Number) khi id thực sự là số nguyên
+      const numericId = Number(normalizedId);
+      if (Number.isInteger(numericId) && numericId > 0) {
+        conditions.push({ report_id: numericId });
       }
 
-      if (typeof id === "string" && /^[a-fA-F0-9]{24}$/.test(id)) {
-        queryConditions.push({ _id: id });
-      }
-
-      return await Report.findOne({ $or: queryConditions }).lean();
+      return await Report.findOne({ $or: conditions });
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo: " + error.message);
     }
   }
 
-  async getByUserId(userId, view) {
+  /**
+   * Lấy tất cả báo cáo của một user
+   */
+  async getByUserId(userId) {
     try {
-      const projection = view === "list" ? LIST_PROJECTION : undefined;
-      const normalizedUserId = userId !== undefined ? String(userId) : "";
-      const numericUserId = Number(userId);
-      const queryConditions = [];
-
-      if (normalizedUserId) {
-        queryConditions.push({ userId: normalizedUserId });
-      }
-
-      if (Number.isInteger(numericUserId)) {
-        queryConditions.push({ user_id: numericUserId });
-      }
-
-      const query = queryConditions.length > 0 ? { $or: queryConditions } : {};
-
-      return await Report.find(query, projection)
-        .sort({ createdAt: -1 })
-        .lean();
+      return await Report.find({ userId }).sort({ createdAt: -1 });
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo của user: " + error.message);
     }
   }
 
+  /**
+   * Tạo báo cáo mới
+   */
   async create(reportData) {
     try {
       const report = new Report(reportData);
@@ -308,12 +227,21 @@ class ReportRepository {
     }
   }
 
-  async updateStatus(id, status) {
+  async updateStatus(id, status, extra = {}) {
     try {
+      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+      if (!normalizedId) return null;
+
+      const conditions = [{ id: normalizedId }];
+      const numericId = Number(normalizedId);
+      if (Number.isInteger(numericId) && numericId > 0) {
+        conditions.push({ report_id: numericId });
+      }
+
       return await Report.findOneAndUpdate(
-        { $or: [{ id }, { report_id: id }] },
-        { status },
-        { new: true },
+        { $or: conditions },
+        { status, ...extra },
+        { new: true }
       );
     } catch (error) {
       throw new Error("Lỗi khi cập nhật trạng thái báo cáo: " + error.message);

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -34,7 +34,6 @@ import Info_Management from "./pages/Info_Management.jsx";
 
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
-import { Toaster } from "sonner";
 
 function App() {
   return (
@@ -45,7 +44,7 @@ function App() {
         >
           <Routes>
             {/* Public */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<PublicPage />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />
@@ -115,7 +114,6 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
-        <Toaster position="top-right" richColors />
       </TooltipProvider>
     </AuthProvider>
   );

@@ -3,7 +3,7 @@ const userRepository = require("./user.repository");
 
 const ROLE_DB_TO_UI = {
   citizen: "User",
-  admin: "QTV",
+  admin: "Admin",
   manager: "QTV",
   maintenance: "KTV",
 };
@@ -11,7 +11,7 @@ const ROLE_DB_TO_UI = {
 const ROLE_UI_TO_DB = {
   User: "citizen",
   Admin: "admin",
-  QTV: "admin",
+  QTV: "manager",
   KTV: "maintenance",
 };
 
@@ -124,7 +124,7 @@ class UserService {
     };
   }
 
-  async createUserByAdmin({ name, phone, email, role, area, status, password }) {
+  async createUserByAdmin({ name, phone, email, role, area, status }) {
     if (!name || !phone) {
       throw new Error("Tên và số điện thoại là bắt buộc");
     }
@@ -142,31 +142,25 @@ class UserService {
     }
 
     const user_id = await userRepository.getNextUserId();
-    const finalPassword = password || process.env.DEFAULT_USER_PASSWORD || "123456";
-    const hashedPassword = await bcrypt.hash(finalPassword, 10);
+    const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "123456";
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
-    const createdData = {
+    const created = await userRepository.createByAdmin({
       user_id,
       full_name: name,
       phone,
+      email: email || "",
       password: hashedPassword,
-      gender: "Nam",
       phone_verified: true,
       email_verified: Boolean(email),
       role: this.mapRoleForDb(role),
       area: area || "",
       account_status: status || "active",
-    };
-
-    if (email && String(email).trim() !== "") {
-      createdData.email = String(email).trim();
-    }
-
-    const created = await userRepository.createByAdmin(createdData);
+    });
 
     return {
       user: toManagementUser(created),
-      defaultPassword: finalPassword,
+      defaultPassword,
     };
   }
 

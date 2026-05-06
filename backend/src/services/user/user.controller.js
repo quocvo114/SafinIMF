@@ -157,7 +157,7 @@ class UserController {
 
   async createManagementUser(req, res) {
     try {
-      const { name, phone, email, role, area, status, password } = req.body;
+      const { name, phone, email, role, area, status } = req.body;
       const created = await userService.createUserByAdmin({
         name,
         phone,
@@ -165,7 +165,6 @@ class UserController {
         role,
         area,
         status,
-        password,
       });
 
       return res.status(201).json({

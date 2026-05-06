@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   X,
   Hash,
@@ -25,8 +25,6 @@ export default function MaintenanceReportDetail({
   report,
   onUpdate,
 }) {
-  const [detailReport, setDetailReport] = useState(report);
-  const [detailFetched, setDetailFetched] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [progressNote, setProgressNote] = useState("");
@@ -35,94 +33,10 @@ export default function MaintenanceReportDetail({
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    setDetailReport(report);
-    setDetailFetched(false);
-  }, [report]);
+  if (!isOpen || !report) return null;
 
-  useEffect(() => {
-    if (!isOpen || !detailReport) return;
-
-    const reportId =
-      detailReport?.id || detailReport?.report_id || detailReport?._id;
-    if (!reportId) return;
-
-    const hasImage =
-      Boolean(detailReport?.image) ||
-      (Array.isArray(detailReport?.images) && detailReport.images.length > 0);
-    const hasDescription = Boolean(detailReport?.description);
-
-    if (hasImage && hasDescription) return;
-    if (detailFetched) return;
-
-    let cancelled = false;
-
-    const fetchDetail = async () => {
-      try {
-        const response = await reportApi.getReportById(reportId);
-        if (!cancelled && response?.success && response?.data) {
-          setDetailReport(response.data);
-        }
-      } catch (error) {
-        console.error("Không thể tải chi tiết báo cáo:", error);
-      } finally {
-        if (!cancelled) {
-          setDetailFetched(true);
-        }
-      }
-    };
-
-    fetchDetail();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [detailReport, isOpen]);
-
-  const activeReport = detailReport;
-
-  if (!isOpen || !activeReport) return null;
-
-  // Hàm dùng chung cho lấy ảnh (giống bên ReportDetail-QLKV)
-  function resolveImage(data, index) {
-    const imageCandidate =
-      data && Array.isArray(data.images) ? data.images[index] : "";
-    if (typeof imageCandidate === "string") {
-      const normalizedCandidate = imageCandidate.trim().toLowerCase();
-      if (
-        normalizedCandidate &&
-        normalizedCandidate !== "null" &&
-        normalizedCandidate !== "undefined"
-      ) {
-        return imageCandidate;
-      }
-    } else if (imageCandidate) {
-      return imageCandidate;
-    }
-    if (data && index === 0 && data.image) {
-      if (typeof data.image === "string") {
-        const normalizedSingleImage = data.image.trim().toLowerCase();
-        if (
-          normalizedSingleImage &&
-          normalizedSingleImage !== "null" &&
-          normalizedSingleImage !== "undefined"
-        ) {
-          return data.image;
-        }
-      } else {
-        return data.image;
-      }
-    }
-    return "";
-  }
-
-  const reportImageUrl =
-    resolveImage(activeReport, 0) || activeReport?.imageUrl || "";
-  const afterImageUrl =
-    resolveImage(activeReport, 1) || activeReport?.afterImg || "";
-  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(
-    Boolean,
-  );
+  const reportImageUrl = report?.image || report?.images?.[0] || "";
+  const allImages = [reportImageUrl, report?.afterImg].filter(Boolean);
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
@@ -135,18 +49,18 @@ export default function MaintenanceReportDetail({
   };
 
   const reportLat =
-    parseCoord(activeReport?.lat ?? activeReport?.reportLatitude, -90, 90) ??
+    parseCoord(report?.lat ?? report?.reportLatitude, -90, 90) ??
     (() => {
-      const m = String(activeReport?.location || "").match(
+      const m = String(report?.location || "").match(
         /(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/,
       );
       return m ? parseCoord(m[1], -90, 90) : null;
     })();
 
   const reportLng =
-    parseCoord(activeReport?.lng ?? activeReport?.reportLongitude, -180, 180) ??
+    parseCoord(report?.lng ?? report?.reportLongitude, -180, 180) ??
     (() => {
-      const m = String(activeReport?.location || "").match(
+      const m = String(report?.location || "").match(
         /(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/,
       );
       return m ? parseCoord(m[2], -180, 180) : null;
@@ -190,10 +104,9 @@ export default function MaintenanceReportDetail({
     setIsSubmitting(true);
     try {
       const base64Image = await convertImageToBase64(selectedImageFile);
-      const reportId =
-        activeReport?.id || activeReport?._id || activeReport?.report_id;
+      const reportId = report?.id || report?._id || report?.report_id;
       const response = await reportApi.updateProgress(reportId, {
-        afterImage: base64Image,
+        afterImg: base64Image,
         progressNote: progressNote.trim() || undefined,
       });
       if (response.success) {
@@ -241,9 +154,9 @@ export default function MaintenanceReportDetail({
     }
   };
 
-  const statusInfo = getStatusInfo(activeReport?.status);
+  const statusInfo = getStatusInfo(report?.status);
   const displayLocation = (() => {
-    const loc = activeReport?.location;
+    const loc = report?.location;
     if (!loc) return "---";
     if (/^[\d.-]+,\s*[\d.-]+$/.test(loc.trim())) return "Chưa cập nhật địa chỉ";
     return loc;
@@ -317,18 +230,18 @@ export default function MaintenanceReportDetail({
             {/* Type + Title */}
             <div>
               <Badge className="inline-flex items-center rounded-full bg-[#FF7F1F] hover:bg-[#FF7F1F] px-2.5 py-0.5 h-auto border-0 text-[10px] font-semibold text-white tracking-wide shadow-sm mb-1.5">
-                {activeReport?.type || "Giao Thông"}
+                {report?.type || "Giao Thông"}
               </Badge>
               <h1 className="text-lg font-bold text-gray-900 leading-snug">
-                {activeReport?.title || "Chi tiết sự cố"}
+                {report?.title || "Chi tiết sự cố"}
               </h1>
             </div>
 
             {/* Description */}
-            {activeReport?.description && (
+            {report?.description && (
               <div className="rounded-xl bg-gray-50 p-3 border border-gray-100">
                 <p className="text-xs italic leading-relaxed text-gray-600">
-                  {activeReport.description}
+                  {report.description}
                 </p>
               </div>
             )}
@@ -344,7 +257,7 @@ export default function MaintenanceReportDetail({
                     Mã BC
                   </span>
                   <p className="text-sm font-bold text-blue-600 truncate">
-                    {activeReport?.id || activeReport?.report_id || "---"}
+                    {report?.id || report?.report_id || "---"}
                   </p>
                 </div>
               </div>
@@ -352,7 +265,7 @@ export default function MaintenanceReportDetail({
                 lat={reportLat}
                 lng={reportLng}
                 address={displayLocation}
-                title={activeReport?.title}
+                title={report?.title}
               >
                 <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-500">
@@ -377,7 +290,7 @@ export default function MaintenanceReportDetail({
                     Thời gian
                   </span>
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {activeReport?.time || "---"}
+                    {report?.time || "---"}
                   </p>
                 </div>
               </div>

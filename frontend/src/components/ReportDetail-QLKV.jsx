@@ -19,7 +19,6 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -278,7 +277,7 @@ export default function ReportDetailQLKV({
   if (!isOpen) return null;
 
   const beforeImage = resolveImage(data, 0);
-  const afterImage = data.afterImg || resolveImage(data, 1);
+  const afterImage = resolveImage(data, 1);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
 
@@ -408,16 +407,6 @@ export default function ReportDetailQLKV({
               details={data.scoringDetails}
             />
 
-              {/* Progress Note */}
-            {data.progressNote && (
-              <div className="rounded-xl bg-white p-3 border border-gray-200">
-                <p className="text-sm italic leading-relaxed text-zinc-600">
-                  <span className="font-semibold text-zinc-800">Ghi chú của đội xử lý: </span>
-                  {data.progressNote}
-                </p>
-              </div>
-            )}
-            
             {/* Photos - fixed height row */}
             <div className="grid grid-cols-2 gap-3" style={{ height: "150px" }}>
               <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden">

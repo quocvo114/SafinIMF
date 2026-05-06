@@ -1,22 +1,23 @@
-
 const mongoose = require("mongoose");
 
 const ReportSchema = new mongoose.Schema(
   {
-     id: {
-       type: String,
-       required: true,
-       unique: true,
-       index: true, // Add index for faster lookup
-     },
-     report_id: {
-       // For numeric, sequential ID if applicable, allow it to be optional
-       type: Number,
-       unique: true,
-       sparse: true, // Allow multiple documents to have null or missing report_id, or enforce uniqueness only on non-null values
-       default: null,
-       index: true,
-     },
+    report_id: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    id: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    report_id: {
+      type: Number,
+      required: true,
+      unique: true,
+      index: true,
+    },
     userId: {
       type: String,
       required: true,
@@ -105,6 +106,23 @@ const ReportSchema = new mongoose.Schema(
     },
 
     progressNote: {
+      type: String,
+      default: "",
+    },
+
+    assignedTeamId: {
+      type: String,
+      default: "",
+    },
+    assignedTeamName: {
+      type: String,
+      default: "",
+    },
+    handlingTeamId: {
+      type: String,
+      default: "",
+    },
+    handlingTeamName: {
       type: String,
       default: "",
     },

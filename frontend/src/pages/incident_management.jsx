@@ -85,7 +85,9 @@ const IncidentManagement = () => {
   const fetchIncidentTypes = async () => {
     try {
       setLoading(true);
-      const response = await incidentApi.getIncidentTypes();
+      const response = await incidentApi.getIncidentTypes({
+        includeUsage: true,
+      });
 
       if (response?.success) {
         setIncidentTypes(response.data || []);
