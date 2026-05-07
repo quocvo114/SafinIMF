@@ -381,7 +381,7 @@ export default function MyReports() {
                     {card.label}
                   </CardTitle>
                   <CardDescription className="text-xs text-gray-500">
-                    Thống kê hiện tại
+                    Current statistics
                   </CardDescription>
                 </CardHeader>
 

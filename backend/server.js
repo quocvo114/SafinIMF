@@ -8,9 +8,11 @@ const reportRoutes = require("./src/routes/reportRoutes");
 const geocodeRoutes = require("./src/routes/geocodeRoutes");
 const maintenanceTeamRoutes = require("./src/routes/maintenanceTeamRoutes");
 const incidentTypeRoutes = require("./src/routes/incidentTypeRoutes");
+const areaRoutes = require("./src/routes/areaRoutes");
+const statisticsRoutes = require("./src/routes/statisticsRoutes");
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 5000;
+const PORT = process.env.BACKEND_PORT || 5050;
 const ENABLE_MONGO = process.env.ENABLE_MONGO !== "false";
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
@@ -63,6 +65,8 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/geocode", geocodeRoutes);
 app.use("/api/maintenance-teams", maintenanceTeamRoutes);
 app.use("/api/incident-types", incidentTypeRoutes);
+app.use("/api/areas", areaRoutes);
+app.use("/api/statistics", statisticsRoutes);
 
 // Start server
 app.listen(PORT, () => {

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Search, Plus, X, Lock, Pencil, Trash2 } from "lucide-react";
 import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
+import { toast } from "sonner";
 
 import {
   Select,
@@ -11,6 +13,7 @@ import {
 } from "@/components/ui/select";
 
 const AREA_OPTIONS = [
+  { value: "all", label: "Tất cả khu vực" },
   { value: "Sơn Trà", label: "Sơn Trà" },
   { value: "Liên Chiểu", label: "Liên Chiểu" },
   { value: "Hải Châu", label: "Hải Châu" },
@@ -19,6 +22,7 @@ const AREA_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = [
+  { value: "all", label: "Tất cả trạng thái" },
   { value: "active", label: "Hoạt Động" },
   { value: "inactive", label: "Bị Khóa" },
 ];
@@ -79,17 +83,22 @@ const normalizeTeam = (team) => ({
   status: team.status || "active",
 });
 
-const inputClass =
-  "w-full h-10 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder-gray-400";
+const AREA_SELECT_OPTIONS = ["Sơn Trà", "Liên Chiểu", "Hải Châu", "Hòa Xuân", "Khuê Trung"];
+
+const inputCls =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none";
+const selectCls =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white";
 
 const MaintenanceTeam_Table = () => {
   const [teams, setTeams] = useState([]);
   const [search, setSearch] = useState("");
-  const [areaFilter, setAreaFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [areaFilter, setAreaFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
+  const [teamToDelete, setTeamToDelete] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -143,7 +152,7 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể thêm đội xử lý");
+      toast.error(error?.response?.data?.message || "Không thể thêm đội xử lý");
     }
   };
 
@@ -169,17 +178,19 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể cập nhật đội xử lý");
+      toast.error(error?.response?.data?.message || "Không thể cập nhật đội xử lý");
     }
   };
 
-  const handleDelete = async (id) => {
+  const confirmDelete = async () => {
     try {
-      if (!window.confirm("Bạn có chắc muốn xóa đội xử lý này?")) return;
-      await maintenanceTeamApi.deleteTeam(id);
+      if (!teamToDelete) return;
+      setTeamToDelete(null);
+      await maintenanceTeamApi.deleteTeam(teamToDelete.id);
+      toast.success("Đã xóa đội xử lý thành công!");
       await fetchTeams();
     } catch (error) {
-      alert(error?.response?.data?.message || "Không thể xóa đội xử lý");
+      toast.error(error?.response?.data?.message || "Không thể xóa đội xử lý");
     }
   };
 
@@ -189,7 +200,7 @@ const MaintenanceTeam_Table = () => {
       await maintenanceTeamApi.updateTeamStatus(id, nextStatus);
       await fetchTeams();
     } catch (error) {
-      alert(
+      toast.error(
         error?.response?.data?.message || "Không thể đổi trạng thái đội xử lý",
       );
     }
@@ -210,8 +221,8 @@ const MaintenanceTeam_Table = () => {
       {/* Filter Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm bg-white border-gray-300 text-gray-700">
-            <Search className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center gap-2 px-4 h-11 rounded-full border text-sm bg-[#f8fafc] border-gray-200 text-gray-700">
+            <Search className="w-4 h-4 opacity-70" />
             <input
               type="text"
               value={search}
@@ -220,371 +231,382 @@ const MaintenanceTeam_Table = () => {
                 setCurrentPage(1);
               }}
               placeholder="Tìm kiếm đội..."
-              className="flex-1 bg-transparent outline-none text-sm placeholder-gray-400"
+              className="flex-1 bg-transparent outline-none text-sm placeholder-gray-400 h-full py-0"
             />
           </div>
         </div>
-        <div className="flex flex-wrap lg:flex-nowrap gap-2">
-          <select
+
+        {/* Filters + Add button */}
+        <div className="flex flex-wrap lg:flex-nowrap gap-2 lg:gap-3">
+          {/* Khu vực */}
+          <Select
             value={areaFilter}
-            onChange={(e) => {
-              setAreaFilter(e.target.value);
+            onValueChange={(value) => {
+              setAreaFilter(value);
               setCurrentPage(1);
             }}
-            className="min-w-[140px] px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:border-gray-400 outline-none"
           >
-            <option value="">Tất cả khu vực</option>
-            {AREA_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
+            <SelectTrigger className="flex !h-11 min-w-[160px] shrink-0 items-center justify-between rounded-full border border-gray-200 bg-white px-4 py-0 text-sm font-normal text-gray-700 hover:bg-gray-50 focus:border-gray-300 focus:ring-0 focus:ring-offset-0 focus-visible:border-gray-300 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none outline-none transition-colors data-[state=open]:bg-white [&>span]:truncate [&>span]:text-left [&>span]:flex-1 [&>svg]:opacity-50">
+              <SelectValue placeholder="Tất cả khu vực" />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              sideOffset={5}
+              className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden"
+            >
+              {AREA_OPTIONS.map((o) => (
+                <SelectItem
+                  key={o.value}
+                  value={o.value}
+                  className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus-visible:outline-none focus-visible:ring-0 outline-none data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+                >
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Trạng thái */}
+          <Select
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
+            onValueChange={(value) => {
+              setStatusFilter(value);
               setCurrentPage(1);
             }}
-            className="min-w-[140px] px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:border-gray-400 outline-none"
           >
-            <option value="">Tất cả trạng thái</option>
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="flex !h-11 min-w-[160px] shrink-0 items-center justify-between rounded-full border border-gray-200 bg-white px-4 py-0 text-sm font-normal text-gray-700 hover:bg-gray-50 focus:border-gray-300 focus:ring-0 focus:ring-offset-0 focus-visible:border-gray-300 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none outline-none transition-colors data-[state=open]:bg-white [&>span]:truncate [&>span]:text-left [&>span]:flex-1 [&>svg]:opacity-50">
+              <SelectValue placeholder="Tất cả trạng thái" />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              sideOffset={5}
+              className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden"
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <SelectItem
+                  key={o.value}
+                  value={o.value}
+                  className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus-visible:outline-none focus-visible:ring-0 outline-none data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+                >
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Nút Thêm Đội */}
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="ml-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all"
+            className="ml-auto inline-flex items-center justify-center gap-2 px-5 h-11 rounded-full text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white shadow-sm transition"
           >
             <Plus className="w-4 h-4" /> Thêm Đội
           </button>
         </div>
       </div>
 
-      {/* ✅ BLOCK 1: FORM THÊM MỚI (Viết trực tiếp, không tách component) */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-[420px] p-5 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">
-                Thêm Đội Xử Lý Mới
-              </h3>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setFormData(emptyForm);
-                }}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Team ID
-                </label>
-                <input
-                  type="text"
-                  value={formData.id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, id: e.target.value })
-                  }
-                  className={inputClass}
-                  placeholder="VD: DT-01"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên Đội
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className={inputClass}
-                  placeholder="Nhập tên đội"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chuyên môn
-                </label>
-                <Select
-                  value={formData.specialty}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, specialty: val })
-                  }
+      {/* Add Team Modal */}
+      {showAddModal &&
+        createPortal(
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Thêm Đội Xử Lý Mới
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setFormData(emptyForm);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
                 >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue placeholder="Chọn chuyên môn" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg z-[150]">
-                    {SPECIALTY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <X size={20} />
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trưởng Đội
-                </label>
-                <input
-                  type="text"
-                  value={formData.leader}
-                  onChange={(e) =>
-                    setFormData({ ...formData, leader: e.target.value })
-                  }
-                  className={inputClass}
-                  placeholder="Nhập tên trưởng đội"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số Lượng Thành Viên
-                </label>
-                <input
-                  type="number"
-                  value={formData.memberCount}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      memberCount: parseInt(e.target.value) || 1,
-                    })
-                  }
-                  className={inputClass}
-                  placeholder="Nhập số lượng"
-                  min="1"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Khu Vực
-                </label>
-                <Select
-                  value={formData.area}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, area: val })
-                  }
-                >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue placeholder="Chọn khu vực" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg z-[150]">
-                    {AREA_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trạng Thái
-                </label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, status: val })
-                  }
-                >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue placeholder="Chọn trạng thái" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg z-[150]">
-                    {STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setFormData(emptyForm);
-                }}
-                className="flex-1 h-10 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleAddTeam}
-                className="flex-1 h-10 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-sm transition-all"
-              >
-                Thêm Mới
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ✅ BLOCK 2: FORM CHỈNH SỬA (Viết trực tiếp, không tách component) */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-[420px] p-5 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Chỉnh Sửa Đội</h3>
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingTeam(null);
-                  setFormData(emptyForm);
-                }}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-3">
-              {/* Ẩn Team ID khi sửa */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên Đội
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className={inputClass}
-                  placeholder="Nhập tên đội"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chuyên môn
-                </label>
-                <Select
-                  value={formData.specialty}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, specialty: val })
-                  }
-                >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue placeholder="Chọn chuyên môn" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg z-[150]">
-                    {SPECIALTY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Team ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, id: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="Nhập Team ID"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tên Đội
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="Nhập tên đội"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trưởng Đội
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.leader}
+                    onChange={(e) =>
+                      setFormData({ ...formData, leader: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="Nhập tên trưởng đội"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số Lượng Thành Viên
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.memberCount}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        memberCount: parseInt(e.target.value) || 1,
+                      })
+                    }
+                    className={inputCls}
+                    placeholder="Nhập số lượng"
+                    min="1"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Khu Vực
+                  </label>
+                  <select
+                    value={formData.area}
+                    onChange={(e) =>
+                      setFormData({ ...formData, area: e.target.value })
+                    }
+                    className={selectCls}
+                  >
+                    {AREA_SELECT_OPTIONS.map((a) => (
+                      <option key={a} value={a}>{a}</option>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trạng Thái
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="active">Hoạt Động</option>
+                    <option value="inactive">Bị Khóa</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trưởng Đội
-                </label>
-                <input
-                  type="text"
-                  value={formData.leader}
-                  onChange={(e) =>
-                    setFormData({ ...formData, leader: e.target.value })
-                  }
-                  className={inputClass}
-                  placeholder="Nhập tên trưởng đội"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số Lượng Thành Viên
-                </label>
-                <input
-                  type="number"
-                  value={formData.memberCount}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      memberCount: parseInt(e.target.value) || 1,
-                    })
-                  }
-                  className={inputClass}
-                  placeholder="Nhập số lượng"
-                  min="1"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Khu Vực
-                </label>
-                <Select
-                  value={formData.area}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, area: val })
-                  }
+
+              <div className="flex gap-3 mt-6 sm:justify-end">
+                <button
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setFormData(emptyForm);
+                  }}
+                  className="flex-1 sm:flex-none sm:w-24 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue placeholder="Chọn khu vực" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg z-[150]">
-                    {AREA_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trạng Thái
-                </label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, status: val })
-                  }
+                  Hủy
+                </button>
+                <button
+                  onClick={handleAddTeam}
+                  className="flex-1 sm:flex-none sm:w-24 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
-                  <SelectTrigger className={inputClass}>
-                    <SelectValue placeholder="Chọn trạng thái" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg z-[150]">
-                    {STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  Thêm
+                </button>
               </div>
             </div>
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingTeam(null);
-                  setFormData(emptyForm);
-                }}
-                className="flex-1 h-10 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                className="flex-1 h-10 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-sm transition-all"
-              >
-                Lưu Thay Đổi
-              </button>
+          </div>,
+          document.body,
+        )}
+
+      {/* Edit Team Modal */}
+      {showEditModal &&
+        createPortal(
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Chỉnh Sửa Đội
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingTeam(null);
+                    setFormData(emptyForm);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tên Đội
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="Nhập tên đội"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trưởng Đội
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.leader}
+                    onChange={(e) =>
+                      setFormData({ ...formData, leader: e.target.value })
+                    }
+                    className={inputCls}
+                    placeholder="Nhập tên trưởng đội"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số Lượng Thành Viên
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.memberCount}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        memberCount: parseInt(e.target.value) || 1,
+                      })
+                    }
+                    className={inputCls}
+                    placeholder="Nhập số lượng"
+                    min="1"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Khu Vực
+                  </label>
+                  <select
+                    value={formData.area}
+                    onChange={(e) =>
+                      setFormData({ ...formData, area: e.target.value })
+                    }
+                    className={selectCls}
+                  >
+                    {AREA_SELECT_OPTIONS.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trạng Thái
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                    className={selectCls}
+                  >
+                    <option value="active">Hoạt Động</option>
+                    <option value="inactive">Bị Khóa</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6 sm:justify-end">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingTeam(null);
+                    setFormData(emptyForm);
+                  }}
+                  className="flex-1 sm:flex-none sm:w-24 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex-1 sm:flex-none sm:w-24 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Lưu
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
+
+      {/* Delete Confirmation Modal */}
+      {teamToDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 transform transition-all text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 mb-4">
+                <Trash2 className="h-8 w-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Xóa đội xử lý?
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Bạn có chắc chắn muốn xóa đội <b>{teamToDelete.name}</b> không?
+                Hành động này không thể hoàn tác.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setTeamToDelete(null)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors shadow-sm shadow-red-200"
+                >
+                  Xóa ngay
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border shadow-sm bg-white border-gray-200">
@@ -695,8 +717,10 @@ const MaintenanceTeam_Table = () => {
                         <Lock className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(team.id)}
-                        className="p-1.5 rounded-md text-red-600 hover:bg-red-50"
+                        type="button"
+                        onClick={() => setTeamToDelete(team)}
+                        className="text-red-500 hover:text-red-600"
+                        title="Xóa"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

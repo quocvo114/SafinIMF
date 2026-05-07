@@ -179,8 +179,8 @@ const AssignMaintenanceTeam = ({
   onClose,
   onAssign,
   onCancel,
-  isSubmitting = false,
-  errorMessage = "",
+  isSubmitting,
+  errorMessage,
 }) => {
   const filteredTeams = useMemo(() => {
     if (!Array.isArray(teams)) return [];
@@ -302,34 +302,31 @@ const AssignMaintenanceTeam = ({
                 </div>
               )}
             </ScrollArea>
+            {errorMessage && (
+              <div className="mt-2 text-sm text-red-500 font-medium px-4">
+                {errorMessage}
+              </div>
+            )}
           </div>
 
-          <DialogFooter className="mt-auto w-full flex-col !border-t border-[#d8dde5] px-0 pt-3 sm:flex-row sm:justify-end sm:gap-4">
-            {errorMessage && (
-              <p className="w-full text-sm text-red-600 font-medium text-center sm:text-left pb-1">
-                {errorMessage}
-              </p>
-            )}
-            <div className="flex w-full gap-3 sm:w-auto sm:gap-4">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleCancel}
-                disabled={isSubmitting}
-                className="h-12 flex-1 sm:flex-none text-sm sm:text-base font-semibold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-700"
-              >
-                Quay lại
-              </Button>
+          <DialogFooter className="mt-auto w-full !border-t border-[#d8dde5] px-0 pt-3 sm:flex-row sm:justify-end sm:gap-4">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleCancel}
+              className="h-12 text-sm sm:text-base font-semibold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-700"
+            >
+              Quay lại
+            </Button>
 
-              <Button
-                type="button"
-                onClick={handleAssign}
-                disabled={isSelectedTeamUnavailable || isSubmitting}
-                className="h-12 flex-1 rounded-[14px] bg-[rgba(37,99,235,1)] px-10 text-sm sm:text-base font-semibold text-white hover:bg-[rgb(29,78,216)] sm:w-auto"
-              >
-                {isSubmitting ? "Đang phân công..." : "Phân công"}
-              </Button>
-            </div>
+            <Button
+              type="button"
+              onClick={handleAssign}
+              disabled={isSelectedTeamUnavailable || isSubmitting}
+              className="h-12 w-full rounded-[14px] bg-[rgba(37,99,235,1)] px-10 text-sm sm:text-base font-semibold text-white hover:bg-[rgb(29,78,216)] sm:w-auto"
+            >
+              {isSubmitting ? "Đang phân công..." : "Phân công"}
+            </Button>
           </DialogFooter>
         </div>
       </DialogContent>
