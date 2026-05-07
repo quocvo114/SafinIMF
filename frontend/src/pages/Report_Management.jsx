@@ -4,6 +4,7 @@ import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import { formatLocationDisplay } from "../utils/formatLocation";
 import { reportApi } from "../services/api/reportApi";
 import incidentApi from "../services/api/incidentApi";
+import ReportDetail from "../components/ReportDetail";
 
 const ReportManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,6 +16,7 @@ const ReportManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [selectedReport, setSelectedReport] = useState(null);
 
   const limit = 10;
   const [showDetail, setShowDetail] = useState(null);

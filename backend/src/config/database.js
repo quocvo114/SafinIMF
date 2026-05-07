@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const User = require("../services/user/user.model");
 
+const RETRY_DELAY_MS = 10000;
+let retryTimer = null;
+
 async function ensureEmailIndex() {
   const collection = User.collection;
   const indexes = await collection.indexes();
@@ -35,18 +38,28 @@ const connectDB = async () => {
   const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
 
   if (!mongoUri) {
-    throw new Error(
-      "Thiếu MONGO_URI/MONGODB_URI trong .env. Vui lòng cấu hình kết nối MongoDB.",
+    console.error(
+      "Missing MONGO_URI/MONGODB_URI in .env. Configure MongoDB to enable DB features.",
     );
+    return false;
   }
 
   try {
+    mongoose.set('autoIndex', false);
     const conn = await mongoose.connect(mongoUri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     await ensureEmailIndex();
+    return true;
   } catch (err) {
     console.error("MongoDB Connection Error:", err.message);
-    process.exit(1);
+    if (!retryTimer) {
+      // Retry later instead of crashing the server.
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        connectDB();
+      }, RETRY_DELAY_MS);
+    }
+    return false;
   }
 };
 

@@ -24,6 +24,11 @@ const MaintenanceTeamSchema = new mongoose.Schema(
       min: 1,
       default: 1,
     },
+    specialty: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     area: {
       type: String,
       required: true,
@@ -38,7 +43,7 @@ const MaintenanceTeamSchema = new mongoose.Schema(
   {
     timestamps: true,
     collection: "handling_teams",
-  }
+  },
 );
 
 module.exports =

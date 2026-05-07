@@ -8,6 +8,7 @@ import {
 
 import "./App.css";
 
+import PublicPage from "./pages/Public_page.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import MyReports from "./components/MyReports.jsx";
 import MaintenanceDashboard from "./pages/MaintenanceDashboard.jsx";
@@ -43,7 +44,7 @@ function App() {
         >
           <Routes>
             {/* Public */}
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<PublicPage />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />
@@ -51,7 +52,14 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Citizen */}
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/myreport"

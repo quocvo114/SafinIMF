@@ -32,12 +32,13 @@ function DialogOverlay({ className, ...props }) {
   );
 }
 
-function DialogContent({ className, children, ...props }) {
+function DialogContent({ className, children, showCloseButton, ...props }) {
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        aria-describedby={props["aria-describedby"] || undefined}
         className={cn(
           "fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 border bg-background shadow-lg duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.98] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.98]",
           className,
