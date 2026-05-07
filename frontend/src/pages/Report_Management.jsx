@@ -66,11 +66,7 @@ const ReportManagement = () => {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchManagementReports();
-    }, 250);
-
-    return () => clearTimeout(timer);
+    fetchManagementReports();
   }, [searchQuery, selectedCategory, selectedStatus, currentPage]);
 
   const categoryOptions = useMemo(() => {

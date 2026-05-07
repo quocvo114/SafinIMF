@@ -174,6 +174,11 @@ const removeAccents = (str) => {
     .toLowerCase();
 };
 
+const optimizeCloudinaryUrl = (url) => {
+  if (!url || typeof url !== 'string' || !url.includes("cloudinary.com")) return url;
+  return url.replace("/upload/", "/upload/c_fill,w_500,h_400,q_auto,f_auto/");
+};
+
 const ReceptForm = () => {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -233,7 +238,7 @@ const ReceptForm = () => {
   const pageSize = 6;
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
+    const fetchReceptionReports = async () => {
       try {
         setLoading(true);
         setErrorMessage("");
@@ -260,9 +265,9 @@ const ReceptForm = () => {
       } finally {
         setLoading(false);
       }
-    }, 250);
+    };
 
-    return () => clearTimeout(timer);
+    fetchReceptionReports();
   }, [query, typeFilter, statusFilter, dateFilter, page, selectedArea]);
 
   const safePage = Math.min(page, totalPages);
@@ -696,7 +701,7 @@ const ReceptForm = () => {
           {!loading &&
             visibleReports.map((report, index) => {
               const category = report.category || report.type || "CTCC";
-              const imageUrl = report.image || roadImage;
+              const imageUrl = optimizeCloudinaryUrl(report.image || roadImage);
               const date = report.date || report.time || "-";
 
               return (

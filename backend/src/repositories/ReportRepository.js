@@ -116,10 +116,21 @@ class ReportRepository {
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
       const skip = (safePage - 1) * safeLimit;
 
-      const [items, total] = await Promise.all([
-        Report.find(query).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
-        Report.countDocuments(query),
-      ]);
+      const isQueryEmpty = Object.keys(query).length === 0;
+
+      const items = await Report.find(query)
+        .select("-images -exifMetadata -scoringDetails")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean();
+
+      let total;
+      if (isQueryEmpty) {
+        total = await Report.estimatedDocumentCount();
+      } else {
+        total = skip + items.length + (items.length === safeLimit ? 1 : 0);
+      }
 
       return {
         items,
@@ -162,28 +173,34 @@ class ReportRepository {
       const skip = (safePage - 1) * safeLimit;
       const sortDirection = sortByDate === "old" ? 1 : -1;
 
-      const pipeline = [
-        { $match: query },
-        {
-          $addFields: {
-            resolvedOrder: {
-              $cond: {
-                if: { $eq: ["$status", "Đã Giải Quyết"] },
-                then: 1,
-                else: 0,
-              },
-            },
-          },
-        },
-        { $sort: { resolvedOrder: 1, createdAt: sortDirection } },
-        { $skip: skip },
-        { $limit: safeLimit },
-      ];
+      const isQueryEmpty = Object.keys(query).length === 0;
 
-      const [items, total] = await Promise.all([
-        Report.aggregate(pipeline),
-        Report.countDocuments(query),
-      ]);
+      console.time("getReceptionList_Find");
+      const items = await Report.find(query)
+        .select("-images -exifMetadata -scoringDetails") // Exclude heavy arrays/objects to prevent 300MB payloads
+        .sort({ createdAt: sortDirection })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean();
+      console.timeEnd("getReceptionList_Find");
+
+      console.time("getReceptionList_Count");
+      let total;
+      if (isQueryEmpty) {
+        total = await Report.estimatedDocumentCount();
+      } else {
+        // FAKE COUNT: Prevent 60-second full collection scans on Atlas M0 when filtering.
+        // If we got a full page of items, assume there's at least 1 more page.
+        total = skip + items.length + (items.length === safeLimit ? 1 : 0);
+      }
+      console.timeEnd("getReceptionList_Count");
+
+      // Post-process the fetched page to push "Đã Giải Quyết" to the bottom of the page
+      items.sort((a, b) => {
+        const orderA = a.status === "Đã Giải Quyết" ? 1 : 0;
+        const orderB = b.status === "Đã Giải Quyết" ? 1 : 0;
+        return orderA - orderB;
+      });
 
       return {
         items,
