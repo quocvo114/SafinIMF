@@ -48,9 +48,9 @@ export const reportApi = {
   },
 
   // Lấy 1 báo cáo theo ID
-  getReportById: async (id) => {
+  getReportById: async (id, params = {}) => {
     try {
-      const response = await axiosClient.get(`/reports/${id}`);
+      const response = await axiosClient.get(`/reports/${id}`, { params });
       return response.data;
     } catch (error) {
       console.error("Lỗi khi lấy chi tiết báo cáo:", error);
@@ -59,9 +59,11 @@ export const reportApi = {
   },
 
   // Lấy báo cáo theo userId
-  getReportsByUserId: async (userId) => {
+  getReportsByUserId: async (userId, params = {}) => {
     try {
-      const response = await axiosClient.get(`/reports/user/${userId}`);
+      const response = await axiosClient.get(`/reports/user/${userId}`, {
+        params,
+      });
       return response.data;
     } catch (error) {
       console.error("Lỗi khi lấy báo cáo của user:", error);
@@ -70,9 +72,11 @@ export const reportApi = {
   },
 
   // Alias cho test workflow (dùng cùng endpoint hiện tại)
-  getTestReportsByUserId: async (userId) => {
+  getTestReportsByUserId: async (userId, params = {}) => {
     try {
-      const response = await axiosClient.get(`/reports/user/${userId}`);
+      const response = await axiosClient.get(`/reports/user/${userId}`, {
+        params,
+      });
       return response.data;
     } catch (error) {
       console.error("Lỗi khi lấy báo cáo test của user:", error);
@@ -99,6 +103,21 @@ export const reportApi = {
       return response.data;
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái báo cáo:", error);
+      throw error;
+    }
+  },
+
+  // Phân công đội xử lý kèm handlingTeamId + handlingTeamName
+  assignReportToTeam: async (reportId, { handlingTeamId, handlingTeamName }) => {
+    try {
+      const response = await axiosClient.patch(`/reports/${reportId}/status`, {
+        status: "Đang Xử Lý",
+        handlingTeamId: String(handlingTeamId),
+        handlingTeamName: handlingTeamName || "",
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi phân công đội xử lý:", error);
       throw error;
     }
   },

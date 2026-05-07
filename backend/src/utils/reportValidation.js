@@ -116,14 +116,10 @@ function validateCreateReportPayload(payload) {
     };
   }
 
-  if (
-    !Array.isArray(images) ||
-    images.length < MIN_IMAGES ||
-    images.length > MAX_IMAGES
-  ) {
+  if (!Array.isArray(images) || images.length === 0) {
     return {
       valid: false,
-      message: `Cần tải từ ${MIN_IMAGES} đến ${MAX_IMAGES} ảnh`,
+      message: "Cần tải ít nhất 1 ảnh",
     };
   }
 

@@ -26,15 +26,47 @@ const STATUS_OPTIONS = [
   { value: "inactive", label: "Bị Khóa" },
 ];
 
+const SPECIALTY_OPTIONS = [
+  { value: "Cầu đường", label: "Cầu đường" },
+  { value: "Biển báo & vạch kẻ", label: "Biển báo & vạch kẻ" },
+  { value: "Đèn chiếu sáng", label: "Đèn chiếu sáng" },
+  { value: "Đèn tín hiệu giao thông", label: "Đèn tín hiệu giao thông" },
+  { value: "Cây bóng mát", label: "Cây bóng mát" },
+  { value: "Thoát nước", label: "Thoát nước" },
+  { value: "Cầu cống", label: "Cầu cống" },
+  { value: "Vỉa hè", label: "Vỉa hè" },
+  { value: "Khác", label: "Khác" },
+];
+
 const statusStyle = {
-  active: "bg-blue-100 text-blue-800",
-  inactive: "bg-amber-100 text-amber-800",
+  active: "bg-blue-100 text-blue-800 border-blue-200",
+  inactive: "bg-amber-100 text-amber-800 border-amber-200",
+};
+
+const getSpecialtyStyle = (specialty) => {
+  const s = specialty?.toLowerCase() || "";
+  if (s.includes("cầu đường"))
+    return "bg-orange-100 text-orange-700 border-orange-200";
+  if (s.includes("cầu cống"))
+    return "bg-purple-100 text-purple-700 border-purple-200";
+  if (s.includes("vỉa hè")) return "bg-zinc-200 text-zinc-700 border-zinc-300";
+  if (s.includes("đèn chiếu sáng"))
+    return "bg-yellow-100 text-yellow-800 border-yellow-200";
+  if (s.includes("đèn tín hiệu"))
+    return "bg-red-100 text-red-700 border-red-200";
+  if (s.includes("cây"))
+    return "bg-emerald-100 text-emerald-700 border-emerald-200";
+  if (s.includes("thoát nước")) return "bg-sky-100 text-sky-700 border-sky-200";
+  if (s.includes("biển báo"))
+    return "bg-teal-100 text-teal-800 border-teal-200";
+  return "bg-gray-100 text-gray-600 border-gray-200";
 };
 
 const emptyForm = {
   id: "",
   name: "",
   leader: "",
+  specialty: "",
   memberCount: 1,
   area: "Hải Châu",
   status: "active",
@@ -44,6 +76,7 @@ const normalizeTeam = (team) => ({
   id: team.team_id || team.id,
   name: team.name || "",
   leader: team.leader || "",
+  specialty: team.specialty || "",
   memberCount: team.memberCount ?? team.member_count ?? 1,
   area: team.area || "",
   status: team.status || "active",
@@ -77,7 +110,6 @@ const MaintenanceTeam_Table = () => {
     try {
       setLoading(true);
       setErrorMessage("");
-
       const response = await maintenanceTeamApi.getTeams({
         search,
         area: areaFilter || "all",
@@ -85,7 +117,6 @@ const MaintenanceTeam_Table = () => {
         page: currentPage,
         limit: itemsPerPage,
       });
-
       setTeams((response?.data || []).map(normalizeTeam));
       setTotalPages(response?.pagination?.totalPages || 1);
     } catch (error) {
@@ -100,25 +131,22 @@ const MaintenanceTeam_Table = () => {
   }, [search, areaFilter, statusFilter, currentPage]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchTeams();
-    }, 250);
+    const timer = setTimeout(fetchTeams, 250);
     return () => clearTimeout(timer);
   }, [fetchTeams]);
 
   const handleAddTeam = async () => {
     try {
       if (!formData.name || !formData.leader || !formData.id) return;
-
       await maintenanceTeamApi.createTeam({
         id: formData.id,
         name: formData.name,
+        specialty: formData.specialty,
         leader: formData.leader,
         memberCount: parseInt(formData.memberCount, 10) || 1,
         area: formData.area,
         status: formData.status,
       });
-
       setShowAddModal(false);
       setFormData(emptyForm);
       await fetchTeams();
@@ -136,15 +164,14 @@ const MaintenanceTeam_Table = () => {
   const handleSaveEdit = async () => {
     try {
       if (!editingTeam) return;
-
       await maintenanceTeamApi.updateTeam(editingTeam.id, {
         name: formData.name,
+        specialty: formData.specialty,
         leader: formData.leader,
         memberCount: parseInt(formData.memberCount, 10) || 1,
         area: formData.area,
         status: formData.status,
       });
-
       setShowEditModal(false);
       setEditingTeam(null);
       setFormData(emptyForm);
@@ -184,16 +211,14 @@ const MaintenanceTeam_Table = () => {
   const handleNext = () => {
     if (safePage < totalPages) setCurrentPage(safePage + 1);
   };
-
   const handlePrev = () => {
     if (safePage > 1) setCurrentPage(safePage - 1);
   };
 
   return (
-    <div className="space-y-4">
-      {/* Hàng filter trên cùng */}
+    <div className="space-y-4 p-0">
+      {/* Filter Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-        {/* Search */}
         <div className="flex-1">
           <div className="flex items-center gap-2 px-4 h-11 rounded-full border text-sm bg-[#f8fafc] border-gray-200 text-gray-700">
             <Search className="w-4 h-4 opacity-70" />
@@ -274,8 +299,7 @@ const MaintenanceTeam_Table = () => {
             onClick={() => setShowAddModal(true)}
             className="ml-auto inline-flex items-center justify-center gap-2 px-5 h-11 rounded-full text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white shadow-sm transition"
           >
-            <Plus className="w-4 h-4" />
-            Thêm Đội
+            <Plus className="w-4 h-4" /> Thêm Đội
           </button>
         </div>
       </div>
@@ -583,80 +607,111 @@ const MaintenanceTeam_Table = () => {
           document.body,
         )}
 
-      {/* Bảng */}
-      <div className="overflow-x-auto rounded-2xl border shadow-sm bg-white border-gray-100">
+      {/* Table */}
+      <div className="overflow-x-auto rounded-xl border shadow-sm bg-white border-gray-200">
         <table className="min-w-full text-sm">
-          <thead className="bg-[#f9fafb] text-gray-500">
+          <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
             <tr>
-              <th className="px-4 py-3 font-medium text-left">Team ID</th>
-              <th className="px-4 py-3 font-medium text-left">Tên Đội</th>
-              <th className="px-4 py-3 font-medium text-left">Trưởng Đội</th>
-              <th className="px-4 py-3 font-medium text-left">Số Lượng</th>
-              <th className="px-4 py-3 font-medium text-left">Khu Vực</th>
-              <th className="px-4 py-3 font-medium text-left">Trạng Thái</th>
-              <th className="px-4 py-3 font-medium text-center">Actions</th>
+              <th className="px-4 py-3 font-semibold text-left text-xs uppercase tracking-wider">
+                Team ID
+              </th>
+              <th className="px-4 py-3 font-semibold text-left text-xs uppercase tracking-wider">
+                Tên Đội
+              </th>
+              <th className="px-4 py-3 font-semibold text-left text-xs uppercase tracking-wider">
+                Chuyên Môn
+              </th>
+              <th className="px-4 py-3 font-semibold text-left text-xs uppercase tracking-wider">
+                Trưởng Đội
+              </th>
+              <th className="px-4 py-3 font-semibold text-center text-xs uppercase tracking-wider">
+                SL
+              </th>
+              <th className="px-4 py-3 font-semibold text-left text-xs uppercase tracking-wider">
+                Khu Vực
+              </th>
+              <th className="px-4 py-3 font-semibold text-left text-xs uppercase tracking-wider">
+                Trạng Thái
+              </th>
+              <th className="px-4 py-3 font-semibold text-center text-xs uppercase tracking-wider">
+                Thao Tác
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-100">
             {loading && (
               <tr>
                 <td
-                  colSpan={7}
-                  className="px-4 py-6 text-center text-gray-400 text-sm"
+                  colSpan={8}
+                  className="px-4 py-10 text-center text-gray-400"
                 >
-                  Đang tải dữ liệu...
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    Đang tải dữ liệu...
+                  </div>
                 </td>
               </tr>
             )}
-
             {!loading && pageTeams.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
-                  className="px-4 py-6 text-center text-gray-400 text-sm"
+                  colSpan={8}
+                  className="px-4 py-10 text-center text-gray-400"
                 >
                   {errorMessage || "Không tìm thấy đội phù hợp."}
                 </td>
               </tr>
             )}
-
             {!loading &&
               pageTeams.map((team) => (
                 <tr
                   key={team.id}
-                  className="border-t border-gray-100 hover:bg-gray-50"
+                  className="hover:bg-gray-50 transition-colors group"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-800">
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500">
                     {team.id}
                   </td>
-                  <td className="px-4 py-3 font-medium">{team.name}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{team.leader}</td>
-                  <td className="px-4 py-3">{team.memberCount}</td>
-                  <td className="px-4 py-3">{team.area}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    {team.name}
+                  </td>
+                  <td className="px-4 py-3">
+                    {team.specialty ? (
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${getSpecialtyStyle(team.specialty)}`}
+                      >
+                        {team.specialty}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic text-xs">
+                        Chưa cập nhật
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                    {team.leader}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 text-center">
+                    {team.memberCount}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{team.area}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                        statusStyle[team.status]
-                      }`}
+                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${statusStyle[team.status]}`}
                     >
                       {team.status === "active" ? "Hoạt Động" : "Bị Khóa"}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-3">
+                    <div className="flex items-center justify-center gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
                       <button
-                        type="button"
                         onClick={() => handleEditClick(team)}
-                        className="text-blue-500 hover:text-blue-600"
-                        title="Sửa"
+                        className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
-                        type="button"
                         onClick={() => handleToggleLock(team.id, team.status)}
-                        className="text-amber-500 hover:text-amber-600"
-                        title="Khóa / mở khóa"
+                        className={`p-1.5 rounded-md ${team.status === "active" ? "text-amber-600 hover:bg-amber-50" : "text-green-600 hover:bg-green-50"}`}
                       >
                         <Lock className="w-4 h-4" />
                       </button>
@@ -674,27 +729,23 @@ const MaintenanceTeam_Table = () => {
               ))}
           </tbody>
         </table>
-
-        {/* Footer phân trang */}
-        <div className="flex items-center justify-center gap-4 px-4 py-3 text-xs text-gray-500">
+        <div className="flex items-center justify-center gap-4 px-4 py-3 text-sm text-gray-500 border-t border-gray-200 bg-gray-50">
           <button
-            type="button"
             onClick={handlePrev}
             disabled={safePage === 1}
-            className="px-2 py-1 rounded-md border disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
-            {"<"}
+            Trước
           </button>
-          <span>
-            {safePage} / {totalPages}
+          <span className="font-medium text-gray-700">
+            Trang {safePage} / {totalPages}
           </span>
           <button
-            type="button"
             onClick={handleNext}
             disabled={safePage === totalPages}
-            className="px-2 py-1 rounded-md border disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
-            {">"}
+            Sau
           </button>
         </div>
       </div>

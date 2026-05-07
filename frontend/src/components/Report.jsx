@@ -566,11 +566,8 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       return;
     }
 
-    if (
-      uploadedImages.length < MIN_IMAGES ||
-      uploadedImages.length > MAX_IMAGES
-    ) {
-      showErrorToast(`Bạn cần tải từ ${MIN_IMAGES} đến ${MAX_IMAGES} ảnh.`);
+    if (!uploadedImages.length) {
+      showErrorToast("Bạn cần tải ít nhất 1 ảnh.");
       return;
     }
 

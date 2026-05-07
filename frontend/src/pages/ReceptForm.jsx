@@ -192,6 +192,13 @@ const ReceptForm = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [assigningReport, setAssigningReport] = useState(null);
   const [assignTeams, setAssignTeams] = useState(null);
+  const [assigningLoading, setAssigningLoading] = useState(false);
+  const [assigningError, setAssigningError] = useState("");
+
+  // State cho modal cập nhật trạng thái
+  const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
+  const [updateReportData, setUpdateReportData] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const [areas, setAreas] = useState([]);
   const [selectedArea, setSelectedArea] = useState("all");
@@ -407,6 +414,8 @@ const ReceptForm = () => {
     setSelectedReport(null);
     setAssigningReport(report);
     setAssignTeams(null);
+    setAssigningLoading(false);
+    setAssigningError("");
 
     try {
       const response = await maintenanceTeamApi.getTeams({
@@ -438,14 +447,31 @@ const ReceptForm = () => {
       return;
     }
 
+    if (!team?.id) {
+      setAssigningError("Không xác định được đội xử lý để phân công");
+      return;
+    }
+
     try {
-      await reportApi.updateReportStatus(reportId, "Đang Xử Lý");
-      syncReportStatus(reportId, "Đang Xử Lý", team?.name);
+      setAssigningLoading(true);
+      setAssigningError("");
+      await reportApi.assignReportToTeam(reportId, {
+        handlingTeamId: String(team.id),
+        handlingTeamName: team.name,
+      });
+      syncReportStatus(reportId, "Đang Xử Lý", team.name);
       handleCloseAssignTeam();
     } catch (error) {
-      setErrorMessage(
-        error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
-      );
+      console.error("Assign error in frontend:", error);
+      const message =
+        error?.response?.status === 409
+          ? "Báo cáo đã được giải quyết, không thể phân công"
+          : error?.response?.status === 401
+          ? "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại"
+          : error?.response?.data?.message || "Không thể gửi xử lý báo cáo";
+      setAssigningError(message);
+    } finally {
+      setAssigningLoading(false);
     }
   };
 
@@ -850,6 +876,21 @@ const ReceptForm = () => {
         onSendProcess={handleSendProcess}
       />
 
+      <Update_Status
+        isOpen={showUpdateStatusModal}
+        reportId={updateReportData?.report_id || updateReportData?.id}
+        reportCode={updateReportData?.id || updateReportData?.report_id}
+        currentStatus={updateReportData?.status || "Đang Chờ"}
+        onClose={() => {
+          setShowUpdateStatusModal(false);
+          setUpdateReportData(null);
+          // Mở lại detail modal
+          if (updateReportData) setSelectedReport(updateReportData);
+        }}
+        onUpdate={handleConfirmUpdateStatus}
+        loading={updatingStatus}
+      />
+
       <AssignMaintenanceTeam
         open={Boolean(assigningReport)}
         reportCode={
@@ -860,6 +901,8 @@ const ReceptForm = () => {
         onClose={handleCloseAssignTeam}
         onCancel={handleCancelAssignTeam}
         onAssign={handleAssignTeam}
+        isSubmitting={assigningLoading}
+        errorMessage={assigningError}
       />
     </div>
   );

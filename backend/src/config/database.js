@@ -45,6 +45,7 @@ const connectDB = async () => {
   }
 
   try {
+    mongoose.set('autoIndex', false);
     const conn = await mongoose.connect(mongoUri);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     await ensureEmailIndex();

@@ -128,10 +128,10 @@ const AdminSidebar = () => {
         <DialogContent className="max-w-[420px] rounded-2xl border border-gray-100 bg-white p-0">
           <DialogHeader className="px-6 pt-6">
             <DialogTitle className="text-2xl font-semibold text-gray-800">
-              Xác nhận đăng xuất
+              Thông báo
             </DialogTitle>
             <DialogDescription className="text-base leading-6 text-gray-600">
-              Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?
+              Bạn có chắc chắn muốn đăng xuất ?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="px-6 pb-6">
@@ -333,7 +333,7 @@ const AdminSidebar = () => {
       {showInfoModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <Info_Management onClose={() => setShowInfoModal(false)} />
+            <InfoManagement onClose={() => setShowInfoModal(false)} />
           </div>
         </div>
       )}

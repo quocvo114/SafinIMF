@@ -3,7 +3,13 @@ const MaintenanceTeamRepository = require("../repositories/MaintenanceTeamReposi
 class MaintenanceTeamController {
   async getTeams(req, res) {
     try {
-      const { search = "", area = "all", status = "all", page = 1, limit = 10 } = req.query;
+      const {
+        search = "",
+        area = "all",
+        status = "all",
+        page = 1,
+        limit = 10,
+      } = req.query;
 
       const result = await MaintenanceTeamRepository.getList({
         search,
@@ -25,17 +31,28 @@ class MaintenanceTeamController {
 
   async createTeam(req, res) {
     try {
-      const { id, team_id, name, leader, memberCount, area, status } = req.body;
+      const {
+        id,
+        team_id,
+        name,
+        leader,
+        memberCount,
+        area,
+        status,
+        specialty,
+      } = req.body;
       const normalizedTeamId = team_id || id;
 
-      if (!normalizedTeamId || !name || !leader || !area) {
+      if (!normalizedTeamId || !name || !leader || !area || !specialty) {
         return res.status(400).json({
           success: false,
-          message: "Thiếu thông tin bắt buộc: team_id, name, leader, area",
+          message:
+            "Thiếu thông tin bắt buộc: team_id, name, leader, area, specialty",
         });
       }
 
-      const existed = await MaintenanceTeamRepository.findByTeamId(normalizedTeamId);
+      const existed =
+        await MaintenanceTeamRepository.findByTeamId(normalizedTeamId);
       if (existed) {
         return res.status(400).json({
           success: false,
@@ -48,6 +65,7 @@ class MaintenanceTeamController {
         name,
         leader,
         memberCount: Math.max(parseInt(memberCount, 10) || 1, 1),
+        specialty: specialty ?? "",
         area,
         status: status || "active",
       });
@@ -65,17 +83,23 @@ class MaintenanceTeamController {
   async updateTeam(req, res) {
     try {
       const { teamId } = req.params;
-      const { name, leader, memberCount, area, status } = req.body;
+      const { name, leader, memberCount, area, status, specialty } = req.body;
 
       const target = await MaintenanceTeamRepository.findByTeamId(teamId);
       if (!target) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy đội xử lý" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy đội xử lý" });
       }
 
       const updated = await MaintenanceTeamRepository.updateByTeamId(teamId, {
         name: name || target.name,
         leader: leader || target.leader,
-        memberCount: Math.max(parseInt(memberCount, 10) || target.memberCount || 1, 1),
+        memberCount: Math.max(
+          parseInt(memberCount, 10) || target.memberCount || 1,
+          1,
+        ),
+        specialty: specialty !== undefined ? specialty : target.specialty,
         area: area || target.area,
         status: status || target.status,
       });
@@ -96,12 +120,19 @@ class MaintenanceTeamController {
       const { status } = req.body;
 
       if (!["active", "inactive"].includes(status)) {
-        return res.status(400).json({ success: false, message: "Trạng thái không hợp lệ" });
+        return res
+          .status(400)
+          .json({ success: false, message: "Trạng thái không hợp lệ" });
       }
 
-      const updated = await MaintenanceTeamRepository.updateStatusByTeamId(teamId, status);
+      const updated = await MaintenanceTeamRepository.updateStatusByTeamId(
+        teamId,
+        status,
+      );
       if (!updated) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy đội xử lý" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy đội xử lý" });
       }
 
       return res.status(200).json({
@@ -120,7 +151,9 @@ class MaintenanceTeamController {
       const deleted = await MaintenanceTeamRepository.deleteByTeamId(teamId);
 
       if (!deleted) {
-        return res.status(404).json({ success: false, message: "Không tìm thấy đội xử lý" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy đội xử lý" });
       }
 
       return res.status(200).json({

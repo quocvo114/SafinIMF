@@ -109,6 +109,23 @@ const ReportSchema = new mongoose.Schema(
       default: "",
     },
 
+    handlingTeamId: {
+      type: String,
+      default: "",
+    },
+    handlingTeamName: {
+      type: String,
+      default: "",
+    },
+    assignedTeamId: {
+      type: String,
+      default: "",
+    },
+    assignedTeamName: {
+      type: String,
+      default: "",
+    },
+
     aiPercent: {
       type: Number,
       default: null,
