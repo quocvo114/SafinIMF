@@ -224,8 +224,8 @@ class ReportRepository {
         pagination: {
           page: safePage,
           limit: safeLimit,
-          total: totalCount,
-          totalPages: Math.max(Math.ceil(totalCount / safeLimit), 1),
+          total,
+          totalPages: Math.max(Math.ceil(total / safeLimit), 1),
         },
       };
     } catch (error) {
