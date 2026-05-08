@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const { OAuth2Client } = require("google-auth-library");
 const otpService = require("./otp.service");
 const userRepo = require("../user/user.repository");
+const User = require("../user/user.model");
 const LoginHistory = require("./loginHistory.model");
 
 // 1) Gửi OTP đăng ký
@@ -69,7 +70,7 @@ async function confirmRegister(req, res) {
       phone,
       password: hashed,
       phone_verified: true,
-      role: "citizen",
+      role: "user",
     });
 
     return res.status(201).json({
@@ -104,6 +105,14 @@ async function login(req, res) {
         .json({ message: "Sai số điện thoại hoặc mật khẩu" });
     }
 
+    // Kiểm tra tài khoản có bị khóa tạm thời không
+    if (user.lock_until && user.lock_until > Date.now()) {
+      const remainingMinutes = Math.ceil((user.lock_until - Date.now()) / 60000);
+      return res.status(403).json({
+        message: `Tài khoản đã bị khóa tạm thời. Vui lòng thử lại sau ${remainingMinutes} phút.`,
+      });
+    }
+
     const isPhoneVerified = user.phone_verified !== false;
     if (!isPhoneVerified) {
       return res
@@ -119,25 +128,70 @@ async function login(req, res) {
 
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) {
-      return res
-        .status(400)
-        .json({ message: "Sai số điện thoại hoặc mật khẩu" });
+      // Đăng nhập sai - tăng counter
+      const newFailedAttempts = (user.failed_login_attempts || 0) + 1;
+      
+      if (newFailedAttempts >= 3) {
+        // Khóa tài khoản 15 phút
+        const lockTime = new Date(Date.now() + 15 * 60 * 1000);
+        await userRepo.updateLoginAttempts(phone, newFailedAttempts, lockTime);
+        return res.status(403).json({
+          message: "Đã nhập sai mật khẩu 3 lần. Tài khoản bị khóa 15 phút.",
+        });
+      }
+      
+      await userRepo.updateLoginAttempts(phone, newFailedAttempts);
+      const attemptsLeft = 3 - newFailedAttempts;
+      return res.status(400).json({
+        message: `Sai số điện thoại hoặc mật khẩu. Còn ${attemptsLeft} lần thử.`,
+      });
     }
 
+    // Đăng nhập thành công - reset counter
+    await userRepo.updateLoginAttempts(phone, 0, null);
+
+    // LẤY USER MỚI NHẤT TỪ DB ĐỂ ĐẢM BẢO token_version
+    const freshUser = await User.findOne({ phone }).lean();
+    
+    if (!freshUser) {
+      console.error(`❌ [LOGIN] Failed to fetch freshUser for phone: ${phone}`);
+      return res.status(500).json({ message: "Lỗi lấy dữ liệu người dùng" });
+    }
+    
+    // Ensure token_version exists in DB (set to 0 if undefined)
+    if (freshUser.token_version === undefined || freshUser.token_version === null) {
+      console.log(`⚠️  [LOGIN] token_version was undefined, updating to 0...`);
+      await User.findOneAndUpdate(
+        { phone },
+        { $set: { token_version: 0 } },
+        { new: false }
+      );
+      freshUser.token_version = 0;
+    }
+    
+    console.log(`🔓 [LOGIN] User ${freshUser.user_id} authenticated`);
+    console.log(`🔓 [LOGIN] Fresh token_version from DB: ${freshUser.token_version}`);
+
     const token = jwt.sign(
-      { id: user.user_id, role: user.role },
+      { 
+        id: freshUser.user_id, 
+        role: freshUser.role,
+        token_version: freshUser.token_version || 0
+      },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || "1h" },
     );
+
+    console.log(`🔓 [LOGIN] JWT created with token_version: ${freshUser.token_version || 0}`);
 
     return res.json({
       success: true,
       token,
       user: {
-        user_id: user.user_id,
-        full_name: user.full_name,
-        phone: user.phone,
-        role: user.role,
+        user_id: freshUser.user_id,
+        full_name: freshUser.full_name,
+        phone: freshUser.phone,
+        role: freshUser.role,
       },
     });
   } catch (err) {
@@ -182,7 +236,7 @@ async function googleLogin(req, res) {
         password: null,
         phone_verified: true,
         email_verified: true,
-        role: "citizen",
+        role: "user",
       });
 
       isNewUser = true;
@@ -197,12 +251,24 @@ async function googleLogin(req, res) {
         .json({ message: "Tài khoản đã bị khóa hoặc cấm" });
     }
 
+    // LẤY USER MỚI NHẤT TỪ DB ĐỂ ĐẢM BẢO token_version
+    const freshUser = await User.findOne({ user_id: user.user_id }).lean();
+    
+    console.log(`🔓 [GOOGLE] User ${freshUser.user_id} authenticated`);
+    console.log(`🔓 [GOOGLE] Fresh token_version from DB: ${freshUser.token_version}`);
+
     // Tạo JWT token
     const jwtToken = jwt.sign(
-      { id: user.user_id, role: user.role },
+      { 
+        id: freshUser.user_id, 
+        role: freshUser.role,
+        token_version: freshUser.token_version || 0
+      },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || "7d" }
     );
+
+    console.log(`🔓 [GOOGLE] JWT created with token_version: ${freshUser.token_version || 0}`);
 
 
     // Lưu login history
@@ -215,14 +281,14 @@ async function googleLogin(req, res) {
     try {
       // Check xem device này đã login trước chưa
       const existingLogin = await LoginHistory.findOne({
-        user_id: user.user_id,
+        user_id: freshUser.user_id,
         device_hash: deviceHash,
       });
       const isNewDevice = !existingLogin;
 
       await LoginHistory.create({
-        user_id: user.user_id,
-        email: user.email,
+        user_id: freshUser.user_id,
+        email: freshUser.email,
         ip_address: ipAddress,
         device_info: userAgent,
         device_hash: deviceHash,
@@ -238,12 +304,12 @@ async function googleLogin(req, res) {
       success: true,
       token: jwtToken,
       user: {
-        user_id: user.user_id,
-        full_name: user.full_name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        email_verified: user.email_verified,
+        user_id: freshUser.user_id,
+        full_name: freshUser.full_name,
+        email: freshUser.email,
+        phone: freshUser.phone,
+        role: freshUser.role,
+        email_verified: freshUser.email_verified,
       },
     });
   } catch (err) {
@@ -324,6 +390,55 @@ async function resetPassword(req, res) {
   }
 }
 
+// 7) Logout: Vô hiệu hóa token bằng cách tăng token_version
+async function logout(req, res) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      console.log(`❌ [LOGOUT] No user ID in request`);
+      return res.status(401).json({
+        success: false,
+        message: "Vui lòng đăng nhập",
+      });
+    }
+
+    console.log(`\n🔄 [LOGOUT] ========== LOGOUT START ==========`);
+    console.log(`🔄 [LOGOUT] User ${userId} requesting logout...`);
+
+    // Lấy user trước khi tăng token_version
+    const userBefore = await User.findOne({ user_id: userId }).lean();
+    console.log(`🔄 [LOGOUT] User token_version BEFORE logout: ${userBefore?.token_version || 0}`);
+
+    // Tăng token_version để vô hiệu hóa tất cả token cũ
+    const userAfter = await User.findOneAndUpdate(
+      { user_id: userId },
+      { $inc: { token_version: 1 } },
+      { new: true }
+    ).lean();
+
+    if (!userAfter) {
+      console.log(`❌ [LOGOUT] User ${userId} NOT FOUND - FAILED`);
+      console.log(`🔄 [LOGOUT] ========== LOGOUT END ==========\n`);
+      return res.status(404).json({
+        success: false,
+        message: "Người dùng không tồn tại",
+      });
+    }
+
+    console.log(`✅ [LOGOUT] User token_version AFTER logout: ${userAfter.token_version}`);
+    console.log(`✅ [LOGOUT] Increment successful: ${userBefore?.token_version || 0} → ${userAfter.token_version}`);
+    console.log(`🔄 [LOGOUT] ========== LOGOUT END ==========\n`);
+    
+    return res.json({
+      success: true,
+      message: "Đăng xuất thành công",
+    });
+  } catch (err) {
+    console.error(`❌ [LOGOUT] Error:`, err);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
+}
+
 module.exports = {
   sendRegisterOtp,
   confirmRegister,
@@ -331,4 +446,5 @@ module.exports = {
   googleLogin,
   sendForgotPasswordOtp,
   resetPassword,
+  logout,
 };

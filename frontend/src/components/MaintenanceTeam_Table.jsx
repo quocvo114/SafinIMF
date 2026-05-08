@@ -82,7 +82,13 @@ const normalizeTeam = (team) => ({
   status: team.status || "active",
 });
 
-const AREA_SELECT_OPTIONS = ["Sơn Trà", "Liên Chiểu", "Hải Châu", "Hòa Xuân", "Khuê Trung"];
+const AREA_SELECT_OPTIONS = [
+  "Sơn Trà",
+  "Liên Chiểu",
+  "Hải Châu",
+  "Hòa Xuân",
+  "Khuê Trung",
+];
 
 const inputCls =
   "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none";
@@ -177,7 +183,9 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       await fetchTeams();
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Không thể cập nhật đội xử lý");
+      toast.error(
+        error?.response?.data?.message || "Không thể cập nhật đội xử lý",
+      );
     }
   };
 
@@ -401,7 +409,9 @@ const MaintenanceTeam_Table = () => {
                     className={selectCls}
                   >
                     {AREA_SELECT_OPTIONS.map((a) => (
-                      <option key={a} value={a}>{a}</option>
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -528,7 +538,9 @@ const MaintenanceTeam_Table = () => {
                     className={selectCls}
                   >
                     {AREA_SELECT_OPTIONS.map((a) => (
-                      <option key={a} value={a}>{a}</option>
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
                     ))}
                   </select>
                 </div>

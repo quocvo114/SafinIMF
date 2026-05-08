@@ -50,6 +50,28 @@ class UserRepository {
     ).lean();
   }
 
+  async updateLoginAttempts(phone, failedAttempts, lockUntil = null) {
+    const updateData = { failed_login_attempts: failedAttempts };
+    if (lockUntil) {
+      updateData.lock_until = lockUntil;
+    } else {
+      updateData.lock_until = null;
+    }
+    return User.findOneAndUpdate(
+      { phone },
+      updateData,
+      { new: true }
+    ).lean();
+  }
+
+  async incrementTokenVersion(user_id) {
+    return User.findOneAndUpdate(
+      { user_id },
+      { $inc: { token_version: 1 } },
+      { new: true }
+    ).lean();
+  }
+
   async deleteUser(user_id) {
     return User.findOneAndDelete({ user_id });
   }

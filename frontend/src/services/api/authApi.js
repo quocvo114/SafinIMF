@@ -31,6 +31,11 @@ const authApi = {
       newPassword 
     });
   },
+
+  logout() {
+    // Logout: increment token_version để invalidate tất cả token cũ
+    return axiosClient.post("/auth/logout", {});
+  },
 };
 
 export default authApi;

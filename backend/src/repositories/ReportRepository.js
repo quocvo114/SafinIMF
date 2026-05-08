@@ -216,6 +216,7 @@ class ReportRepository {
     }
   }
 
+
   async getAll() {
     try {
       return await Report.find({}).sort({ createdAt: -1 });
@@ -226,7 +227,8 @@ class ReportRepository {
 
   async getById(id) {
     try {
-      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+      const normalizedId =
+        id !== undefined && id !== null ? String(id).trim() : "";
       if (!normalizedId) return null;
 
       const conditions = [{ id: normalizedId }];
@@ -262,7 +264,8 @@ class ReportRepository {
 
   async updateStatus(id, status, extra = {}) {
     try {
-      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+      const normalizedId =
+        id !== undefined && id !== null ? String(id).trim() : "";
       if (!normalizedId) return null;
 
       const conditions = [{ id: normalizedId }];
