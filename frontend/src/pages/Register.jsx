@@ -8,6 +8,9 @@ import cone from "../image/trafficCone.png";
 
 import authApi from "../services/api/authApi";
 
+const VN_PHONE_PATTERN = /^0(?:3|5|7|8|9)\d{8}$/;
+const STRONG_PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
 const Register = () => {
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
@@ -24,18 +27,30 @@ const Register = () => {
     e.preventDefault();
     setMessage("");
 
+    const normalizedPhone = phone.trim();
+
+    if (!VN_PHONE_PATTERN.test(normalizedPhone)) {
+      setMessage("Số điện thoại không đúng định dạng");
+      return;
+    }
+
+    if (!STRONG_PASSWORD_PATTERN.test(password)) {
+      setMessage("mật khẩu không đủ mạnh");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setMessage("Password không khớp!");
       return;
     }
 
     try {
-      const res = await authApi.sendRegisterOtp(phone);
+      const res = await authApi.sendRegisterOtp(normalizedPhone);
 
       // Điều hướng sang trang nhập OTP
       navigate("/register/confirm", {
         state: {
-          phone,
+          phone: normalizedPhone,
           password,
           full_name: fullName,
           otp_demo: res.data.otp_demo, // demo nếu cần hiển thị

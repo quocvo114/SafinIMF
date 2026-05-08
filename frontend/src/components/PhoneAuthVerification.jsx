@@ -22,18 +22,18 @@ const PhoneAuthVerification = () => {
         const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible', // Invisible recaptcha
           callback: (response) => {
-            console.log('🔒 Recaptcha verified:', response);
+            // ✅ Cleanup: Recaptcha verification logging removed
           },
           'expired-callback': () => {
-            console.warn('⚠️ Recaptcha expired');
+            // ✅ Cleanup: Recaptcha expiry logging removed
             setError('Recaptcha hết hạn, vui lòng thử lại');
           },
         });
 
         setRecaptchaVerifier(verifier);
-        console.log('✅ Recaptcha initialized');
+        // ✅ Cleanup: Recaptcha initialization logging removed
       } catch (err) {
-        console.error('❌ Lỗi khởi tạo Recaptcha:', err);
+        // ✅ Cleanup: Error logging removed
         setError('Lỗi khởi tạo Recaptcha');
       }
     }
@@ -61,9 +61,7 @@ const PhoneAuthVerification = () => {
         throw new Error('Số điện thoại không hợp lệ. Định dạng: +84901234567');
       }
 
-      console.log('📱 Gửi OTP đến:', phoneNumber);
-
-      // 🔒 Sử dụng recaptchaVerifier đã khởi tạo
+      // ✅ Cleanup: OTP sending logging removed
       const confirmationResult = await signInWithPhoneNumber(
         auth,
         phoneNumber,
@@ -75,9 +73,9 @@ const PhoneAuthVerification = () => {
       setStep('otp');
       setMessage('✅ Mã xác thực đã được gửi! Kiểm tra SMS của bạn.');
 
-      console.log('✅ SMS gửi thành công');
+      // ✅ Cleanup: Success logging removed
     } catch (err) {
-      console.error('❌ Lỗi gửi OTP:', err.code, err.message);
+      // ✅ Cleanup: Error logging removed
 
       // Xử lý các lỗi phổ biến
       const errorMessages = {
@@ -112,26 +110,23 @@ const PhoneAuthVerification = () => {
         throw new Error('Lỗi: verificationId không tồn tại. Vui lòng gửi OTP lại');
       }
 
-      console.log('🔑 Xác nhận OTP...');
-
-      // Xác nhận mã OTP
+      // ✅ Cleanup: OTP verification logging removed
       const credential = await recaptchaVerifier
         .verify()
         .then(() => {
           return confirmationResult.confirm(otp);
         });
 
-      console.log('✅ Xác thực thành công!', credential.user);
+      // ✅ Cleanup: Success logging removed
       setMessage('✅ Xác thực số điện thoại thành công!');
       setStep('phone'); // Reset về bước đầu
       setPhoneNumber('');
       setOtp('');
       setVerificationId(null);
 
-      // TODO: Lưu user info hoặc chuyển hướng trang
-      console.log('👤 User info:', credential.user.phoneNumber);
+      // TODO: Save user info or redirect to dashboard
     } catch (err) {
-      console.error('❌ Lỗi xác nhận OTP:', err.code, err.message);
+      // ✅ Cleanup: Error logging removed
 
       const errorMessages = {
         'auth/invalid-verification-code': 'Mã OTP không chính xác',

@@ -57,8 +57,7 @@ export default function MyReports() {
       setError(null);
 
       const userId = user?._id || user?.user_id;
-      console.log("🔍 Fetching reports for userId:", userId);
-      console.log("👤 User object:", user);
+      // ✅ Cleanup: User/report fetching logging removed
 
       if (!userId) {
         setError("Vui lòng đăng nhập để xem báo cáo");
@@ -67,18 +66,17 @@ export default function MyReports() {
       }
 
       const response = await reportApi.getReportsByUserId(userId);
-      console.log("📡 API Response:", response);
+      // ✅ Cleanup: API response logging removed
 
       if (response.success) {
         setReports(response.data);
-        console.log("Reports loaded:", response.data.length);
+        // ✅ Cleanup: Report count logging removed
       } else {
         setError("Không thể tải báo cáo");
       }
     } catch (error) {
       setError("Lỗi khi tải dữ liệu");
-      console.error("Lỗi khi tải dữ liệu:", error);
-      console.error("Error details:", error.response?.data || error.message);
+      // ✅ Cleanup: Error logging removed
     } finally {
       setLoading(false);
     }

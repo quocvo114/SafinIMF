@@ -92,7 +92,7 @@ export default function Navbar() {
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=8&addressdetails=1&accept-language=vi`,
             );
             const data = await response.json();
-            console.log("Full location data:", data);
+            // ✅ Cleanup: Location data logging removed
             const addressParts = data.display_name.split(", ");
             const city =
               addressParts.length >= 2

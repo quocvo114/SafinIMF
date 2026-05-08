@@ -100,7 +100,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
 
         setIncidentOptions(LEGACY_INCIDENT_OPTIONS);
       } catch (error) {
-        console.error("Failed to fetch incident types:", error);
+        // ✅ Cleanup: Incident type fetching error handling silenced
         setIncidentOptions(LEGACY_INCIDENT_OPTIONS);
       } finally {
         setIncidentTypeLoading(false);
@@ -228,7 +228,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       setUploadedImages((prev) => [...prev, ...base64Images]);
       triggerAutoLocationOnFirstImage();
     } catch (error) {
-      console.error("Error reading files:", error);
+      // ✅ Cleanup: File reading error handling silenced
       showErrorToast("Không thể đọc ảnh tải lên.");
     } finally {
       if (e.target) e.target.value = "";
@@ -244,7 +244,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
       setUploadedImages((prev) => [...prev, ...base64Images]);
       triggerAutoLocationOnFirstImage();
     } catch (error) {
-      console.error("Error reading dropped files:", error);
+      // ✅ Cleanup: Dropped files error handling silenced
       showErrorToast("Không thể đọc ảnh kéo thả.");
     }
   };
@@ -291,9 +291,9 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
         setGpsCoordinates({ latitude, longitude });
         setGpsAccuracy(accuracy);
 
-        console.log(`📍 GPS accuracy: ${Math.round(accuracy)}m`);
+        // ✅ Cleanup: GPS accuracy logging removed
         if (accuracy > 100) {
-          console.warn(
+          showErrorToast(
             "⚠️ GPS accuracy thấp (>100m). Vị trí có thể không chính xác.",
           );
         }
@@ -373,8 +373,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
             );
           }
         } catch (err) {
-          console.error("Error getting address from Nominatim:", err);
-          // Fallback to backend API nếu Nominatim lỗi (ví dụ: rate limit)
+          // ✅ Cleanup: Address geocoding error handling silenced
           try {
             const fallbackResponse = await fetch(
               `${API_BASE_URL}/geocode/reverse?lat=${latitude}&lon=${longitude}`,
@@ -389,7 +388,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
                 `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
             );
           } catch (fallbackErr) {
-            console.error("Error getting address from backend:", fallbackErr);
+            // ✅ Cleanup: Fallback address fetching error handling silenced
             setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
             showErrorToast(
               "Không thể lấy địa chỉ tự động. Bạn vui lòng nhập thủ công nhé.",
@@ -400,8 +399,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
         setLocationLoading(false);
       },
       (error) => {
-        console.error("GPS error:", error);
-        setLocationLoading(false);
+        // ✅ Cleanup: GPS error handling silenced
 
         if (error.code === 1) {
           showErrorToast(
@@ -453,7 +451,7 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
         }
       }, 100);
     } catch (error) {
-      console.error(error);
+      // ✅ Cleanup: Camera access error handling silenced
       showErrorToast(
         "Không thể truy cập Camera. Bạn hãy kiểm tra lại quyền truy cập của trình duyệt nhé.",
       );
@@ -643,8 +641,13 @@ function ReportForm({ onClose, autoOpenCamera = false, initialImage = null }) {
         showErrorToast("Gửi báo cáo thất bại!");
       }
     } catch (error) {
-      console.error("Error creating report:", error);
-      showErrorToast(error.response?.data?.message || "Lỗi khi gửi báo cáo!");
+      // ✅ Cleanup: Report creation error handling silenced
+      const backendMessage =
+        error.response?.data?.message || error.message || "Lỗi khi gửi báo cáo!";
+      const backendCode = error.response?.data?.code || error.code;
+      showErrorToast(
+        backendCode ? `${backendMessage} (${backendCode})` : backendMessage,
+      );
     } finally {
       if (!keepSubmitting) {
         setIsSubmitting(false);

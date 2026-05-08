@@ -116,7 +116,7 @@ const loadCachedReports = () => {
     const parsedValue = JSON.parse(cachedValue);
     return Array.isArray(parsedValue) ? parsedValue : [];
   } catch (error) {
-    console.warn("Không thể đọc cache marker admin map:", error);
+    // ✅ Cleanup: Cache reading error handling silenced
     return [];
   }
 };
@@ -125,7 +125,7 @@ const saveCachedReports = (reports) => {
   try {
     localStorage.setItem(ADMIN_REPORTS_CACHE_KEY, JSON.stringify(reports));
   } catch (error) {
-    console.warn("Không thể lưu cache marker admin map:", error);
+    // ✅ Cleanup: Cache reading error handling silenced
   }
 };
 
@@ -139,7 +139,7 @@ const loadGeocodeCache = () => {
     const parsedValue = JSON.parse(cachedValue);
     return parsedValue && typeof parsedValue === "object" ? parsedValue : {};
   } catch (error) {
-    console.warn("Không thể đọc cache geocode admin map:", error);
+    // ✅ Cleanup: Cache reading error handling silenced
     return {};
   }
 };
@@ -148,7 +148,7 @@ const saveGeocodeCache = (cacheValue) => {
   try {
     localStorage.setItem(ADMIN_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
   } catch (error) {
-    console.warn("Không thể lưu cache geocode admin map:", error);
+    // ✅ Cleanup: Cache writing error handling silenced
   }
 };
 
@@ -309,10 +309,7 @@ export default function AdminDashboard() {
           const mapResponse = await reportApi.getMapReports();
           rawReports = Array.isArray(mapResponse?.data) ? mapResponse.data : [];
         } catch (mapError) {
-          console.warn(
-            "Không thể lấy dữ liệu map-view, thử fallback all reports",
-            mapError,
-          );
+          // ✅ Cleanup: Map data fallback warning removed
         }
 
         if (rawReports.length === 0) {
@@ -329,7 +326,7 @@ export default function AdminDashboard() {
           saveCachedReports(normalizedReports);
         }
       } catch (error) {
-        console.error("Lỗi tải marker cho admin map:", error);
+        // ✅ Cleanup: Report loading error handling silenced
       }
     };
 

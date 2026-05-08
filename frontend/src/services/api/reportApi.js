@@ -86,8 +86,13 @@ export const reportApi = {
       const response = await axiosClient.post("/reports", reportData);
       return response.data;
     } catch (error) {
-      console.error("Lỗi khi tạo báo cáo:", error);
-      throw error;
+      const backendMessage =
+        error.response?.data?.message || error.message || "Lỗi khi tạo báo cáo";
+      const normalizedError = new Error(backendMessage);
+      normalizedError.status = error.response?.status;
+      normalizedError.code = error.response?.data?.code;
+      normalizedError.response = error.response;
+      throw normalizedError;
     }
   },
 

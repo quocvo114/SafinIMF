@@ -55,7 +55,7 @@ const ReportManagement = () => {
         setIncidentTypes([]);
       }
     } catch (error) {
-      console.error("Không thể tải danh mục loại sự cố:", error);
+      // ✅ Cleanup: Incident type fetching error handling silenced
       setIncidentTypes([]);
     }
   };
@@ -243,7 +243,7 @@ const ReportManagement = () => {
                             setShowDetail(report); // Fallback to list data
                           }
                         } catch (err) {
-                          console.error("Error fetching report detail:", err);
+                          // ✅ Cleanup: Report detail fetching error handling silenced
                           setShowDetail(report); // Fallback to list data
                         }
                       }}

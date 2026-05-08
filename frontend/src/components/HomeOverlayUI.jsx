@@ -109,7 +109,7 @@ export default function HomeOverlayUI({
         if (videoRef.current) videoRef.current.srcObject = mediaStream;
       }, 100);
     } catch (error) {
-      console.error(error);
+      // ✅ Cleanup: Camera access error handling silenced
       toast.error(
         "Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.",
       );

@@ -59,7 +59,7 @@ const PublicPage = () => {
   ];
 
   const toggleFAQ = (id) => {
-    console.log("Toggle FAQ clicked, id:", id, "current openFAQ:", openFAQ);
+    // ✅ Cleanup: FAQ toggle logging removed
     setOpenFAQ(openFAQ === id ? null : id);
   };
 

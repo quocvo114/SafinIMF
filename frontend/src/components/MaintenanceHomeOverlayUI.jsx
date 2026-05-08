@@ -93,7 +93,7 @@ export default function MaintenanceHomeOverlayUI({
         if (videoRef.current) videoRef.current.srcObject = mediaStream;
       }, 100);
     } catch (error) {
-      console.error(error);
+      // ✅ Cleanup: Camera access error handling silenced
       alert("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.");
     }
   };

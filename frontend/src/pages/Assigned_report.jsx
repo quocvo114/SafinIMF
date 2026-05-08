@@ -49,7 +49,7 @@ export default function Assigned_report() {
         setReports([]);
       }
     } catch (err) {
-      console.error("Failed to fetch assigned reports:", err);
+      // ✅ Cleanup: Report fetching error handling silenced
       setError("Không thể tải danh sách báo cáo. Vui lòng thử lại.");
       setReports([]);
     } finally {

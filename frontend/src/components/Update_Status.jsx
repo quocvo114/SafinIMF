@@ -91,6 +91,7 @@ const Update_Status = ({ isOpen, reportId, reportCode, currentStatus, onClose, o
         <DialogContent className="w-[90vw] xs:w-[85vw] sm:w-[calc(100vw-3rem)] max-w-lg z-[1000] bg-white shadow-2xl rounded-lg xs:rounded-xl sm:rounded-[20px] max-h-[90vh] overflow-y-auto p-0">
         <DialogHeader className="space-y-2 xs:space-y-2.5 sm:space-y-3 pb-3 xs:pb-3.5 sm:pb-4 px-3 xs:px-4 sm:px-6 pt-3 xs:pt-4 sm:pt-6">
           <DialogTitle className="text-base xs:text-lg sm:text-2xl font-bold text-center">Cập nhật trạng thái</DialogTitle>
+          <DialogDescription className="text-xs xs:text-sm sm:text-base text-center text-gray-600">Chọn trạng thái mới cho báo cáo này</DialogDescription>
           <div className="bg-blue-100 border-2 border-blue-300 rounded-xl xs:rounded-[14px] sm:rounded-[16px] p-2.5 xs:p-3 sm:p-4 text-center">
             <p className="text-xs font-bold text-blue-900 uppercase mb-1 xs:mb-1.5 sm:mb-2 tracking-wide">Mã báo cáo</p>
             <p className="text-lg xs:text-xl sm:text-2xl font-black text-blue-700 break-all line-clamp-2">{reportCode || reportId}</p>

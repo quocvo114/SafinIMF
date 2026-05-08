@@ -7,12 +7,27 @@ const userRepo = require("../user/user.repository");
 const User = require("../user/user.model");
 const LoginHistory = require("./loginHistory.model");
 
+const VN_PHONE_PATTERN = /^0(?:3|5|7|8|9)\d{8}$/;
+const STRONG_PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+function normalizePhone(phone) {
+  return typeof phone === "string" ? phone.trim() : "";
+}
+
+function isStrongPassword(password) {
+  return STRONG_PASSWORD_PATTERN.test(String(password || ""));
+}
+
 // 1) Gửi OTP đăng ký
 async function sendRegisterOtp(req, res) {
   try {
-    const { phone } = req.body;
+    const phone = normalizePhone(req.body?.phone);
     if (!phone) {
       return res.status(400).json({ message: "Thiếu số điện thoại" });
+    }
+
+    if (!VN_PHONE_PATTERN.test(phone)) {
+      return res.status(400).json({ message: "Số điện thoại không đúng định dạng" });
     }
 
     const exists = await userRepo.findByPhone(phone);
@@ -37,10 +52,19 @@ async function sendRegisterOtp(req, res) {
 // 2) Confirm OTP + tạo user
 async function confirmRegister(req, res) {
   try {
-    const { phone, otp, password, full_name, email } = req.body;
+    const { otp, password, full_name, email } = req.body;
+    const phone = normalizePhone(req.body?.phone);
 
     if (!phone || !otp || !password) {
       return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc" });
+    }
+
+    if (!VN_PHONE_PATTERN.test(phone)) {
+      return res.status(400).json({ message: "Số điện thoại không đúng định dạng" });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: "mật khẩu không đủ mạnh" });
     }
 
     const valid = otpService.verifyOtp(phone, otp);

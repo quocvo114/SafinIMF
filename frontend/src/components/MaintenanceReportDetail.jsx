@@ -156,7 +156,7 @@ export default function MaintenanceReportDetail({
         toast.error(response.message || "Cập nhật tiến độ thất bại.");
       }
     } catch (error) {
-      console.error("Update progress error:", error);
+      // ✅ Cleanup: Progress update error handling silenced
       toast.error(error.response?.data?.message || "Lỗi khi cập nhật tiến độ.");
     } finally {
       setIsSubmitting(false);

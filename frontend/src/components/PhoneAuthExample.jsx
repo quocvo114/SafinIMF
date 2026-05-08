@@ -34,7 +34,7 @@ const PhoneAuthExample = () => {
       await sendOTP(phoneNumber);
       setStep('otp');
     } catch (err) {
-      console.error('Send OTP failed:', err);
+      // ✅ Cleanup: OTP sending error handling silenced
     }
   };
 
@@ -43,12 +43,12 @@ const PhoneAuthExample = () => {
     e.preventDefault();
     try {
       const result = await verifyOTP(otp);
-      console.log('✅ User verified:', result.user.phoneNumber);
+      // ✅ Cleanup: User verification logging removed
       
       // TODO: Lưu user vào database hoặc redirect
       setStep('phone');
     } catch (err) {
-      console.error('Verify OTP failed:', err);
+      // ✅ Cleanup: OTP verification error handling silenced
     }
   };
 

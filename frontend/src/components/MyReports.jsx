@@ -179,7 +179,7 @@ export default function MyReports() {
       }
     } catch (err) {
       setActiveIncidentTypes([]);
-      console.error("Không thể tải danh mục loại sự cố:", err);
+      // ✅ Cleanup: Incident type fetching error handling silenced
     }
   };
 

@@ -18,6 +18,7 @@ import {
 const Info_Management = ({ onClose }) => {
   const { user, login } = useAuth();
   const navigate = useNavigate();
+  const gmailEmailPattern = /^[^\s@]+@gmail\.com$/i;
 
   const handleCloseModal = () => {
     if (onClose) {
@@ -115,6 +116,13 @@ const Info_Management = ({ onClose }) => {
       showToast("Vui lòng nhập tên!", "error");
       return;
     }
+
+    const email = formData.email.trim();
+    if (email && !gmailEmailPattern.test(email)) {
+      showToast("Email phải có dạng ten@gmail.com", "error");
+      return;
+    }
+
     setLoading(true);
     try {
       // Only send fields that have values
@@ -124,8 +132,8 @@ const Info_Management = ({ onClose }) => {
         gender: formData.gender,
       };
       // Only include email if it's not empty
-      if (formData.email && formData.email.trim()) {
-        dataToSend.email = formData.email.trim();
+      if (email) {
+        dataToSend.email = email;
       }
       
       await userApi.updateProfile(dataToSend);
@@ -462,9 +470,9 @@ const Info_Management = ({ onClose }) => {
     );
 
   if (onClose) {
-    // Modal mode - render without fixed backdrop
+    // Modal mode - render with flex center
     return (
-      <div>
+      <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         {modalContent}
         {toast.show && <Toast message={toast.message} type={toast.type} />}
       </div>

@@ -205,7 +205,7 @@ const ReceptForm = () => {
           setAreas(response.data.data || []);
         }
       } catch (error) {
-        console.error("Failed to fetch areas:", error);
+        // ✅ Cleanup: Error handling silenced
       }
     };
     fetchAreas();
@@ -349,19 +349,12 @@ const ReceptForm = () => {
   };
 
   const handleUpdateStatus = async (report) => {
-    console.log("handleUpdateStatus called with:", report);
     const reportId = report?.report_id || report?.id;
     if (!reportId) {
-      console.log("No reportId found");
+      // ✅ Cleanup: Debug logging removed
       return;
     }
-
-    console.log(
-      "Setting modal state - reportId:",
-      reportId,
-      "status:",
-      report?.status,
-    );
+    // ✅ Cleanup: Debug logging removed
     setUpdateReportData(report);
     setShowUpdateStatusModal(true);
     setSelectedReport(null); // Đóng detail modal
@@ -370,17 +363,28 @@ const ReceptForm = () => {
   const handleConfirmUpdateStatus = async (reportId, newStatus) => {
     try {
       setUpdatingStatus(true);
-      await reportApi.updateReportStatus(reportId, newStatus);
+      // ✅ Cleanup: Status update logging removed
+      const response = await reportApi.updateReportStatus(reportId, newStatus);
 
-      // Cập nhật reports list
-      setReports((prev) =>
-        prev.map((item) => {
-          const itemId = item.id || item.report_id;
-          return itemId === reportId ? { ...item, status: newStatus } : item;
-        }),
-      );
+      const fetchResponse = await reportApi.getReceptionReports({
+        search: query,
+        type: typeFilter,
+        status: "all",
+        district: selectedArea,
+        date: dateFilter === "old" ? "old" : "recent",
+        page: 1,
+        limit: 6,
+      });
+      
+      if (fetchResponse?.data) {
+        // ✅ Cleanup: Fetch logging removed
+        setReports(fetchResponse.data);
+        setTotalPages(fetchResponse?.pagination?.totalPages || 1);
+        setPage(1);
+        setStatusFilter("all");
+      }
 
-      // Cập nhật selectedReport + mở lại detail modal
+      // Cập nhật selectedReport
       const updatedReport = updateReportData
         ? { ...updateReportData, status: newStatus }
         : null;
@@ -388,11 +392,23 @@ const ReceptForm = () => {
 
       setShowUpdateStatusModal(false);
       setUpdateReportData(null);
+      setErrorMessage("");
+      
+      if (typeof toast !== 'undefined' && toast?.success) {
+        toast.success("Cập nhật trạng thái thành công!");
+      }
     } catch (error) {
-      setErrorMessage(
+      // ✅ Cleanup: Error logging removed
+      const errorMsg = 
         error?.response?.data?.message ||
-          "Không thể cập nhật trạng thái báo cáo",
-      );
+        error?.message ||
+        "Không thể cập nhật trạng thái báo cáo";
+      
+      setErrorMessage(errorMsg);
+      
+      if (typeof toast !== 'undefined' && toast?.error) {
+        toast.error(errorMsg);
+      }
     } finally {
       setUpdatingStatus(false);
     }
@@ -875,7 +891,7 @@ const ReceptForm = () => {
 
       <Update_Status
         isOpen={showUpdateStatusModal}
-        reportId={updateReportData?.report_id || updateReportData?.id}
+        reportId={updateReportData?.id || updateReportData?.report_id}
         reportCode={updateReportData?.id}
         currentStatus={updateReportData?.status}
         onClose={() => {

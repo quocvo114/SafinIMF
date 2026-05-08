@@ -253,7 +253,7 @@ const loadGeocodeCache = () => {
     const parsedValue = JSON.parse(cachedValue);
     return parsedValue && typeof parsedValue === "object" ? parsedValue : {};
   } catch (error) {
-    console.warn("Không thể đọc cache geocode bản đồ:", error);
+    // ✅ Cleanup: Cache reading error handling silenced
     return {};
   }
 };
@@ -262,7 +262,7 @@ const saveGeocodeCache = (cacheValue) => {
   try {
     localStorage.setItem(DASHBOARD_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
   } catch (error) {
-    console.warn("Không thể lưu cache geocode bản đồ:", error);
+    // ✅ Cleanup: Cache writing error handling silenced
   }
 };
 
@@ -371,7 +371,7 @@ const loadCachedReports = () => {
     const parsedValue = JSON.parse(cachedValue);
     return Array.isArray(parsedValue) ? parsedValue : [];
   } catch (error) {
-    console.warn("Không thể đọc cache marker bản đồ:", error);
+    // ✅ Cleanup: Cache reading error handling silenced
     return [];
   }
 };
@@ -380,7 +380,7 @@ const saveCachedReports = (reports) => {
   try {
     localStorage.setItem(DASHBOARD_REPORTS_CACHE_KEY, JSON.stringify(reports));
   } catch (error) {
-    console.warn("Không thể lưu cache marker bản đồ:", error);
+    // ✅ Cleanup: Cache writing error handling silenced
   }
 };
 
@@ -399,7 +399,7 @@ function LocationMarker() {
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      console.error("GPS error: Trình duyệt không hỗ trợ geolocation");
+      // ✅ Cleanup: GPS compatibility error handling silenced
       return;
     }
 
@@ -419,7 +419,7 @@ function LocationMarker() {
         setPosition(newPos);
       },
       (error) => {
-        console.error("GPS error:", error);
+        // ✅ Cleanup: GPS error handling silenced
       },
       options,
     );
@@ -464,7 +464,7 @@ const Dashboard = () => {
           saveCachedReports(normalizedReports);
         }
       } catch (error) {
-        console.error("Lỗi tải danh sách báo cáo trên bản đồ:", error);
+        // ✅ Cleanup: Report fetching error handling silenced
         if (isMounted && !hasCachedReportsRef.current) {
           
           toast.error("Không thể tải dữ liệu sự cố từ hệ thống");
@@ -526,7 +526,7 @@ const Dashboard = () => {
         displayName: place.display_name,
       });
     } catch (error) {
-      console.error("Lỗi tìm kiếm địa điểm:", error);
+      // ✅ Cleanup: Location search error handling silenced
       toast.error("Có lỗi khi tìm kiếm địa điểm");
     }
   }, []);

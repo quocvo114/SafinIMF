@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   User,
   Lock,
@@ -31,7 +32,7 @@ const UserProfileModal = ({ isOpen, onClose, user }) => {
 
   const handleSave = () => {
     // Logic to save changes
-    console.log("Saved:", formData);
+    // ✅ Cleanup: Form data logging removed
     setIsEditing(false);
   };
 
@@ -42,10 +43,10 @@ const UserProfileModal = ({ isOpen, onClose, user }) => {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  const modalContent = (
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-[9999] p-6">
       {/* Modal Container */}
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
         {/* Close Button */}
         <button
           onClick={handleCancel}
@@ -252,6 +253,8 @@ const UserProfileModal = ({ isOpen, onClose, user }) => {
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default UserProfileModal;

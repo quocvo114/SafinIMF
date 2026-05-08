@@ -105,7 +105,7 @@ const loadCachedReports = () => {
     const parsedValue = JSON.parse(cachedValue);
     return Array.isArray(parsedValue) ? parsedValue : [];
   } catch (error) {
-    console.warn("Không thể đọc cache marker maintenance map:", error);
+    // ✅ Cleanup: Cache reading error handling silenced
     return [];
   }
 };
@@ -114,7 +114,7 @@ const saveCachedReports = (reports) => {
   try {
     localStorage.setItem(MAINTENANCE_REPORTS_CACHE_KEY, JSON.stringify(reports));
   } catch (error) {
-    console.warn("Không thể lưu cache marker maintenance map:", error);
+    // ✅ Cleanup: Cache writing error handling silenced
   }
 };
 
@@ -128,7 +128,7 @@ const loadGeocodeCache = () => {
     const parsedValue = JSON.parse(cachedValue);
     return parsedValue && typeof parsedValue === "object" ? parsedValue : {};
   } catch (error) {
-    console.warn("Không thể đọc cache geocode maintenance map:", error);
+    // ✅ Cleanup: Cache reading error handling silenced
     return {};
   }
 };
@@ -137,7 +137,7 @@ const saveGeocodeCache = (cacheValue) => {
   try {
     localStorage.setItem(MAINTENANCE_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
   } catch (error) {
-    console.warn("Không thể lưu cache geocode maintenance map:", error);
+    // ✅ Cleanup: Cache writing error handling silenced
   }
 };
 
@@ -275,10 +275,7 @@ const MaintenanceDashboard = () => {
           const mapResponse = await reportApi.getMapReports();
           rawReports = Array.isArray(mapResponse?.data) ? mapResponse.data : [];
         } catch (mapError) {
-          console.warn(
-            "Không thể lấy dữ liệu map-view, thử fallback all reports",
-            mapError,
-          );
+          // ✅ Cleanup: Map data fallback warning removed
         }
 
         if (rawReports.length === 0) {
@@ -295,7 +292,7 @@ const MaintenanceDashboard = () => {
           saveCachedReports(normalizedReports);
         }
       } catch (error) {
-        console.error("Lỗi tải danh sách marker cho maintenance map:", error);
+        // ✅ Cleanup: Report loading error handling silenced
       }
     };
 
@@ -335,7 +332,7 @@ const MaintenanceDashboard = () => {
   }, [normalizedSelectedCategory, reports]);
 
   const handleSearchLocation = async (query) => {
-    console.log("Search query: ", query);
+    // ✅ Cleanup: Search query logging removed
 
     if (!query || !mapRef.current) return;
 
@@ -368,7 +365,7 @@ const MaintenanceDashboard = () => {
         displayName: place.display_name,
       });
     } catch (error) {
-      console.error("Lỗi tìm kiếm địa điểm:", error);
+      // ✅ Cleanup: Location search error handling silenced
       alert("Có lỗi khi tìm kiếm địa điểm");
     }
   };

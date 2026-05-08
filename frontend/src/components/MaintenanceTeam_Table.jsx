@@ -213,15 +213,12 @@ const MaintenanceTeam_Table = () => {
 
   useEffect(() => {
     // fetch management users and filter for maintenance-role and unassigned
-    console.log("[DEBUG] useEffect for leaders mounted, starting fetch...");
+    // ✅ Cleanup: Debug logging removed
     let mounted = true;
     (async () => {
       try {
-        console.log(
-          "[DEBUG] Calling userApi.getManagementUsers({ role: 'KTV' })...",
-        );
+        // ✅ Cleanup: Debug logging removed
         const res = await userApi.getManagementUsers({ role: "KTV" });
-        console.log("[DEBUG] API Response:", res);
 
         // API shape: res.data may contain { data: [...], pagination }
         const payload = res?.data;
@@ -231,10 +228,7 @@ const MaintenanceTeam_Table = () => {
             ? payload
             : [];
 
-        console.log("[DEBUG] ======= FULL API RESPONSE =======");
-        console.log("[DEBUG] Extracted users array:", users);
-        console.log("[DEBUG] User count:", users.length);
-        console.log("[DEBUG] All users:", JSON.stringify(users, null, 2));
+        // ✅ Cleanup: Debug logging removed
 
         const candidates = users.filter((u) => {
           const roleVal =
@@ -259,24 +253,16 @@ const MaintenanceTeam_Table = () => {
             u.assigned_team
           );
 
-          console.log(
-            `[DEBUG] Filter check - User: ${u.full_name || u.name}, role='${roleVal}', isMaintenance=${isMaintenance}, assigned=${assigned}, team_id=${u.team_id || "undefined"}`,
-          );
+          // ✅ Cleanup: Debug logging removed
 
           return isMaintenance && !assigned;
         });
 
-        console.log("[DEBUG] ======= FILTER RESULT =======");
-        console.log("[DEBUG] Final candidates:", candidates);
-        console.log("[DEBUG] Candidates count:", candidates.length);
-        console.log(
-          "[DEBUG] Filtered users:",
-          JSON.stringify(candidates, null, 2),
-        );
+        // ✅ Cleanup: Debug logging removed
 
         if (mounted) setAvailableLeaders(candidates);
       } catch (err) {
-        console.error("[DEBUG] ERROR in useEffect:", err);
+        // ✅ Cleanup: Error logging removed
         if (mounted) setAvailableLeaders([]);
       }
     })();

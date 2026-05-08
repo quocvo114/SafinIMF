@@ -1,5 +1,7 @@
 const userService = require("./user.service");
 
+const GMAIL_EMAIL_PATTERN = /^[^\s@]+@gmail\.com$/i;
+
 class UserController {
   async getProfile(req, res) {
     try {
@@ -41,6 +43,11 @@ class UserController {
       if (!full_name || !full_name.trim()) {
         console.warn("⚠️ updateProfile: full_name is empty");
         return res.status(400).json({ message: "Tên không được để trống" });
+      }
+
+      if (email && String(email).trim() && !GMAIL_EMAIL_PATTERN.test(String(email).trim())) {
+        console.warn("⚠️ updateProfile: invalid gmail format", email);
+        return res.status(400).json({ message: "Email phải có dạng ten@gmail.com" });
       }
 
       console.log(`📝 updateProfile: user_id=${user_id}, data=`, { full_name, phone, gender, email });

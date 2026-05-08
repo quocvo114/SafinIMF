@@ -834,7 +834,12 @@ class ReportController {
       const { id } = req.params;
       const { status } = req.body;
 
+      console.log(`\n📝 [UPDATE_STATUS] Attempting to update report status`);
+      console.log(`   Report ID (from URL): ${id}`);
+      console.log(`   New Status: ${status}`);
+
       if (!RECEPTION_STATUS_OPTIONS.includes(status)) {
+        console.log(`❌ [UPDATE_STATUS] Invalid status: ${status}`);
         return res.status(400).json({
           success: false,
           message: "Trạng thái không hợp lệ",
@@ -843,18 +848,21 @@ class ReportController {
 
       const updated = await ReportRepository.updateStatus(id, status);
       if (!updated) {
+        console.log(`❌ [UPDATE_STATUS] Report not found with ID: ${id}`);
         return res.status(404).json({
           success: false,
           message: "Không tìm thấy báo cáo",
         });
       }
 
+      console.log(`✅ [UPDATE_STATUS] Successfully updated report ${id} to status: ${status}`);
       res.status(200).json({
         success: true,
         message: "Cập nhật trạng thái thành công",
         data: toReceptionItem(updated),
       });
     } catch (error) {
+      console.error(`❌ [UPDATE_STATUS] Error:`, error.message);
       res.status(500).json({
         success: false,
         message: error.message,
@@ -882,7 +890,20 @@ class ReportController {
         });
       }
 
-      const report = await Report.findOne({ $or: [{ id }, { report_id: id }] });
+      // Build safe query để tránh type casting errors
+      const reportQuery = {};
+      if (typeof id === 'string' && id.startsWith('RPT-')) {
+        reportQuery.id = id;
+      } else {
+        const numId = Number(id);
+        if (!isNaN(numId)) {
+          reportQuery.report_id = numId;
+        } else {
+          reportQuery.id = String(id);
+        }
+      }
+
+      const report = await Report.findOne(reportQuery);
       if (!report) {
         return res.status(404).json({
           success: false,

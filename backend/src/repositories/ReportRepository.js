@@ -71,6 +71,34 @@ function buildDistrictRegex(district) {
 }
 
 class ReportRepository {
+  // Helper để build query tránh type casting errors
+  buildIdQuery(id) {
+    const queries = [];
+    
+    if (typeof id === 'string' && id.startsWith('RPT-')) {
+      // ID dạng string "RPT-..."
+      queries.push({ id: id });
+    } else {
+      // Thử convert thành number
+      const numId = Number(id);
+      if (!isNaN(numId)) {
+        // Tìm cả report_id và id (nếu id cũng là number)
+        queries.push({ report_id: numId });
+        queries.push({ id: String(numId) });
+      } else {
+        // Nếu không phải number, tìm kiếm theo string ID
+        queries.push({ id: String(id) });
+      }
+    }
+    
+    // Nếu có nhiều queries, dùng $or để tìm matching document
+    if (queries.length > 1) {
+      return { $or: queries };
+    }
+    
+    return queries[0] || { id: String(id) };
+  }
+
   buildFilterQuery({ search, type, status, district }) {
     const query = {};
 
@@ -212,7 +240,8 @@ class ReportRepository {
 
   async getById(id) {
     try {
-      return await Report.findOne({ $or: [{ id }, { report_id: id }] });
+      const query = this.buildIdQuery(id);
+      return await Report.findOne(query);
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo: " + error.message);
     }
@@ -237,12 +266,32 @@ class ReportRepository {
 
   async updateStatus(id, status) {
     try {
-      return await Report.findOneAndUpdate(
-        { $or: [{ id }, { report_id: id }] },
+      console.log(`\n🔄 [REPO-UPDATE-STATUS] Starting update...`);
+      console.log(`   Query ID: ${id} (type: ${typeof id})`);
+      console.log(`   New Status: ${status}`);
+      
+      const query = this.buildIdQuery(id);
+      console.log(`   Query object: ${JSON.stringify(query)}`);
+
+      const result = await Report.findOneAndUpdate(
+        query,
         { status },
         { new: true },
       );
+
+      if (result) {
+        console.log(`✅ [REPO-UPDATE-STATUS] Update successful`);
+        console.log(`   Matched ID field: ${result.id}`);
+        console.log(`   Matched report_id: ${result.report_id}`);
+        console.log(`   Updated status: ${result.status}`);
+      } else {
+        console.log(`❌ [REPO-UPDATE-STATUS] No document found to update`);
+        console.log(`   Query used: ${JSON.stringify(query)}`);
+      }
+
+      return result;
     } catch (error) {
+      console.error(`❌ [REPO-UPDATE-STATUS] Error: ${error.message}`);
       throw new Error("Lỗi khi cập nhật trạng thái báo cáo: " + error.message);
     }
   }
