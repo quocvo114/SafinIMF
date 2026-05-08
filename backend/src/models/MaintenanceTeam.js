@@ -7,11 +7,13 @@ const MaintenanceTeamSchema = new mongoose.Schema(
       required: true,
       unique: true,
       trim: true,
+      index: true,
     },
     name: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     leader: {
       type: String,
@@ -33,16 +35,19 @@ const MaintenanceTeamSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+      index: true,
     },
     area: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     status: {
       type: String,
       enum: ["active", "inactive"],
       default: "active",
+      index: true,
     },
   },
   {

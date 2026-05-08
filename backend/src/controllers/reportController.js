@@ -26,6 +26,18 @@ const DISTRICT_ALIAS_MAP = {
   "Hòa Vang": ["hoa vang"],
 };
 
+// Pre-compute normalized aliases to avoid expensive string normalization on every request
+const NORMALIZED_DISTRICT_MAP = {};
+Object.entries(DISTRICT_ALIAS_MAP).forEach(([district, aliases]) => {
+  NORMALIZED_DISTRICT_MAP[district] = aliases.map((alias) =>
+    String(alias)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim(),
+  );
+});
+
 function normalizeText(value = "") {
   return String(value)
     .normalize("NFD")
@@ -37,12 +49,15 @@ function normalizeText(value = "") {
 const RECEPTION_STATUS_OPTIONS = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
 
 function inferDistrict(location = "") {
-  const normalizedLocation = normalizeText(location);
+  const normalizedLocation = String(location)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
-  for (const [district, aliases] of Object.entries(DISTRICT_ALIAS_MAP)) {
-    if (
-      aliases.some((alias) => normalizedLocation.includes(normalizeText(alias)))
-    ) {
+  // Use pre-computed normalized aliases (computed at module load time)
+  for (const [district, normalizedAliases] of Object.entries(NORMALIZED_DISTRICT_MAP)) {
+    if (normalizedAliases.some((alias) => normalizedLocation.includes(alias))) {
       return district;
     }
   }
@@ -189,6 +204,10 @@ function toReceptionItem(report) {
     team: assignedTeamName,
     handlerTeam: assignedTeamName,
     district: inferDistrict(report.location),
+    handlingTeamId: report.handlingTeamId || report.assignedTeamId || "",
+    handlingTeamName: report.handlingTeamName || report.assignedTeamName || "",
+    assignedTeamId: report.assignedTeamId || report.handlingTeamId || "",
+    assignedTeamName: report.assignedTeamName || report.handlingTeamName || "",
     // Progress fields
     afterImg: report.afterImg || "",
     progressNote: report.progressNote || "",
@@ -830,9 +849,10 @@ class ReportController {
   }
 
   async updateReportStatus(req, res) {
+    console.log("--> updateReportStatus called with id:", req.params.id, "body:", req.body);
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, handlingTeamId, handlingTeamName } = req.body;
 
       console.log(`\n📝 [UPDATE_STATUS] Attempting to update report status`);
       console.log(`   Report ID (from URL): ${id}`);
@@ -846,7 +866,36 @@ class ReportController {
         });
       }
 
-      const updated = await ReportRepository.updateStatus(id, status);
+      // Kiểm tra báo cáo hiện tại
+      console.log("--> Getting existing report...");
+      const existingReport = await ReportRepository.getById(id);
+      console.log("--> Got existing report:", !!existingReport);
+      if (!existingReport) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy báo cáo",
+        });
+      }
+
+      // Ngăn phân công khi đã giải quyết
+      if (existingReport.status === "Đã Giải Quyết") {
+        return res.status(409).json({
+          success: false,
+          code: "REPORT_ALREADY_RESOLVED",
+          message: "Báo cáo này đã được giải quyết, không thể phân công hoặc thay đổi trạng thái",
+        });
+      }
+
+      // Xây dựng payload phân công đội nếu có
+      const assignmentPayload = {};
+      if (handlingTeamId) {
+        assignmentPayload.handlingTeamId = String(handlingTeamId);
+        assignmentPayload.handlingTeamName = handlingTeamName || "";
+        assignmentPayload.assignedTeamId = String(handlingTeamId);
+        assignmentPayload.assignedTeamName = handlingTeamName || "";
+      }
+
+      const updated = await ReportRepository.updateStatus(id, status, assignmentPayload);
       if (!updated) {
         console.log(`❌ [UPDATE_STATUS] Report not found with ID: ${id}`);
         return res.status(404).json({
@@ -862,7 +911,11 @@ class ReportController {
         data: toReceptionItem(updated),
       });
     } catch (error) {
+<<<<<<< HEAD
       console.error(`❌ [UPDATE_STATUS] Error:`, error.message);
+=======
+      console.error("❌ updateReportStatus error:", error.message);
+>>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
       res.status(500).json({
         success: false,
         message: error.message,

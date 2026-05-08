@@ -174,6 +174,11 @@ const removeAccents = (str) => {
     .toLowerCase();
 };
 
+const optimizeCloudinaryUrl = (url) => {
+  if (!url || typeof url !== 'string' || !url.includes("cloudinary.com")) return url;
+  return url.replace("/upload/", "/upload/c_fill,w_500,h_400,q_auto,f_auto/");
+};
+
 const ReceptForm = () => {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -187,15 +192,18 @@ const ReceptForm = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [assigningReport, setAssigningReport] = useState(null);
   const [assignTeams, setAssignTeams] = useState(null);
+  const [assigningLoading, setAssigningLoading] = useState(false);
+  const [assigningError, setAssigningError] = useState("");
+
+  // State cho modal cập nhật trạng thái
+  const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
+  const [updateReportData, setUpdateReportData] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const [areas, setAreas] = useState([]);
   const [selectedArea, setSelectedArea] = useState("all");
   const [searchAreaQuery, setSearchAreaQuery] = useState("");
   const [isAreaOpen, setIsAreaOpen] = useState(false);
-  
-  const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
-  const [updateReportData, setUpdateReportData] = useState(null);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     const fetchAreas = async () => {
@@ -211,33 +219,10 @@ const ReceptForm = () => {
     fetchAreas();
   }, []);
 
-  const filteredReports = useMemo(() => {
-    const searchTerm = query.trim().toLowerCase();
-
-    const normalizedSelectedArea =
-      selectedArea !== "all" ? removeAccents(selectedArea) : "all";
-
-    return reports.filter((item) => {
-      const byType = typeFilter === "all" || item.category === typeFilter;
-      const byStatus = statusFilter === "all" || item.status === statusFilter;
-
-      const haystack = `${item.id} ${item.title}`.toLowerCase();
-      const bySearch = !searchTerm || haystack.includes(searchTerm);
-
-      let byArea = true;
-      if (selectedArea !== "all") {
-        const locationStr = removeAccents(item.location || "");
-        byArea = locationStr.includes(normalizedSelectedArea);
-      }
-
-      return byType && byStatus && bySearch && byArea;
-    });
-  }, [reports, query, typeFilter, statusFilter, selectedArea]);
-
   const pageSize = 6;
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
+    const fetchReceptionReports = async () => {
       try {
         setLoading(true);
         setErrorMessage("");
@@ -264,13 +249,13 @@ const ReceptForm = () => {
       } finally {
         setLoading(false);
       }
-    }, 250);
+    };
 
-    return () => clearTimeout(timer);
+    fetchReceptionReports();
   }, [query, typeFilter, statusFilter, dateFilter, page, selectedArea]);
 
   const safePage = Math.min(page, totalPages);
-  const visibleReports = filteredReports;
+  const visibleReports = reports;
 
   useEffect(() => {
     if (page > totalPages) {
@@ -422,6 +407,8 @@ const ReceptForm = () => {
     setSelectedReport(null);
     setAssigningReport(report);
     setAssignTeams(null);
+    setAssigningLoading(false);
+    setAssigningError("");
 
     try {
       const response = await maintenanceTeamApi.getTeams({
@@ -454,25 +441,52 @@ const ReceptForm = () => {
     }
 
     if (!team?.id) {
+<<<<<<< HEAD
       toast.error("Thiếu thông tin đội xử lý.");
+=======
+      setAssigningError("Không xác định được đội xử lý để phân công");
+>>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
       return;
     }
 
     try {
+<<<<<<< HEAD
       await reportApi.assignReport(reportId, {
         teamId: team?.id,
         teamName: team?.name,
       });
       syncReportStatus(reportId, "Đang Xử Lý", team?.name);
+=======
+      setAssigningLoading(true);
+      setAssigningError("");
+      await reportApi.assignReportToTeam(reportId, {
+        handlingTeamId: String(team.id),
+        handlingTeamName: team.name,
+      });
+      syncReportStatus(reportId, "Đang Xử Lý", team.name);
+>>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
       handleCloseAssignTeam();
       toast.success("Phân công thành công!");
     } catch (error) {
+<<<<<<< HEAD
       setErrorMessage(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
       );
       toast.error(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
       );
+=======
+      console.error("Assign error in frontend:", error);
+      const message =
+        error?.response?.status === 409
+          ? "Báo cáo đã được giải quyết, không thể phân công"
+          : error?.response?.status === 401
+          ? "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại"
+          : error?.response?.data?.message || "Không thể gửi xử lý báo cáo";
+      setAssigningError(message);
+    } finally {
+      setAssigningLoading(false);
+>>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
     }
   };
 
@@ -728,14 +742,29 @@ const ReceptForm = () => {
           {!loading &&
             visibleReports.map((report, index) => {
               const category = report.category || report.type || "CTCC";
-              const imageUrl = report.image || roadImage;
+              const imageUrl = optimizeCloudinaryUrl(report.image || roadImage);
               const date = report.date || report.time || "-";
 
               return (
                 <div
                   key={`${report.id || report.report_id}-${report.location}-${index}`}
                   className="group relative h-[210px] xl:h-[224px] cursor-pointer overflow-hidden rounded-[24px] shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ring-1 ring-black/5"
-                  onClick={() => setSelectedReport(report)}
+                  onClick={async () => {
+                    const reportId =
+                      report?.id || report?.report_id || report?._id;
+                    setSelectedReport(report);
+
+                    if (!reportId) return;
+
+                    try {
+                      const response = await reportApi.getReportById(reportId);
+                      if (response?.success && response?.data) {
+                        setSelectedReport(response.data);
+                      }
+                    } catch (error) {
+                      console.error("Không thể tải chi tiết báo cáo:", error);
+                    }
+                  }}
                 >
                   <div
                     className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
@@ -877,6 +906,21 @@ const ReceptForm = () => {
         onSendProcess={handleSendProcess}
       />
 
+      <Update_Status
+        isOpen={showUpdateStatusModal}
+        reportId={updateReportData?.report_id || updateReportData?.id}
+        reportCode={updateReportData?.id || updateReportData?.report_id}
+        currentStatus={updateReportData?.status || "Đang Chờ"}
+        onClose={() => {
+          setShowUpdateStatusModal(false);
+          setUpdateReportData(null);
+          // Mở lại detail modal
+          if (updateReportData) setSelectedReport(updateReportData);
+        }}
+        onUpdate={handleConfirmUpdateStatus}
+        loading={updatingStatus}
+      />
+
       <AssignMaintenanceTeam
         open={Boolean(assigningReport)}
         reportCode={
@@ -887,6 +931,8 @@ const ReceptForm = () => {
         onClose={handleCloseAssignTeam}
         onCancel={handleCancelAssignTeam}
         onAssign={handleAssignTeam}
+        isSubmitting={assigningLoading}
+        errorMessage={assigningError}
       />
 
       <Update_Status

@@ -43,6 +43,7 @@ const ReportSchema = new mongoose.Schema(
     location: {
       type: String,
       required: true,
+      index: true, // Add index for faster location/district filtering
     },
     reportLatitude: {
       type: Number,
@@ -72,6 +73,7 @@ const ReportSchema = new mongoose.Schema(
       required: true,
       enum: ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"],
       default: "Đang Chờ",
+      index: true, // Add index for faster status filtering
     },
 
     assignedTeamId: {
@@ -120,6 +122,23 @@ const ReportSchema = new mongoose.Schema(
       default: "",
     },
 
+    handlingTeamId: {
+      type: String,
+      default: "",
+    },
+    handlingTeamName: {
+      type: String,
+      default: "",
+    },
+    assignedTeamId: {
+      type: String,
+      default: "",
+    },
+    assignedTeamName: {
+      type: String,
+      default: "",
+    },
+
     aiPercent: {
       type: Number,
       default: null,
@@ -159,5 +178,9 @@ const ReportSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+ReportSchema.index({ status: 1, createdAt: -1 });
+ReportSchema.index({ type: 1, createdAt: -1 });
+ReportSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Report", ReportSchema);

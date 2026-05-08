@@ -21,6 +21,23 @@ const VIETNAMESE_CHAR_CLASS_MAP = {
   y: "[yỳýỵỷỹ]",
 };
 
+const LIST_PROJECTION = {
+  _id: 1,
+  id: 1,
+  report_id: 1,
+  title: 1,
+  type: 1,
+  location: 1,
+  status: 1,
+  time: 1,
+  aiPercent: 1,
+  aiVerified: 1,
+  userId: 1,
+  user_id: 1,
+  createdAt: 1,
+  updatedAt: 1,
+};
+
 function normalizeText(value = "") {
   return String(value)
     .normalize("NFD")
@@ -144,10 +161,21 @@ class ReportRepository {
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
       const skip = (safePage - 1) * safeLimit;
 
-      const [items, total] = await Promise.all([
-        Report.find(query).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
-        Report.countDocuments(query),
-      ]);
+      const isQueryEmpty = Object.keys(query).length === 0;
+
+      const items = await Report.find(query)
+        .select("-images -exifMetadata -scoringDetails")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean();
+
+      let total;
+      if (isQueryEmpty) {
+        total = await Report.estimatedDocumentCount();
+      } else {
+        total = skip + items.length + (items.length === safeLimit ? 1 : 0);
+      }
 
       return {
         items,
@@ -190,28 +218,34 @@ class ReportRepository {
       const skip = (safePage - 1) * safeLimit;
       const sortDirection = sortByDate === "old" ? 1 : -1;
 
-      const pipeline = [
-        { $match: query },
-        {
-          $addFields: {
-            resolvedOrder: {
-              $cond: {
-                if: { $eq: ["$status", "Đã Giải Quyết"] },
-                then: 1,
-                else: 0,
-              },
-            },
-          },
-        },
-        { $sort: { resolvedOrder: 1, createdAt: sortDirection } },
-        { $skip: skip },
-        { $limit: safeLimit },
-      ];
+      const isQueryEmpty = Object.keys(query).length === 0;
 
-      const [items, total] = await Promise.all([
-        Report.aggregate(pipeline),
-        Report.countDocuments(query),
-      ]);
+      console.time("getReceptionList_Find");
+      const items = await Report.find(query)
+        .select("-images -exifMetadata -scoringDetails") // Exclude heavy arrays/objects to prevent 300MB payloads
+        .sort({ createdAt: sortDirection })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean();
+      console.timeEnd("getReceptionList_Find");
+
+      console.time("getReceptionList_Count");
+      let total;
+      if (isQueryEmpty) {
+        total = await Report.estimatedDocumentCount();
+      } else {
+        // FAKE COUNT: Prevent 60-second full collection scans on Atlas M0 when filtering.
+        // If we got a full page of items, assume there's at least 1 more page.
+        total = skip + items.length + (items.length === safeLimit ? 1 : 0);
+      }
+      console.timeEnd("getReceptionList_Count");
+
+      // Post-process the fetched page to push "Đã Giải Quyết" to the bottom of the page
+      items.sort((a, b) => {
+        const orderA = a.status === "Đã Giải Quyết" ? 1 : 0;
+        const orderB = b.status === "Đã Giải Quyết" ? 1 : 0;
+        return orderA - orderB;
+      });
 
       return {
         items,
@@ -240,14 +274,29 @@ class ReportRepository {
 
   async getById(id) {
     try {
+<<<<<<< HEAD
       const query = this.buildIdQuery(id);
       return await Report.findOne(query);
+=======
+      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+      if (!normalizedId) return null;
+
+      const conditions = [{ id: normalizedId }];
+
+      // Chỉ query report_id (Number) khi id thực sự là số nguyên
+      const numericId = Number(normalizedId);
+      if (Number.isInteger(numericId) && numericId > 0) {
+        conditions.push({ report_id: numericId });
+      }
+
+      return await Report.findOne({ $or: conditions });
+>>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo: " + error.message);
     }
   }
 
-  async getByUserId(userId) {
+  async getByUserId(userId, view) {
     try {
       return await Report.find({ userId }).sort({ createdAt: -1 });
     } catch (error) {
@@ -264,8 +313,9 @@ class ReportRepository {
     }
   }
 
-  async updateStatus(id, status) {
+  async updateStatus(id, status, extra = {}) {
     try {
+<<<<<<< HEAD
       console.log(`\n🔄 [REPO-UPDATE-STATUS] Starting update...`);
       console.log(`   Query ID: ${id} (type: ${typeof id})`);
       console.log(`   New Status: ${status}`);
@@ -276,6 +326,20 @@ class ReportRepository {
       const result = await Report.findOneAndUpdate(
         query,
         { status },
+=======
+      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+      if (!normalizedId) return null;
+
+      const conditions = [{ id: normalizedId }];
+      const numericId = Number(normalizedId);
+      if (Number.isInteger(numericId) && numericId > 0) {
+        conditions.push({ report_id: numericId });
+      }
+
+      return await Report.findOneAndUpdate(
+        { $or: conditions },
+        { status, ...extra },
+>>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
         { new: true },
       );
 

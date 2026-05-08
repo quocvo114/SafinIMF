@@ -314,6 +314,8 @@ const AssignMaintenanceTeam = ({
   onClose,
   onAssign,
   onCancel,
+  isSubmitting,
+  errorMessage,
 }) => {
   const filteredTeams = useMemo(() => {
     if (!Array.isArray(teams)) return [];
@@ -435,6 +437,11 @@ const AssignMaintenanceTeam = ({
                 </div>
               )}
             </ScrollArea>
+            {errorMessage && (
+              <div className="mt-2 text-sm text-red-500 font-medium px-4">
+                {errorMessage}
+              </div>
+            )}
           </div>
 
           <DialogFooter className="mt-auto w-full !border-t border-[#d8dde5] px-0 pt-3 sm:flex-row sm:justify-end sm:gap-4">
@@ -450,10 +457,10 @@ const AssignMaintenanceTeam = ({
             <Button
               type="button"
               onClick={handleAssign}
-              disabled={isSelectedTeamUnavailable}
+              disabled={isSelectedTeamUnavailable || isSubmitting}
               className="h-12 w-full rounded-[14px] bg-[rgba(37,99,235,1)] px-10 text-sm sm:text-base font-semibold text-white hover:bg-[rgb(29,78,216)] sm:w-auto"
             >
-              Phân công
+              {isSubmitting ? "Đang phân công..." : "Phân công"}
             </Button>
           </DialogFooter>
         </div>

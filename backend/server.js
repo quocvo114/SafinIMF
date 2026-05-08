@@ -15,7 +15,7 @@ const incidentTypeRoutes = require("./src/routes/incidentTypeRoutes");
 const areaRoutes = require("./src/routes/areaRoutes");
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 5000;
+const PORT = process.env.BACKEND_PORT || 5050;
 const ENABLE_MONGO = process.env.ENABLE_MONGO !== "false";
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",

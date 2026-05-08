@@ -14,6 +14,9 @@ import MyReports from "./components/MyReports.jsx";
 import MaintenanceDashboard from "./pages/MaintenanceDashboard.jsx";
 import MaintenanceMyReports from "./components/MaintenanceMyReports.jsx";
 import SignIn from "./pages/SignIn.jsx";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+
+
 import Register from "./pages/Register.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
@@ -36,6 +39,8 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
 import { Toaster } from "sonner";
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
 function App() {
   return (
     <AuthProvider>
@@ -45,9 +50,20 @@ function App() {
         >
           <Routes>
             {/* Public */}
-            {/* <Route path="/" element={<PublicPage />} /> */}
-            <Route path="/" element={<SignIn />} />
-            {/* <Route path="/signin" element={<SignIn />} /> */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route 
+              path="/signin" 
+              element={
+                GOOGLE_CLIENT_ID ? (
+                  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+                    <SignIn />
+                  </GoogleOAuthProvider>
+                ) : (
+                  <SignIn />
+                )
+              } 
+            />
+
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
