@@ -219,29 +219,6 @@ const ReceptForm = () => {
     fetchAreas();
   }, []);
 
-  const filteredReports = useMemo(() => {
-    const searchTerm = query.trim().toLowerCase();
-
-    const normalizedSelectedArea =
-      selectedArea !== "all" ? removeAccents(selectedArea) : "all";
-
-    return reports.filter((item) => {
-      const byType = typeFilter === "all" || item.category === typeFilter;
-      const byStatus = statusFilter === "all" || item.status === statusFilter;
-
-      const haystack = `${item.id} ${item.title}`.toLowerCase();
-      const bySearch = !searchTerm || haystack.includes(searchTerm);
-
-      let byArea = true;
-      if (selectedArea !== "all") {
-        const locationStr = removeAccents(item.location || "");
-        byArea = locationStr.includes(normalizedSelectedArea);
-      }
-
-      return byType && byStatus && bySearch && byArea;
-    });
-  }, [reports, query, typeFilter, statusFilter, selectedArea]);
-
   const pageSize = 6;
 
   useEffect(() => {
@@ -278,7 +255,7 @@ const ReceptForm = () => {
   }, [query, typeFilter, statusFilter, dateFilter, page, selectedArea]);
 
   const safePage = Math.min(page, totalPages);
-  const visibleReports = filteredReports;
+  const visibleReports = reports;
 
   useEffect(() => {
     if (page > totalPages) {
@@ -734,7 +711,22 @@ const ReceptForm = () => {
                 <div
                   key={`${report.id || report.report_id}-${report.location}-${index}`}
                   className="group relative h-[210px] xl:h-[224px] cursor-pointer overflow-hidden rounded-[24px] shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ring-1 ring-black/5"
-                  onClick={() => setSelectedReport(report)}
+                  onClick={async () => {
+                    const reportId =
+                      report?.id || report?.report_id || report?._id;
+                    setSelectedReport(report);
+
+                    if (!reportId) return;
+
+                    try {
+                      const response = await reportApi.getReportById(reportId);
+                      if (response?.success && response?.data) {
+                        setSelectedReport(response.data);
+                      }
+                    } catch (error) {
+                      console.error("Không thể tải chi tiết báo cáo:", error);
+                    }
+                  }}
                 >
                   <div
                     className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
@@ -903,6 +895,19 @@ const ReceptForm = () => {
         onAssign={handleAssignTeam}
         isSubmitting={assigningLoading}
         errorMessage={assigningError}
+      />
+
+      <Update_Status
+        isOpen={showUpdateStatusModal}
+        reportId={updateReportData?.report_id || updateReportData?.id}
+        reportCode={updateReportData?.id}
+        currentStatus={updateReportData?.status}
+        onClose={() => {
+          setShowUpdateStatusModal(false);
+          setUpdateReportData(null);
+        }}
+        onUpdate={handleConfirmUpdateStatus}
+        loading={updatingStatus}
       />
     </div>
   );

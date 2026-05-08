@@ -16,7 +16,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useIsMobile } from "../hooks/use-mobile";
 import { toast } from "sonner";
-import InfoManagement from "../pages/Info_Management";
+import Info_Management from "../pages/Info_Management";
 import { Button } from "./ui/button";
 import {
   Dialog,

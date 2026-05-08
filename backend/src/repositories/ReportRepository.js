@@ -21,6 +21,23 @@ const VIETNAMESE_CHAR_CLASS_MAP = {
   y: "[yỳýỵỷỹ]",
 };
 
+const LIST_PROJECTION = {
+  _id: 1,
+  id: 1,
+  report_id: 1,
+  title: 1,
+  type: 1,
+  location: 1,
+  status: 1,
+  time: 1,
+  aiPercent: 1,
+  aiVerified: 1,
+  userId: 1,
+  user_id: 1,
+  createdAt: 1,
+  updatedAt: 1,
+};
+
 function normalizeText(value = "") {
   return String(value)
     .normalize("NFD")
@@ -207,8 +224,8 @@ class ReportRepository {
         pagination: {
           page: safePage,
           limit: safeLimit,
-          total,
-          totalPages: Math.max(Math.ceil(total / safeLimit), 1),
+          total: totalCount,
+          totalPages: Math.max(Math.ceil(totalCount / safeLimit), 1),
         },
       };
     } catch (error) {
@@ -245,7 +262,7 @@ class ReportRepository {
     }
   }
 
-  async getByUserId(userId) {
+  async getByUserId(userId, view) {
     try {
       return await Report.find({ userId }).sort({ createdAt: -1 });
     } catch (error) {

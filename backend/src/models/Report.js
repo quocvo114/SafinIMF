@@ -43,6 +43,7 @@ const ReportSchema = new mongoose.Schema(
     location: {
       type: String,
       required: true,
+      index: true, // Add index for faster location/district filtering
     },
     reportLatitude: {
       type: Number,
@@ -72,6 +73,7 @@ const ReportSchema = new mongoose.Schema(
       required: true,
       enum: ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"],
       default: "Đang Chờ",
+      index: true, // Add index for faster status filtering
     },
 
     time: {

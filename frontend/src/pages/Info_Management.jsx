@@ -186,10 +186,8 @@ const Info_Management = ({ onClose }) => {
     .join("")
     .toUpperCase() || "?";
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      {/* Modal Container */}
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
+  const modalContent = (
+    <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Header with Avatar */}
         <div className="bg-white pt-6 pb-4 px-6 text-center border-b border-gray-100">
           {/* Avatar */}
@@ -461,7 +459,22 @@ const Info_Management = ({ onClose }) => {
           )}
         </div>
       </div>
+    );
 
+  if (onClose) {
+    // Modal mode - render without fixed backdrop
+    return (
+      <div>
+        {modalContent}
+        {toast.show && <Toast message={toast.message} type={toast.type} />}
+      </div>
+    );
+  }
+
+  // Page mode - render with fixed backdrop
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      {modalContent}
       {toast.show && <Toast message={toast.message} type={toast.type} />}
     </div>
   );
