@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin } from "@react-oauth/google";
 
 import banner from "../image/banner-public.jpeg";
 import comle from "../image/comle.png";
@@ -215,7 +215,6 @@ const SignIn = () => {
 
           {/* GOOGLE Đăng nhập */}
           {GOOGLE_CLIENT_ID ? (
-            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
               <div className="w-full">
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
@@ -226,7 +225,6 @@ const SignIn = () => {
                   text="signin_with"
                 />
               </div>
-            </GoogleOAuthProvider>
           ) : (
             <p className="text-center text-xs text-amber-600">
               Google login chưa được cấu hình (thiếu VITE_GOOGLE_CLIENT_ID).

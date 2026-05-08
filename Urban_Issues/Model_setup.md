@@ -29,7 +29,7 @@ python -m venv venv
 ### Windows:
 
 ```bash
-.\.venv\Scripts\activate
+python -m flask --app app run --host 0.0.0.0 --port 5001
 ```
 
 Nếu thành công sẽ thấy:

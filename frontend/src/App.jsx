@@ -14,6 +14,9 @@ import MyReports from "./components/MyReports.jsx";
 import MaintenanceDashboard from "./pages/MaintenanceDashboard.jsx";
 import MaintenanceMyReports from "./components/MaintenanceMyReports.jsx";
 import SignIn from "./pages/SignIn.jsx";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+
+
 import Register from "./pages/Register.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
@@ -35,6 +38,8 @@ import Info_Management from "./pages/Info_Management.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
 import { Toaster } from "sonner";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 function App() {
   return (

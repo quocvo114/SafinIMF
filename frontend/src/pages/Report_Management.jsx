@@ -32,7 +32,6 @@ const ReportManagement = () => {
         status: selectedStatus,
         page: currentPage,
         limit,
-        view: "list",
       });
 
       setReports(response?.data || []);
@@ -67,11 +66,7 @@ const ReportManagement = () => {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchManagementReports();
-    }, 250);
-
-    return () => clearTimeout(timer);
+    fetchManagementReports();
   }, [searchQuery, selectedCategory, selectedStatus, currentPage]);
 
   const categoryOptions = useMemo(() => {

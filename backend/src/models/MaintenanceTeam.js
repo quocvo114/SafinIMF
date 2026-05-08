@@ -30,7 +30,10 @@ const MaintenanceTeamSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+<<<<<<< HEAD
       index: true,
+=======
+>>>>>>> a1dc2780f221d8def6623488afdbaab840d13174
     },
     area: {
       type: String,

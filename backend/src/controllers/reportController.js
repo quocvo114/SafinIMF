@@ -196,6 +196,10 @@ function toReceptionItem(report) {
         : formatDate(report.createdAt || report.updatedAt),
     status: report.status,
     district: inferDistrict(report.location),
+    handlingTeamId: report.handlingTeamId || report.assignedTeamId || "",
+    handlingTeamName: report.handlingTeamName || report.assignedTeamName || "",
+    assignedTeamId: report.assignedTeamId || report.handlingTeamId || "",
+    assignedTeamName: report.assignedTeamName || report.handlingTeamName || "",
     // Progress fields
     afterImg: report.afterImg || "",
     progressNote: report.progressNote || "",
@@ -376,7 +380,6 @@ class ReportController {
         status = "all",
         page = 1,
         limit = 10,
-        view,
       } = req.query;
 
       const result = await ReportRepository.getManagementList({
@@ -385,7 +388,6 @@ class ReportController {
         status,
         page,
         limit,
-        view,
       });
 
       res.status(200).json({
@@ -502,7 +504,6 @@ class ReportController {
         date = "recent",
         page = 1,
         limit = 10,
-        view = "default",
       } = req.query;
 
       const result = await ReportRepository.getReceptionList({
@@ -513,7 +514,6 @@ class ReportController {
         sortByDate: date,
         page,
         limit,
-        view,
       });
 
       res.status(200).json({
@@ -556,10 +556,9 @@ class ReportController {
   async getReportsByUserId(req, res) {
     try {
       const { userId } = req.params;
-      const { view } = req.query;
       console.log("🔍 Getting reports for userId:", userId);
 
-      const reports = await ReportRepository.getByUserId(userId, view);
+      const reports = await ReportRepository.getByUserId(userId);
       console.log("✅ Found reports:", reports.length);
 
       res.status(200).json({
@@ -842,9 +841,10 @@ class ReportController {
   }
 
   async updateReportStatus(req, res) {
+    console.log("--> updateReportStatus called with id:", req.params.id, "body:", req.body);
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, handlingTeamId, handlingTeamName } = req.body;
 
       if (!RECEPTION_STATUS_OPTIONS.includes(status)) {
         return res.status(400).json({
@@ -853,7 +853,36 @@ class ReportController {
         });
       }
 
-      const updated = await ReportRepository.updateStatus(id, status);
+      // Kiểm tra báo cáo hiện tại
+      console.log("--> Getting existing report...");
+      const existingReport = await ReportRepository.getById(id);
+      console.log("--> Got existing report:", !!existingReport);
+      if (!existingReport) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy báo cáo",
+        });
+      }
+
+      // Ngăn phân công khi đã giải quyết
+      if (existingReport.status === "Đã Giải Quyết") {
+        return res.status(409).json({
+          success: false,
+          code: "REPORT_ALREADY_RESOLVED",
+          message: "Báo cáo này đã được giải quyết, không thể phân công hoặc thay đổi trạng thái",
+        });
+      }
+
+      // Xây dựng payload phân công đội nếu có
+      const assignmentPayload = {};
+      if (handlingTeamId) {
+        assignmentPayload.handlingTeamId = String(handlingTeamId);
+        assignmentPayload.handlingTeamName = handlingTeamName || "";
+        assignmentPayload.assignedTeamId = String(handlingTeamId);
+        assignmentPayload.assignedTeamName = handlingTeamName || "";
+      }
+
+      const updated = await ReportRepository.updateStatus(id, status, assignmentPayload);
       if (!updated) {
         return res.status(404).json({
           success: false,
@@ -867,6 +896,7 @@ class ReportController {
         data: toReceptionItem(updated),
       });
     } catch (error) {
+      console.error("❌ updateReportStatus error:", error.message);
       res.status(500).json({
         success: false,
         message: error.message,
@@ -935,9 +965,7 @@ class ReportController {
         {
           afterImg: afterImgUrl,
           status: "Đã Giải Quyết",
-          ...(progressNote !== undefined
-            ? { progressNote: progressNote.trim() }
-            : {}),
+          ...(progressNote !== undefined ? { progressNote: progressNote.trim() } : {}),
         },
         { new: true },
       );

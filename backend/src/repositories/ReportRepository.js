@@ -19,6 +19,7 @@ const VIETNAMESE_CHAR_CLASS_MAP = {
   o: "[oòóọỏõôồốộổỗơờớợởỡ]",
   u: "[uùúụủũưừứựửữ]",
   y: "[yỳýỵỷỹ]",
+<<<<<<< HEAD
 };
 
 const LIST_PROJECTION = {
@@ -36,6 +37,8 @@ const LIST_PROJECTION = {
   user_id: 1,
   createdAt: 1,
   updatedAt: 1,
+=======
+>>>>>>> a1dc2780f221d8def6623488afdbaab840d13174
 };
 
 function normalizeText(value = "") {
@@ -125,30 +128,29 @@ class ReportRepository {
   /**
    * Trang quản lý (admin)
    */
-  async getManagementList({
-    search,
-    type,
-    status,
-    page = 1,
-    limit = 10,
-    view,
-  }) {
+  async getManagementList({ search, type, status, page = 1, limit = 10 }) {
     try {
       const query = this.buildFilterQuery({ search, type, status });
-      const projection = view === "list" ? LIST_PROJECTION : undefined;
 
       const safePage = Math.max(parseInt(page, 10) || 1, 1);
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
       const skip = (safePage - 1) * safeLimit;
 
-      const [items, total] = await Promise.all([
-        Report.find(query, projection)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(safeLimit)
-          .lean(),
-        Report.countDocuments(query),
-      ]);
+      const isQueryEmpty = Object.keys(query).length === 0;
+
+      const items = await Report.find(query)
+        .select("-images -exifMetadata -scoringDetails")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean();
+
+      let total;
+      if (isQueryEmpty) {
+        total = await Report.estimatedDocumentCount();
+      } else {
+        total = skip + items.length + (items.length === safeLimit ? 1 : 0);
+      }
 
       return {
         items,
@@ -177,7 +179,6 @@ class ReportRepository {
     sortByDate = "recent",
     page = 1,
     limit = 10,
-    view,
   }) {
     try {
       const query = this.buildFilterQuery({
@@ -192,6 +193,7 @@ class ReportRepository {
       const skip = (safePage - 1) * safeLimit;
       const sortDirection = sortByDate === "old" ? 1 : -1;
 
+<<<<<<< HEAD
       const dataPipeline = [];
 
       if (view === "list") {
@@ -255,6 +257,36 @@ class ReportRepository {
       const result = await Report.aggregate(pipeline);
       const items = result[0]?.data || [];
       const totalCount = result[0]?.total[0]?.count || 0;
+=======
+      const isQueryEmpty = Object.keys(query).length === 0;
+
+      console.time("getReceptionList_Find");
+      const items = await Report.find(query)
+        .select("-images -exifMetadata -scoringDetails") // Exclude heavy arrays/objects to prevent 300MB payloads
+        .sort({ createdAt: sortDirection })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean();
+      console.timeEnd("getReceptionList_Find");
+
+      console.time("getReceptionList_Count");
+      let total;
+      if (isQueryEmpty) {
+        total = await Report.estimatedDocumentCount();
+      } else {
+        // FAKE COUNT: Prevent 60-second full collection scans on Atlas M0 when filtering.
+        // If we got a full page of items, assume there's at least 1 more page.
+        total = skip + items.length + (items.length === safeLimit ? 1 : 0);
+      }
+      console.timeEnd("getReceptionList_Count");
+
+      // Post-process the fetched page to push "Đã Giải Quyết" to the bottom of the page
+      items.sort((a, b) => {
+        const orderA = a.status === "Đã Giải Quyết" ? 1 : 0;
+        const orderB = b.status === "Đã Giải Quyết" ? 1 : 0;
+        return orderA - orderB;
+      });
+>>>>>>> a1dc2780f221d8def6623488afdbaab840d13174
 
       return {
         items,
@@ -280,42 +312,30 @@ class ReportRepository {
 
   async getById(id) {
     try {
-      const queryConditions = [{ id }, { report_id: id }];
-      const numericId = Number(id);
-      if (!Number.isNaN(numericId)) {
-        queryConditions.push({ report_id: numericId });
+      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+      if (!normalizedId) return null;
+
+      const conditions = [{ id: normalizedId }];
+
+      // Chỉ query report_id (Number) khi id thực sự là số nguyên
+      const numericId = Number(normalizedId);
+      if (Number.isInteger(numericId) && numericId > 0) {
+        conditions.push({ report_id: numericId });
       }
 
-      if (typeof id === "string" && /^[a-fA-F0-9]{24}$/.test(id)) {
-        queryConditions.push({ _id: id });
-      }
-
-      return await Report.findOne({ $or: queryConditions }).lean();
+      return await Report.findOne({ $or: conditions });
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo: " + error.message);
     }
   }
 
+<<<<<<< HEAD
   async getByUserId(userId, view) {
+=======
+  async getByUserId(userId) {
+>>>>>>> a1dc2780f221d8def6623488afdbaab840d13174
     try {
-      const projection = view === "list" ? LIST_PROJECTION : undefined;
-      const normalizedUserId = userId !== undefined ? String(userId) : "";
-      const numericUserId = Number(userId);
-      const queryConditions = [];
-
-      if (normalizedUserId) {
-        queryConditions.push({ userId: normalizedUserId });
-      }
-
-      if (Number.isInteger(numericUserId)) {
-        queryConditions.push({ user_id: numericUserId });
-      }
-
-      const query = queryConditions.length > 0 ? { $or: queryConditions } : {};
-
-      return await Report.find(query, projection)
-        .sort({ createdAt: -1 })
-        .lean();
+      return await Report.find({ userId }).sort({ createdAt: -1 });
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo của user: " + error.message);
     }
@@ -330,11 +350,20 @@ class ReportRepository {
     }
   }
 
-  async updateStatus(id, status) {
+  async updateStatus(id, status, extra = {}) {
     try {
+      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
+      if (!normalizedId) return null;
+
+      const conditions = [{ id: normalizedId }];
+      const numericId = Number(normalizedId);
+      if (Number.isInteger(numericId) && numericId > 0) {
+        conditions.push({ report_id: numericId });
+      }
+
       return await Report.findOneAndUpdate(
-        { $or: [{ id }, { report_id: id }] },
-        { status },
+        { $or: conditions },
+        { status, ...extra },
         { new: true },
       );
     } catch (error) {

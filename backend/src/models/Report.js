@@ -111,6 +111,23 @@ const ReportSchema = new mongoose.Schema(
       default: "",
     },
 
+    handlingTeamId: {
+      type: String,
+      default: "",
+    },
+    handlingTeamName: {
+      type: String,
+      default: "",
+    },
+    assignedTeamId: {
+      type: String,
+      default: "",
+    },
+    assignedTeamName: {
+      type: String,
+      default: "",
+    },
+
     aiPercent: {
       type: Number,
       default: null,
@@ -151,7 +168,13 @@ const ReportSchema = new mongoose.Schema(
   },
 );
 
+<<<<<<< HEAD
 // Add compound text index for search optimization
 ReportSchema.index({ id: "text", title: "text" });
+=======
+ReportSchema.index({ status: 1, createdAt: -1 });
+ReportSchema.index({ type: 1, createdAt: -1 });
+ReportSchema.index({ createdAt: -1 });
+>>>>>>> a1dc2780f221d8def6623488afdbaab840d13174
 
 module.exports = mongoose.model("Report", ReportSchema);
