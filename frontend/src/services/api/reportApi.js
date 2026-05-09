@@ -112,7 +112,6 @@ export const reportApi = {
     }
   },
 
-<<<<<<< HEAD
   assignReport: async (reportId, { teamId, teamName }) => {
     try {
       const response = await axiosClient.patch(`/reports/${reportId}/assign`, {
@@ -122,19 +121,6 @@ export const reportApi = {
       return response.data;
     } catch (error) {
       console.error("Lỗi khi phân công báo cáo:", error);
-=======
-  // Phân công đội xử lý kèm handlingTeamId + handlingTeamName
-  assignReportToTeam: async (reportId, { handlingTeamId, handlingTeamName }) => {
-    try {
-      const response = await axiosClient.patch(`/reports/${reportId}/status`, {
-        status: "Đang Xử Lý",
-        handlingTeamId: String(handlingTeamId),
-        handlingTeamName: handlingTeamName || "",
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi phân công đội xử lý:", error);
->>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
       throw error;
     }
   },

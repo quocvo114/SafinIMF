@@ -16,7 +16,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useIsMobile } from "../hooks/use-mobile";
 import { toast } from "sonner";
-import Info_Management from "../pages/Info_Management";
+import InfoManagement from "../pages/Info_Management";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -330,13 +330,12 @@ const AdminSidebar = () => {
           portalTarget,
         )}
 
-      {showInfoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <InfoManagement onClose={() => setShowInfoModal(false)} />
-          </div>
-        </div>
-      )}
+      {showInfoModal &&
+        portalTarget &&
+        createPortal(
+          <InfoManagement onClose={() => setShowInfoModal(false)} />,
+          portalTarget,
+        )}
     </>
   );
 };

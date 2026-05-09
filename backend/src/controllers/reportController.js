@@ -911,11 +911,8 @@ class ReportController {
         data: toReceptionItem(updated),
       });
     } catch (error) {
-<<<<<<< HEAD
       console.error(`❌ [UPDATE_STATUS] Error:`, error.message);
-=======
       console.error("❌ updateReportStatus error:", error.message);
->>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
       res.status(500).json({
         success: false,
         message: error.message,

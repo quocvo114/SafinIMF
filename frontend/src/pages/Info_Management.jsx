@@ -19,6 +19,8 @@ const Info_Management = ({ onClose }) => {
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const gmailEmailPattern = /^[^\s@]+@gmail\.com$/i;
+  const vnPhonePattern = /^0(?:3|5|7|8|9)\d{8}$/;
+  const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
   const handleCloseModal = () => {
     if (onClose) {
@@ -123,6 +125,12 @@ const Info_Management = ({ onClose }) => {
       return;
     }
 
+    const phone = formData.phone.trim();
+    if (phone && !vnPhonePattern.test(phone)) {
+      showToast("Số điện thoại không đúng định dạng", "error");
+      return;
+    }
+
     setLoading(true);
     try {
       // Only send fields that have values
@@ -157,8 +165,8 @@ const Info_Management = ({ onClose }) => {
       showToast("Mật khẩu mới không trùng khớp!", "error");
       return;
     }
-    if (passwordData.newPassword.length < 6) {
-      showToast("Mật khẩu phải có ít nhất 6 ký tự!", "error");
+    if (!strongPasswordPattern.test(passwordData.newPassword)) {
+      showToast("mật khẩu không đủ mạnh", "error");
       return;
     }
     setLoading(true);
@@ -470,7 +478,6 @@ const Info_Management = ({ onClose }) => {
     );
 
   if (onClose) {
-    // Modal mode - render with flex center
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         {modalContent}
@@ -478,8 +485,6 @@ const Info_Management = ({ onClose }) => {
       </div>
     );
   }
-
-  // Page mode - render with fixed backdrop
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       {modalContent}

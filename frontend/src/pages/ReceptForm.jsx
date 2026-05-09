@@ -441,52 +441,25 @@ const ReceptForm = () => {
     }
 
     if (!team?.id) {
-<<<<<<< HEAD
       toast.error("Thiếu thông tin đội xử lý.");
-=======
-      setAssigningError("Không xác định được đội xử lý để phân công");
->>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
       return;
     }
 
     try {
-<<<<<<< HEAD
       await reportApi.assignReport(reportId, {
         teamId: team?.id,
         teamName: team?.name,
       });
       syncReportStatus(reportId, "Đang Xử Lý", team?.name);
-=======
-      setAssigningLoading(true);
-      setAssigningError("");
-      await reportApi.assignReportToTeam(reportId, {
-        handlingTeamId: String(team.id),
-        handlingTeamName: team.name,
-      });
-      syncReportStatus(reportId, "Đang Xử Lý", team.name);
->>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
       handleCloseAssignTeam();
       toast.success("Phân công thành công!");
     } catch (error) {
-<<<<<<< HEAD
       setErrorMessage(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
       );
       toast.error(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
       );
-=======
-      console.error("Assign error in frontend:", error);
-      const message =
-        error?.response?.status === 409
-          ? "Báo cáo đã được giải quyết, không thể phân công"
-          : error?.response?.status === 401
-          ? "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại"
-          : error?.response?.data?.message || "Không thể gửi xử lý báo cáo";
-      setAssigningError(message);
-    } finally {
-      setAssigningLoading(false);
->>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
     }
   };
 

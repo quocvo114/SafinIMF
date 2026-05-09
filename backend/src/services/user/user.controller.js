@@ -1,6 +1,8 @@
 const userService = require("./user.service");
 
 const GMAIL_EMAIL_PATTERN = /^[^\s@]+@gmail\.com$/i;
+const VN_PHONE_PATTERN = /^0(?:3|5|7|8|9)\d{8}$/;
+const STRONG_PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
 class UserController {
   async getProfile(req, res) {
@@ -50,6 +52,11 @@ class UserController {
         return res.status(400).json({ message: "Email phải có dạng ten@gmail.com" });
       }
 
+      if (phone && String(phone).trim() && !VN_PHONE_PATTERN.test(String(phone).trim())) {
+        console.warn("⚠️ updateProfile: invalid phone format", phone);
+        return res.status(400).json({ message: "Số điện thoại không đúng định dạng" });
+      }
+
       console.log(`📝 updateProfile: user_id=${user_id}, data=`, { full_name, phone, gender, email });
 
       const updated = await userService.updateProfile(user_id, {
@@ -88,11 +95,9 @@ class UserController {
           .json({ message: "Mật khẩu cũ và mới là bắt buộc" });
       }
 
-      if (newPassword.length < 6) {
-        console.warn("⚠️ changePassword: newPassword length < 6");
-        return res
-          .status(400)
-          .json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự" });
+      if (!STRONG_PASSWORD_PATTERN.test(String(newPassword))) {
+        console.warn("⚠️ changePassword: weak newPassword");
+        return res.status(400).json({ message: "mật khẩu không đủ mạnh" });
       }
 
       console.log(`🔑 changePassword: user_id=${user_id}`);

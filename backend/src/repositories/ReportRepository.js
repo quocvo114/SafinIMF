@@ -274,23 +274,9 @@ class ReportRepository {
 
   async getById(id) {
     try {
-<<<<<<< HEAD
       const query = this.buildIdQuery(id);
-      return await Report.findOne(query);
-=======
-      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
-      if (!normalizedId) return null;
-
-      const conditions = [{ id: normalizedId }];
-
-      // Chỉ query report_id (Number) khi id thực sự là số nguyên
-      const numericId = Number(normalizedId);
-      if (Number.isInteger(numericId) && numericId > 0) {
-        conditions.push({ report_id: numericId });
-      }
-
-      return await Report.findOne({ $or: conditions });
->>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
+      if (!query) return null;
+      return await Report.findOne(query).lean();
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo: " + error.message);
     }
@@ -315,7 +301,6 @@ class ReportRepository {
 
   async updateStatus(id, status, extra = {}) {
     try {
-<<<<<<< HEAD
       console.log(`\n🔄 [REPO-UPDATE-STATUS] Starting update...`);
       console.log(`   Query ID: ${id} (type: ${typeof id})`);
       console.log(`   New Status: ${status}`);
@@ -325,21 +310,7 @@ class ReportRepository {
 
       const result = await Report.findOneAndUpdate(
         query,
-        { status },
-=======
-      const normalizedId = id !== undefined && id !== null ? String(id).trim() : "";
-      if (!normalizedId) return null;
-
-      const conditions = [{ id: normalizedId }];
-      const numericId = Number(normalizedId);
-      if (Number.isInteger(numericId) && numericId > 0) {
-        conditions.push({ report_id: numericId });
-      }
-
-      return await Report.findOneAndUpdate(
-        { $or: conditions },
         { status, ...extra },
->>>>>>> c031f9e0ed8f3218ec02cacea821fed7f9536897
         { new: true },
       );
 
