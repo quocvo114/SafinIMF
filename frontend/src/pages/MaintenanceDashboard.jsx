@@ -6,6 +6,7 @@ import IncidentPopupContent from "../components/IncidentPopupContent";
 import { useAuth } from "../context/AuthContext";
 import { incidentMarkerIcons, searchLocationMarkerIcon } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import "../styles/map.css";
 
 const DANANG_CENTER = [16.0471, 108.2068];
@@ -95,9 +96,9 @@ const getReporterName = (report) => {
   return "Người dân phản ánh";
 };
 
-const loadCachedReports = () => {
+const loadCachedReports = (cacheKey) => {
   try {
-    const cachedValue = localStorage.getItem(MAINTENANCE_REPORTS_CACHE_KEY);
+    const cachedValue = localStorage.getItem(cacheKey);
     if (!cachedValue) {
       return [];
     }
@@ -110,9 +111,9 @@ const loadCachedReports = () => {
   }
 };
 
-const saveCachedReports = (reports) => {
+const saveCachedReports = (cacheKey, reports) => {
   try {
-    localStorage.setItem(MAINTENANCE_REPORTS_CACHE_KEY, JSON.stringify(reports));
+    localStorage.setItem(cacheKey, JSON.stringify(reports));
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -228,6 +229,11 @@ const normalizeReportsForMap = async (rawReports) => {
         images: Array.isArray(report?.images) ? report.images : [],
         displayDate: parseReportDate(report?.time, report?.createdAt),
         reporterName: getReporterName(report),
+        assignedTeamId: report?.assignedTeamId || report?.handlingTeamId || "",
+        assignedTeamName:
+          report?.assignedTeamName || report?.handlingTeamName || "",
+        handlingTeamId: report?.handlingTeamId || "",
+        handlingTeamName: report?.handlingTeamName || "",
       };
     }),
   );
@@ -254,18 +260,91 @@ const MaintenanceDashboard = () => {
   const mapRef = useRef(null);
   const hasAutoFittedRef = useRef(false);
   const [searchMarker, setSearchMarker] = useState(null);
-  const [reports, setReports] = useState(() => loadCachedReports());
+  const [reports, setReports] = useState(() =>
+    loadCachedReports(MAINTENANCE_REPORTS_CACHE_KEY),
+  );
 
   const { user } = useAuth();
 
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
 
+  const isMaintenanceUser = currentUser?.role === "maintenance";
+  const [assignedTeamId, setAssignedTeamId] = useState(null);
+  const [assignedTeamName, setAssignedTeamName] = useState(null);
+
   const userName = currentUser.full_name || currentUser.name || "Người dùng";
 
   const userAvatar = currentUser.avatar || null;
 
+  const normalizeText = (value) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
   useEffect(() => {
     let isMounted = true;
+
+    if (!isMaintenanceUser) {
+      setAssignedTeamId(null);
+      setAssignedTeamName(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const leaderName = userName || "";
+    if (!leaderName.trim()) {
+      setAssignedTeamId(null);
+      setAssignedTeamName(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const fetchAssignedTeam = async () => {
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          search: leaderName,
+          area: "all",
+          status: "all",
+          page: 1,
+          limit: 20,
+        });
+
+        const items = Array.isArray(response?.data) ? response.data : [];
+        const normalizedLeader = normalizeText(leaderName);
+        const matched =
+          items.find(
+            (team) => normalizeText(team?.leader) === normalizedLeader,
+          ) || items[0];
+
+        if (isMounted) {
+          setAssignedTeamId(matched?.team_id || matched?.id || null);
+          setAssignedTeamName(matched?.name || null);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setAssignedTeamId(null);
+          setAssignedTeamName(null);
+        }
+      }
+    };
+
+    fetchAssignedTeam();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isMaintenanceUser, userName]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const cacheKey =
+      isMaintenanceUser && assignedTeamId
+        ? `${MAINTENANCE_REPORTS_CACHE_KEY}-${assignedTeamId}`
+        : MAINTENANCE_REPORTS_CACHE_KEY;
 
     const fetchReports = async () => {
       try {
@@ -289,7 +368,7 @@ const MaintenanceDashboard = () => {
 
         if (isMounted) {
           setReports(normalizedReports);
-          saveCachedReports(normalizedReports);
+          saveCachedReports(cacheKey, normalizedReports);
         }
       } catch (error) {
         // ✅ Cleanup: Report loading error handling silenced
@@ -301,19 +380,44 @@ const MaintenanceDashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [assignedTeamId, isMaintenanceUser]);
+
+  const visibleReports = useMemo(() => {
+    if (!isMaintenanceUser) return reports;
+    if (!assignedTeamId && !assignedTeamName) return [];
+
+    return reports.filter((report) => {
+      const reportTeamId =
+        report?.assignedTeamId || report?.handlingTeamId || "";
+      if (assignedTeamId && reportTeamId) {
+        return reportTeamId === assignedTeamId;
+      }
+
+      const reportTeamName =
+        report?.assignedTeamName || report?.handlingTeamName || "";
+      if (assignedTeamName && reportTeamName) {
+        return reportTeamName === assignedTeamName;
+      }
+
+      return false;
+    });
+  }, [assignedTeamId, assignedTeamName, isMaintenanceUser, reports]);
 
   useEffect(() => {
-    if (!mapRef.current || hasAutoFittedRef.current || reports.length === 0) {
+    if (
+      !mapRef.current ||
+      hasAutoFittedRef.current ||
+      visibleReports.length === 0
+    ) {
       return;
     }
 
-    mapRef.current.fitBounds(reports.map((report) => report.position), {
+    mapRef.current.fitBounds(visibleReports.map((report) => report.position), {
       padding: [42, 42],
       maxZoom: 15,
     });
     hasAutoFittedRef.current = true;
-  }, [reports]);
+  }, [visibleReports]);
 
   const normalizedSelectedCategory = useMemo(() => {
     if (selectedCategory === "public") {
@@ -325,11 +429,13 @@ const MaintenanceDashboard = () => {
 
   const filteredIncidents = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
-      return reports;
+      return visibleReports;
     }
 
-    return reports.filter((incident) => incident.type === normalizedSelectedCategory);
-  }, [normalizedSelectedCategory, reports]);
+    return visibleReports.filter(
+      (incident) => incident.type === normalizedSelectedCategory,
+    );
+  }, [normalizedSelectedCategory, visibleReports]);
 
   const handleSearchLocation = async (query) => {
     // ✅ Cleanup: Search query logging removed

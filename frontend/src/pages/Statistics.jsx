@@ -56,7 +56,7 @@ const Statistics = () => {
     traffic: "Giao Thông",
     electric: "Điện",
     tree: "Cây Xanh",
-    public: "Công Trình Công Cộng",
+    public: "CTCC",
   };
 
   const formatDate = (date) => {

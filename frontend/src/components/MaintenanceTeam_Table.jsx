@@ -145,8 +145,16 @@ const getNextTeamSequence = (teams, specialty) => {
   return maxSeq + 1;
 };
 
+const normalizeLeaderValue = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 const MaintenanceTeam_Table = () => {
   const [teams, setTeams] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -165,10 +173,28 @@ const MaintenanceTeam_Table = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const itemsPerPage = 10;
 
+  const assignedLeaderSet = useMemo(() => {
+    return new Set(
+      allTeams
+        .map((team) => normalizeLeaderValue(team?.leader))
+        .filter(Boolean),
+    );
+  }, [allTeams]);
+
+  const selectableLeaders = useMemo(() => {
+    const currentLeader = normalizeLeaderValue(editingTeam?.leader);
+    return availableLeaders.filter((user) => {
+      const leaderName = normalizeLeaderValue(user?.name);
+      if (!leaderName) return false;
+      if (currentLeader && leaderName === currentLeader) return true;
+      return !assignedLeaderSet.has(leaderName);
+    });
+  }, [availableLeaders, assignedLeaderSet, editingTeam]);
+
   const filteredLeaders = useMemo(() => {
     const keyword = leaderSearch.trim().toLowerCase();
-    if (!keyword) return availableLeaders;
-    return availableLeaders.filter((user) => {
+    if (!keyword) return selectableLeaders;
+    return selectableLeaders.filter((user) => {
       const name = String(user.name || "").toLowerCase();
       const phone = String(user.phone || "").toLowerCase();
       const id = String(user.id || user.user_id || "").toLowerCase();
@@ -178,7 +204,7 @@ const MaintenanceTeam_Table = () => {
         id.includes(keyword)
       );
     });
-  }, [availableLeaders, leaderSearch]);
+  }, [selectableLeaders, leaderSearch]);
 
   const [formData, setFormData] = useState(emptyForm);
 
@@ -206,10 +232,29 @@ const MaintenanceTeam_Table = () => {
     }
   }, [search, areaFilter, statusFilter, currentPage]);
 
+  const fetchAllTeams = useCallback(async () => {
+    try {
+      const response = await maintenanceTeamApi.getTeams({
+        search: "",
+        area: "all",
+        status: "all",
+        page: 1,
+        limit: 1000,
+      });
+      setAllTeams((response?.data || []).map(normalizeTeam));
+    } catch (error) {
+      setAllTeams([]);
+    }
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(fetchTeams, 250);
     return () => clearTimeout(timer);
   }, [fetchTeams]);
+
+  useEffect(() => {
+    fetchAllTeams();
+  }, [fetchAllTeams]);
 
   useEffect(() => {
     // fetch management users and filter for maintenance-role and unassigned
@@ -276,12 +321,25 @@ const MaintenanceTeam_Table = () => {
         return;
       }
 
-      // generate team id and name based on specialty and existing teams
+      const sourceTeams = allTeams.length > 0 ? allTeams : teams;
       const prefix = SPECIALTY_PREFIX[formData.specialty] || "TK";
-      const seq = getNextTeamSequence(teams, formData.specialty);
-      const seqStr = String(seq).padStart(3, "0");
-      const generatedId = `${prefix}${seqStr}`;
-      const generatedName = `Đội ${formData.specialty} ${seqStr}`;
+      const normalizeValue = (value) => String(value || "").toLowerCase().trim();
+      const hasTeamId = (value) =>
+        sourceTeams.some((team) => normalizeValue(team.id) === normalizeValue(value));
+      const hasTeamName = (value) =>
+        sourceTeams.some((team) => normalizeValue(team.name) === normalizeValue(value));
+
+      let seq = getNextTeamSequence(sourceTeams, formData.specialty);
+      let seqStr = String(seq).padStart(3, "0");
+      let generatedId = `${prefix}${seqStr}`;
+      let generatedName = `Đội ${formData.specialty} ${seqStr}`;
+
+      while (hasTeamId(generatedId) || hasTeamName(generatedName)) {
+        seq += 1;
+        seqStr = String(seq).padStart(3, "0");
+        generatedId = `${prefix}${seqStr}`;
+        generatedName = `Đội ${formData.specialty} ${seqStr}`;
+      }
 
       await maintenanceTeamApi.createTeam({
         id: generatedId,
@@ -295,6 +353,7 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       toast.success("Thêm đội xử lý thành công!");
       await fetchTeams();
+      await fetchAllTeams();
     } catch (error) {
       toast.error(error?.response?.data?.message || "Không thể thêm đội xử lý");
     }
@@ -322,6 +381,7 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       toast.success("Cập nhật đội xử lý thành công!");
       await fetchTeams();
+      await fetchAllTeams();
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Không thể cập nhật đội xử lý",
@@ -329,16 +389,22 @@ const MaintenanceTeam_Table = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
     try {
       if (!teamToDelete) return;
       setTeamToDelete(null);
       await maintenanceTeamApi.deleteTeam(teamToDelete.id);
       toast.success("Đã xóa đội xử lý thành công!");
       await fetchTeams();
+      await fetchAllTeams();
     } catch (error) {
       toast.error(error?.response?.data?.message || "Không thể xóa đội xử lý");
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!teamToDelete) return;
+    await handleDelete();
   };
 
   const handleToggleLock = async (id, currentStatus) => {
@@ -513,7 +579,7 @@ const MaintenanceTeam_Table = () => {
                                 type="button"
                                 onClick={() => {
                                   const seq = getNextTeamSequence(
-                                    teams,
+                                    allTeams.length > 0 ? allTeams : teams,
                                     s.value,
                                   );
                                   const seqStr = String(seq).padStart(3, "0");

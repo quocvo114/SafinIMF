@@ -479,6 +479,10 @@ class ReportController {
           image: 1,
           images: 1,
           time: 1,
+          assignedTeamId: 1,
+          assignedTeamName: 1,
+          handlingTeamId: 1,
+          handlingTeamName: 1,
           userId: 1,
           user_id: 1,
           createdAt: 1,
@@ -522,6 +526,10 @@ class ReportController {
         sortByDate: date,
         page,
         limit,
+        assignedTeamId: 1,
+        assignedTeamName: 1,
+        handlingTeamId: 1,
+        handlingTeamName: 1,
       });
 
       res.status(200).json({

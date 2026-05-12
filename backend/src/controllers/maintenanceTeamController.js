@@ -42,8 +42,10 @@ class MaintenanceTeamController {
         specialty,
       } = req.body;
       const normalizedTeamId = team_id || id;
+      const normalizedName = String(name || "").trim();
+      const normalizedLeader = String(leader || "").trim();
 
-      if (!normalizedTeamId || !name || !leader || !area || !specialty) {
+      if (!normalizedTeamId || !normalizedName || !normalizedLeader || !area || !specialty) {
         return res.status(400).json({
           success: false,
           message:
@@ -60,10 +62,30 @@ class MaintenanceTeamController {
         });
       }
 
+      const existingName = await MaintenanceTeamRepository.findByName(
+        normalizedName,
+      );
+      if (existingName) {
+        return res.status(409).json({
+          success: false,
+          message: "Tên đội đã tồn tại",
+        });
+      }
+
+      const existingLeader = await MaintenanceTeamRepository.findByLeader(
+        normalizedLeader,
+      );
+      if (existingLeader) {
+        return res.status(409).json({
+          success: false,
+          message: "Trưởng đội đã thuộc một đội xử lý khác",
+        });
+      }
+
       const created = await MaintenanceTeamRepository.create({
         team_id: normalizedTeamId,
-        name,
-        leader,
+        name: normalizedName,
+        leader: normalizedLeader,
         memberCount: Math.max(parseInt(memberCount, 10) || 1, 1),
         specialty: specialty ?? "",
         area,
@@ -92,9 +114,37 @@ class MaintenanceTeamController {
           .json({ success: false, message: "Không tìm thấy đội xử lý" });
       }
 
+      const nextName = String(name || target.name || "").trim();
+      const nextLeader = String(leader || target.leader || "").trim();
+
+      if (!nextName || !nextLeader) {
+        return res.status(400).json({
+          success: false,
+          message: "Thiếu thông tin bắt buộc: name, leader",
+        });
+      }
+
+      const existingName = await MaintenanceTeamRepository.findByName(nextName);
+      if (existingName && existingName.team_id !== teamId) {
+        return res.status(409).json({
+          success: false,
+          message: "Tên đội đã tồn tại",
+        });
+      }
+
+      const existingLeader = await MaintenanceTeamRepository.findByLeader(
+        nextLeader,
+      );
+      if (existingLeader && existingLeader.team_id !== teamId) {
+        return res.status(409).json({
+          success: false,
+          message: "Trưởng đội đã thuộc một đội xử lý khác",
+        });
+      }
+
       const updated = await MaintenanceTeamRepository.updateByTeamId(teamId, {
-        name: name || target.name,
-        leader: leader || target.leader,
+        name: nextName,
+        leader: nextLeader,
         memberCount: Math.max(
           parseInt(memberCount, 10) || target.memberCount || 1,
           1,
