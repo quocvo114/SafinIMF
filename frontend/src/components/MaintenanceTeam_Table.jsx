@@ -145,6 +145,50 @@ const getNextTeamSequence = (teams, specialty) => {
   return maxSeq + 1;
 };
 
+const generateUniqueTeamIdentity = (teams, specialty) => {
+  const sourceTeams = Array.isArray(teams) ? teams : [];
+  const prefix = SPECIALTY_PREFIX[specialty] || "TK";
+  const normalizeValue = (value) => String(value || "").toLowerCase().trim();
+  const hasTeamId = (value) =>
+    sourceTeams.some(
+      (team) => normalizeValue(team.id) === normalizeValue(value),
+    );
+  const hasTeamName = (value) =>
+    sourceTeams.some(
+      (team) => normalizeValue(team.name) === normalizeValue(value),
+    );
+
+  let seq = getNextTeamSequence(sourceTeams, specialty);
+  let seqStr = String(seq).padStart(3, "0");
+  let generatedId = `${prefix}${seqStr}`;
+  let generatedName = `Đội ${specialty} ${seqStr}`;
+
+  while (hasTeamId(generatedId) || hasTeamName(generatedName)) {
+    seq += 1;
+    seqStr = String(seq).padStart(3, "0");
+    generatedId = `${prefix}${seqStr}`;
+    generatedName = `Đội ${specialty} ${seqStr}`;
+  }
+
+  return { id: generatedId, name: generatedName };
+};
+
+const buildExistingTeamLookups = (teams) => {
+  const sourceTeams = Array.isArray(teams) ? teams : [];
+  const normalizeValue = (value) => String(value || "").toLowerCase().trim();
+  const ids = new Set(
+    sourceTeams.map((team) => normalizeValue(team?.id)).filter(Boolean),
+  );
+  const names = new Set(
+    sourceTeams.map((team) => normalizeValue(team?.name)).filter(Boolean),
+  );
+
+  return {
+    hasId: (value) => ids.has(normalizeValue(value)),
+    hasName: (value) => names.has(normalizeValue(value)),
+  };
+};
+
 const normalizeLeaderValue = (value) =>
   String(value || "")
     .normalize("NFD")
@@ -321,29 +365,27 @@ const MaintenanceTeam_Table = () => {
         return;
       }
 
+      if (!formData.id || !formData.name) {
+        toast.error("Vui lòng chọn chuyên môn để tạo Team ID và Tên Đội");
+        return;
+      }
+
       const sourceTeams = allTeams.length > 0 ? allTeams : teams;
-      const prefix = SPECIALTY_PREFIX[formData.specialty] || "TK";
-      const normalizeValue = (value) => String(value || "").toLowerCase().trim();
-      const hasTeamId = (value) =>
-        sourceTeams.some((team) => normalizeValue(team.id) === normalizeValue(value));
-      const hasTeamName = (value) =>
-        sourceTeams.some((team) => normalizeValue(team.name) === normalizeValue(value));
+      const { hasId, hasName } = buildExistingTeamLookups(sourceTeams);
 
-      let seq = getNextTeamSequence(sourceTeams, formData.specialty);
-      let seqStr = String(seq).padStart(3, "0");
-      let generatedId = `${prefix}${seqStr}`;
-      let generatedName = `Đội ${formData.specialty} ${seqStr}`;
+      if (hasId(formData.id)) {
+        toast.error("Team ID đã tồn tại, vui lòng chọn ID khác");
+        return;
+      }
 
-      while (hasTeamId(generatedId) || hasTeamName(generatedName)) {
-        seq += 1;
-        seqStr = String(seq).padStart(3, "0");
-        generatedId = `${prefix}${seqStr}`;
-        generatedName = `Đội ${formData.specialty} ${seqStr}`;
+      if (hasName(formData.name)) {
+        toast.error("Tên đội đã tồn tại, vui lòng chọn tên khác");
+        return;
       }
 
       await maintenanceTeamApi.createTeam({
-        id: generatedId,
-        name: generatedName,
+        id: formData.id,
+        name: formData.name,
         specialty: formData.specialty,
         leader: formData.leader,
         memberCount: parseInt(formData.memberCount, 10) || 1,
@@ -510,7 +552,10 @@ const MaintenanceTeam_Table = () => {
           {/* Nút Thêm Đội */}
           <button
             type="button"
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setFormData(emptyForm);
+              setShowAddModal(true);
+            }}
             className="ml-auto inline-flex items-center justify-center gap-2 px-5 h-11 rounded-full text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white shadow-sm transition"
           >
             <Plus className="w-4 h-4" /> Thêm Đội
@@ -539,6 +584,18 @@ const MaintenanceTeam_Table = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Team ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.id}
+                    className={inputCls}
+                    placeholder="Team ID sẽ tự tạo khi chọn chuyên môn"
+                    readOnly
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Chuyên Môn
@@ -578,15 +635,18 @@ const MaintenanceTeam_Table = () => {
                                 key={s.value}
                                 type="button"
                                 onClick={() => {
-                                  const seq = getNextTeamSequence(
-                                    allTeams.length > 0 ? allTeams : teams,
-                                    s.value,
-                                  );
-                                  const seqStr = String(seq).padStart(3, "0");
+                                  const sourceTeams =
+                                    allTeams.length > 0 ? allTeams : teams;
+                                  const { id, name } =
+                                    generateUniqueTeamIdentity(
+                                      sourceTeams,
+                                      s.value,
+                                    );
                                   setFormData({
                                     ...formData,
                                     specialty: s.value,
-                                    name: `Đội ${s.value} ${seqStr}`,
+                                    id,
+                                    name,
                                   });
                                   setSpecialtyPickerOpen(false);
                                 }}
@@ -614,12 +674,9 @@ const MaintenanceTeam_Table = () => {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
                     className={inputCls}
                     placeholder="Tên đội sẽ tự tạo khi chọn chuyên môn"
-                    readOnly={!!formData.specialty}
+                    readOnly
                   />
                 </div>
 
