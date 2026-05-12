@@ -136,7 +136,7 @@ export default function Assigned_report() {
                 <div className="flex flex-col flex-1 min-h-0 pt-4 px-4 md:px-8">
                   {/* Table wrapper - scrollable internally */}
                   <div className="flex-1 overflow-y-auto min-h-0 pb-3">
-                    <Table className="w-full min-w-[700px]">
+                    <Table className="w-full min-w-[700px] [&_tr]:!border-b-0 [&_td]:!border-b-0 [&_th]:!border-b-0">
                       <TableHeader className="sticky top-0 bg-white z-10">
                         <TableRow className="border-b border-gray-200 hover:bg-transparent">
                           <TableHead className="w-[100px] px-3 py-3 text-[12px] font-semibold uppercase tracking-wider text-gray-600">
@@ -153,7 +153,7 @@ export default function Assigned_report() {
                           </TableHead>
                         </TableRow>
                       </TableHeader>
-                      <TableBody className="divide-y divide-gray-100">
+                      <TableBody>
                         {currentReports.map((report) => (
                           <TableRow
                             key={report?._id || report?.id || report?.report_id}
@@ -167,7 +167,7 @@ export default function Assigned_report() {
                                   ? `#${report.report_id}`
                                   : "---"}
                             </TableCell>
-                            <TableCell className="px-3 py-3 text-left text-sm text-gray-800 max-w-[250px] truncate">
+                            <TableCell className="px-3 py-3 text-center text-sm text-gray-800 max-w-[250px] truncate">
                               {report?.title || "---"}
                             </TableCell>
                             <TableCell className="px-3 py-3 text-left text-sm text-gray-600 max-w-[300px] truncate">
@@ -180,7 +180,7 @@ export default function Assigned_report() {
                         ))}
 
                         {currentReports.length === 0 && (
-                          <TableRow className="hover:bg-transparent">
+                          <TableRow className="!border-0 hover:bg-transparent">
                             <TableCell
                               colSpan={4}
                               className="px-4 py-12 text-center text-gray-400 text-sm"
