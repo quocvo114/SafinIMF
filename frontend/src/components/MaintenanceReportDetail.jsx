@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   X,
   Hash,
@@ -516,7 +516,7 @@ export default function MaintenanceReportDetail({
       </div>
 
       <ImageViewer
-        images={imageViewer.list}
+        images={allImages}
         initialIndex={imageViewer.index}
         isOpen={imageViewer.open}
         onClose={() => setImageViewer({ open: false, index: 0, list: [] })}
