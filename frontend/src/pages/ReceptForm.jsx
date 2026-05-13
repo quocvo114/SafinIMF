@@ -22,6 +22,7 @@ import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
 import Update_Status from "../components/Update_Status";
 import { toast } from "sonner";
 import incidentApi from "../services/api/incidentApi";
+import { toast } from "sonner";
 
 const DISTRICTS = [
   "all",
@@ -177,7 +178,8 @@ const removeAccents = (str) => {
 };
 
 const optimizeCloudinaryUrl = (url) => {
-  if (!url || typeof url !== 'string' || !url.includes("cloudinary.com")) return url;
+  if (!url || typeof url !== "string" || !url.includes("cloudinary.com"))
+    return url;
   return url.replace("/upload/", "/upload/c_fill,w_500,h_400,q_auto,f_auto/");
 };
 
@@ -377,7 +379,7 @@ const ReceptForm = () => {
         page: 1,
         limit: 6,
       });
-      
+
       if (fetchResponse?.data) {
         // ✅ Cleanup: Fetch logging removed
         setReports(fetchResponse.data);
@@ -395,20 +397,20 @@ const ReceptForm = () => {
       setShowUpdateStatusModal(false);
       setUpdateReportData(null);
       setErrorMessage("");
-      
-      if (typeof toast !== 'undefined' && toast?.success) {
+
+      if (typeof toast !== "undefined" && toast?.success) {
         toast.success("Cập nhật trạng thái thành công!");
       }
     } catch (error) {
       // ✅ Cleanup: Error logging removed
-      const errorMsg = 
+      const errorMsg =
         error?.response?.data?.message ||
         error?.message ||
         "Không thể cập nhật trạng thái báo cáo";
-      
+
       setErrorMessage(errorMsg);
-      
-      if (typeof toast !== 'undefined' && toast?.error) {
+
+      if (typeof toast !== "undefined" && toast?.error) {
         toast.error(errorMsg);
       }
     } finally {
@@ -452,7 +454,8 @@ const ReceptForm = () => {
   };
 
   const handleAssignTeam = async (team) => {
-    const reportId = assigningReport?.report_id || assigningReport?.id;
+    const reportId =
+      assigningReport?.id || assigningReport?.report_id || assigningReport?._id;
     if (!reportId) {
       return;
     }

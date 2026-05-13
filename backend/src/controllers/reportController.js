@@ -56,7 +56,9 @@ function inferDistrict(location = "") {
     .trim();
 
   // Use pre-computed normalized aliases (computed at module load time)
-  for (const [district, normalizedAliases] of Object.entries(NORMALIZED_DISTRICT_MAP)) {
+  for (const [district, normalizedAliases] of Object.entries(
+    NORMALIZED_DISTRICT_MAP,
+  )) {
     if (normalizedAliases.some((alias) => normalizedLocation.includes(alias))) {
       return district;
     }
@@ -858,7 +860,12 @@ class ReportController {
   }
 
   async updateReportStatus(req, res) {
-    console.log("--> updateReportStatus called with id:", req.params.id, "body:", req.body);
+    console.log(
+      "--> updateReportStatus called with id:",
+      req.params.id,
+      "body:",
+      req.body,
+    );
     try {
       const { id } = req.params;
       const { status, handlingTeamId, handlingTeamName } = req.body;
@@ -891,7 +898,8 @@ class ReportController {
         return res.status(409).json({
           success: false,
           code: "REPORT_ALREADY_RESOLVED",
-          message: "Báo cáo này đã được giải quyết, không thể phân công hoặc thay đổi trạng thái",
+          message:
+            "Báo cáo này đã được giải quyết, không thể phân công hoặc thay đổi trạng thái",
         });
       }
 
@@ -904,7 +912,11 @@ class ReportController {
         assignmentPayload.assignedTeamName = handlingTeamName || "";
       }
 
-      const updated = await ReportRepository.updateStatus(id, status, assignmentPayload);
+      const updated = await ReportRepository.updateStatus(
+        id,
+        status,
+        assignmentPayload,
+      );
       if (!updated) {
         console.log(`❌ [UPDATE_STATUS] Report not found with ID: ${id}`);
         return res.status(404).json({
@@ -913,7 +925,9 @@ class ReportController {
         });
       }
 
-      console.log(`✅ [UPDATE_STATUS] Successfully updated report ${id} to status: ${status}`);
+      console.log(
+        `✅ [UPDATE_STATUS] Successfully updated report ${id} to status: ${status}`,
+      );
       res.status(200).json({
         success: true,
         message: "Cập nhật trạng thái thành công",
@@ -949,19 +963,7 @@ class ReportController {
         });
       }
 
-      // Build safe query để tránh type casting errors
-      const reportQuery = {};
-      if (typeof id === 'string' && id.startsWith('RPT-')) {
-        reportQuery.id = id;
-      } else {
-        const numId = Number(id);
-        if (!isNaN(numId)) {
-          reportQuery.report_id = numId;
-        } else {
-          reportQuery.id = String(id);
-        }
-      }
-
+      const reportQuery = ReportRepository.buildIdQuery(id);
       const report = await Report.findOne(reportQuery);
       if (!report) {
         return res.status(404).json({
@@ -1099,7 +1101,9 @@ class ReportController {
         {
           afterImg: afterImgUrl,
           status: "Đã Giải Quyết",
-          ...(progressNote !== undefined ? { progressNote: progressNote.trim() } : {}),
+          ...(progressNote !== undefined
+            ? { progressNote: progressNote.trim() }
+            : {}),
         },
         { new: true },
       );
