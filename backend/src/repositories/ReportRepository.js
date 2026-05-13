@@ -91,7 +91,11 @@ class ReportRepository {
   // Helper để build query tránh type casting errors
   buildIdQuery(id) {
     const queries = [];
-    
+
+    if (typeof id === "string" && /^[a-fA-F0-9]{24}$/.test(id)) {
+      queries.push({ _id: id });
+    }
+
     if (typeof id === 'string' && id.startsWith('RPT-')) {
       // ID dạng string "RPT-..."
       queries.push({ id: id });

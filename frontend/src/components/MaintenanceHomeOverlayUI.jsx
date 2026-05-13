@@ -15,12 +15,14 @@ import { useNavigate } from "react-router-dom";
 import MaintenanceUserSidebar from "./MaintenanceUserSidebar";
 import { SidebarProvider } from "./ui/sidebar";
 import { NavbarAdmin } from "./NavBar";
+import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "./IncidentTypePopup";
 
-const categories = [
+const DEFAULT_CATEGORIES = [
   {
     id: "traffic",
     name: "Giao Thông",
-    icon: <TrafficCone size={18} />,
+    iconKey: "car",
     bgColor: "#f97316",
     textColor: "#ffffff",
     activeBgColor: "#f97316",
@@ -28,7 +30,7 @@ const categories = [
   {
     id: "electric",
     name: "Điện",
-    icon: <Zap size={18} />,
+    iconKey: "electric",
     bgColor: "#eab308",
     textColor: "#ffffff",
     activeBgColor: "#eab308",
@@ -36,7 +38,7 @@ const categories = [
   {
     id: "tree",
     name: "Cây Xanh",
-    icon: <TreePine size={18} />,
+    iconKey: "tree",
     bgColor: "#22c55e",
     textColor: "#ffffff",
     activeBgColor: "#22c55e",
@@ -44,12 +46,14 @@ const categories = [
   {
     id: "public",
     name: "Công Trình",
-    icon: <Building2 size={18} />,
+    iconKey: "public",
     bgColor: "#a855f7",
     textColor: "#ffffff",
     activeBgColor: "#a855f7",
   },
 ];
+
+
 
 export default function MaintenanceHomeOverlayUI({
   selectedCategory,
@@ -64,6 +68,30 @@ export default function MaintenanceHomeOverlayUI({
   const [showCameraOnly, setShowCameraOnly] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
   const [stream, setStream] = useState(null);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await incidentApi.getIncidentTypes();
+        if (res?.success && Array.isArray(res.data)) {
+          const apiCategories = res.data.map(type => ({
+            id: type.name, // Đồng bộ với Dashboard/AdminDashboard sử dụng tên làm ID lọc
+            name: type.name,
+            iconKey: type.iconKey || "public",
+            bgColor: type.color || "#f97316",
+            textColor: "#ffffff",
+            activeBgColor: type.color || "#f97316",
+          }));
+          setCategories(apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES);
+        }
+      } catch (err) {
+        console.error("Failed to fetch incident types", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   const [toast, setToast] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const videoRef = useRef(null);
@@ -178,23 +206,28 @@ export default function MaintenanceHomeOverlayUI({
             <Layers size={18} />
             Tất cả
           </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelectedCategory(c.id)}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 sm:h-10 sm:px-4 ${
-                selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
-              }`}
-              style={{
-                backgroundColor: c.bgColor,
-                color: "#ffffff",
-                border: "none",
-              }}
-            >
-              <span className="icon-wrap">{c.icon}</span>
-              <span>{c.name}</span>
-            </button>
-          ))}
+          {categories.map((c) => {
+            const IconComp = INCIDENT_ICON_MAP[c.iconKey] || Building2;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCategory(c.id)}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 sm:h-10 sm:px-4 ${
+                  selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
+                }`}
+                style={{
+                  backgroundColor: c.bgColor,
+                  color: "#ffffff",
+                  border: "none",
+                }}
+              >
+                <span className="icon-wrap">
+                  <IconComp size={18} />
+                </span>
+                <span>{c.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </>

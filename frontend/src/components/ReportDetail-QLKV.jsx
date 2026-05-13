@@ -401,18 +401,19 @@ export default function ReportDetailQLKV({
                 valueClassName={statusValueClass}
                 iconTone={statusIconTone}
               />
-              <InfoBlock
-                icon={Users}
-                label="Đội phụ trách"
-                value={teamName}
-                className="col-span-1"
-              />
-              {/* Điểm tin cậy — dưới Trạng thái, bên phải Đội phụ trách */}
-              <div className="col-span-1 h-full">
-                <ConfidenceScoreWidget
-                  score={data.confidenceScore}
-                  details={data.scoringDetails}
+              <div className="col-span-2 grid grid-cols-2 gap-2 mt-1">
+                <InfoBlock
+                  icon={Users}
+                  label="Đội phụ trách"
+                  value={teamName}
+                  className="h-full"
                 />
+                <div className="h-full">
+                  <ConfidenceScoreWidget
+                    score={data.confidenceScore}
+                    details={data.scoringDetails}
+                  />
+                </div>
               </div>
             </div>
 

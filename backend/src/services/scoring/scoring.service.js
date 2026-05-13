@@ -24,63 +24,67 @@ function calcLocationScore(distanceKm) {
 
 // ---------------------------------------------------------------------------
 // 2. Content Score
-// Từ mạnh (+2), từ thường (+1), max 18 pts → normalized to 100
-// ---------------------------------------------------------------------------
-
-const MAX_KEYWORD_SCORE = 18; // Điểm chuẩn hóa (cap 100 khi vượt quá)
-
-// ---------------------------------------------------------------------------
-// Keyword groups: mỗi GROUP chỉ tính 1 lần dù khớp bao nhiêu từ đồng nghĩa
-// Điều này ngăn người dùng "dump" tất cả keywords để gian lận điểm content
+// Từ mạnh (+2), từ thường (+1), max theo tổng trọng số → normalized to 100
 // ---------------------------------------------------------------------------
 const KEYWORD_GROUPS = [
-  // --- Nhóm sự cố (mạnh: 3 pts/nhóm) ---
+  // --- Nhóm sự cố (mạnh: 2 pts/nhóm) ---
   {
-    weight: 3,
+    weight: 2,
     label: "pothole",
     keywords: ["ổ gà", "o ga", "pothole", "hố", "hole"],
   },
   {
-    weight: 3,
+    weight: 2,
     label: "crack",
     keywords: ["đường nứt", "duong nut", "nứt", "crack", "gãy", "broken"],
   },
   {
-    weight: 3,
+    weight: 2,
     label: "waste",
     keywords: ["rác thải", "rac thai", "trash", "waste", "debris", "rác"],
   },
-  // --- Nhóm nguy hiểm (mạnh: 2 pts/nhóm) ---
   {
     weight: 2,
     label: "hazard",
-    keywords: ["nguy hiểm", "hazard", "accident", "tai nạn", "unsafe", "không an toàn", "risk", "rủi ro"],
+    keywords: ["nguy hiểm", "hazard", "accident", "tai nạn"],
   },
-  // --- Nhóm hư hỏng (mạnh: 2 pts/nhóm) ---
   {
     weight: 2,
     label: "damage",
-    keywords: ["damaged", "hư hỏng", "deteriorated", "suy thoái"],
+    keywords: ["damaged", "hư hỏng"],
   },
-  // --- Nhóm hạ tầng (thường: 1 pt/nhóm) ---
+  // --- Nhóm thường (1 pt/nhóm) ---
   {
     weight: 1,
     label: "infrastructure",
     keywords: ["road", "đường", "asphalt", "nhựa", "pavement", "vỉa hè"],
   },
-  // --- Nhóm giao thông (thường: 1 pt/nhóm) ---
   {
     weight: 1,
     label: "traffic",
     keywords: ["traffic", "giao thông"],
   },
-  // --- Nhóm sửa chữa (thường: 1 pt/nhóm) ---
   {
     weight: 1,
     label: "repair",
     keywords: ["repair", "sửa chữa"],
   },
+  {
+    weight: 1,
+    label: "safety",
+    keywords: ["unsafe", "không an toàn", "risk", "rủi ro"],
+  },
+  {
+    weight: 1,
+    label: "deteriorated",
+    keywords: ["deteriorated", "suy thoái"],
+  },
 ];
+
+const MAX_KEYWORD_SCORE = KEYWORD_GROUPS.reduce(
+  (sum, group) => sum + group.weight,
+  0,
+);
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -139,17 +143,29 @@ function calcTimeScore(hoursDiff) {
 // amplified = damagePercentage × 5
 // floor = numDetections × 15
 // score = min(100, max(amplified, floor))
+// score = min(score, aiPercent) nếu có aiPercent hợp lệ
 // numDetections = 0 → 0 (đã bị từ chối trước ở AI check)
 // ---------------------------------------------------------------------------
-function calcAiVisionScore(numDetections, damagePercentage) {
+function normalizeAiPercent(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const normalized = parsed > 0 && parsed <= 1 ? parsed * 100 : parsed;
+  return Math.max(0, Math.min(100, normalized));
+}
+
+function calcAiVisionScore(numDetections, damagePercentage, aiPercent) {
   const count = Number(numDetections) || 0;
   const damage = Number(damagePercentage) || 0;
 
   if (count <= 0) return 0;
 
+  // Rollback theo scroring.md: max(damage*5, count*15)
   const amplified = damage * 5;
   const floor = count * 15;
-  return Math.min(100, Math.max(amplified, floor));
+  const baseScore = Math.min(100, Math.max(amplified, floor));
+  const cap = normalizeAiPercent(aiPercent);
+  if (cap === null) return baseScore;
+  return Math.min(baseScore, cap);
 }
 
 // ---------------------------------------------------------------------------
@@ -166,8 +182,9 @@ function resolveWeights(hasLocation, hasTime) {
   if (!hasLocation && hasTime) {
     return { location: 0, content: 40, time: 30, ai: 30 };
   }
-  // Thiếu cả Location lẫn Time
-  return { location: 0, content: 50, time: 0, ai: 50 };
+  // Chỉ có Content và AI (Theo scroring.md mới: 30% / 50%)
+  // Tổng trọng số là 80%, giúp hạn chế điểm tối đa nếu thiếu EXIF
+  return { location: 0, content: 30, time: 0, ai: 50 };
 }
 
 // ---------------------------------------------------------------------------
@@ -198,12 +215,12 @@ function calcDamagePercentageFromDetections(
   }
 
   // Fallback: dùng aiPercent (0-100) làm proxy damage severity
-  // Ví dụ: 59% AI confidence → damagePercentage = 59 × 0.3 = 17.7%
-  // → amplified = 17.7 × 5 = 88.5 → aiVisionScore = max(88.5, floor)
+  // Chỉnh từ 0.3 xuống 0.05 để sát với thực tế damage percentage (thường < 5%)
+  // Giúp điểm tin cậy không bị đẩy lên quá cao chỉ bằng confidence AI
   const rawAiPercent = Number(aiPercent);
   if (Number.isFinite(rawAiPercent) && rawAiPercent > 0) {
     const normalizedAi = rawAiPercent <= 1 ? rawAiPercent * 100 : rawAiPercent;
-    return Math.min(100, normalizedAi * 0.3);
+    return Math.min(100, normalizedAi * 0.05);
   }
 
   return 0;
@@ -268,7 +285,11 @@ function calculateConfidenceScore({
     imageHeight,
     aiPercent,
   );
-  const aiVisionScore = calcAiVisionScore(aiTotalObjects, damagePercentage);
+  const aiVisionScore = calcAiVisionScore(
+    aiTotalObjects,
+    damagePercentage,
+    aiPercent,
+  );
 
   // --- Xác định trọng số ---
   const hasLocation = locationScore !== null;

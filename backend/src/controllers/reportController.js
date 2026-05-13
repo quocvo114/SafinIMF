@@ -941,19 +941,7 @@ class ReportController {
         });
       }
 
-      // Build safe query để tránh type casting errors
-      const reportQuery = {};
-      if (typeof id === 'string' && id.startsWith('RPT-')) {
-        reportQuery.id = id;
-      } else {
-        const numId = Number(id);
-        if (!isNaN(numId)) {
-          reportQuery.report_id = numId;
-        } else {
-          reportQuery.id = String(id);
-        }
-      }
-
+      const reportQuery = ReportRepository.buildIdQuery(id);
       const report = await Report.findOne(reportQuery);
       if (!report) {
         return res.status(404).json({

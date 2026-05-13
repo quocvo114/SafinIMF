@@ -21,6 +21,7 @@ import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
 import Update_Status from "../components/Update_Status";
 import incidentApi from "../services/api/incidentApi";
+import { toast } from "sonner";
 
 const DISTRICTS = [
   "all",
@@ -451,7 +452,10 @@ const ReceptForm = () => {
   };
 
   const handleAssignTeam = async (team) => {
-    const reportId = assigningReport?.report_id || assigningReport?.id;
+    const reportId =
+      assigningReport?.id ||
+      assigningReport?.report_id ||
+      assigningReport?._id;
     if (!reportId) {
       return;
     }
