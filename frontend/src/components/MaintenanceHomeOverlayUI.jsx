@@ -121,8 +121,8 @@ export default function MaintenanceHomeOverlayUI({
 
         {/* Floating Navbar */}
         <div
-          className="pointer-events-none absolute right-4 top-4 z-20"
-          style={{ left: "var(--maintenance-sidebar-offset, 6rem)" }}
+          className="pointer-events-none absolute right-6 top-6 z-20"
+          style={{ left: "calc(var(--maintenance-sidebar-offset, 6rem) + 1rem)" }}
         >
           <div className="pointer-events-auto">
             <NavbarAdmin />
@@ -131,8 +131,8 @@ export default function MaintenanceHomeOverlayUI({
 
         {/* Floating Categories - Right Top (below navbar) */}
         <div
-          className="absolute right-4 top-20 z-10 flex gap-2 scrollbar-hide px-10 py-1.5 -mx-1"
-          style={{ left: "var(--maintenance-sidebar-offset, 6rem)" }}
+          className="absolute right-6 top-24 z-10 flex gap-2 scrollbar-hide px-10 py-1.5 -mx-1"
+          style={{ left: "calc(var(--maintenance-sidebar-offset, 6rem) + 1rem)" }}
         >
           {/* Nút "Tất cả" */}
           <button

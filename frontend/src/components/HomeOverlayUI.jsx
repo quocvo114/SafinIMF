@@ -189,8 +189,8 @@ export default function HomeOverlayUI({
 
         {/* Floating Categories - Right Top */}
         <div
-          className="absolute top-4 right-4 z-10 flex gap-2 scrollbar-hide px-3 py-1.5 -mx-1"
-          style={{ left: "var(--user-sidebar-offset, 6rem)" }}
+          className="absolute top-6 right-6 z-10 flex gap-2 scrollbar-hide px-3 py-1.5 -mx-1"
+          style={{ left: "calc(var(--user-sidebar-offset, 6rem) + 1rem)" }}
         >
           {/* Nút "Tất cả" */}
           <button

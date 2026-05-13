@@ -431,8 +431,8 @@ export default function AdminDashboard() {
 
       {/* ✅ Floating Categories - Soft UI Version */}
       <div
-        className="pointer-events-none absolute right-4 top-20 z-20"
-        style={{ left: "var(--admin-sidebar-offset, 6rem)" }}
+        className="pointer-events-none absolute right-6 top-24 z-20"
+        style={{ left: "calc(var(--admin-sidebar-offset, 6rem) + 1rem)" }}
       >
         <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap">
           {[{ id: "all", label: "Tất Cả", icon: <Layers className="h-4 w-4" />, color: "#2563eb" },
