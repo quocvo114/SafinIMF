@@ -7,6 +7,7 @@ import { SidebarProvider } from "./ui/sidebar";
 import { NavbarAdmin } from "./NavBar";
 import incidentApi from "../services/api/incidentApi";
 import { INCIDENT_ICON_MAP } from "./IncidentTypePopup";
+import { useNavigate } from "react-router-dom";
 
 const DEFAULT_CATEGORIES = [
   {
@@ -165,40 +166,45 @@ export default function MaintenanceHomeOverlayUI({
           </button>
 
           {/* Các nút category */}
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelectedCategory(c.id)}
-              className={`
+          {categories.map((c) => {
+            const iconComponent = INCIDENT_ICON_MAP[c.iconKey];
+            const Icon = iconComponent;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCategory(c.id)}
+                className={`
                 relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
                 transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
                 ${selectedCategory === c.id ? "z-10" : "hover:opacity-100"}
               `}
-              style={{
-                backgroundColor:
-                  selectedCategory === c.id ? c.bgColor : `${c.bgColor}55`,
-                color: "#ffffff",
-                border:
-                  selectedCategory === c.id
-                    ? `2px solid ${c.bgColor}`
-                    : "2px solid transparent",
-                boxShadow:
-                  selectedCategory === c.id
-                    ? `0 4px 90px ${c.bgColor}35, 0 0 0 9px ${c.bgColor}12, inset 0 0px 9px rgba(255,255,255,0.5)`
-                    : "none",
-                transform:
-                  selectedCategory === c.id
-                    ? "scale(1.03) translateY(-1px)"
-                    : "scale(1)",
-              }}
-            >
-              {React.cloneElement(c.icon, {
-                size: 18,
-                color: "#ffffff",
-              })}
-              <span>{c.name}</span>
-            </button>
-          ))}
+                style={{
+                  backgroundColor:
+                    selectedCategory === c.id ? c.bgColor : `${c.bgColor}55`,
+                  color: "#ffffff",
+                  border:
+                    selectedCategory === c.id
+                      ? `2px solid ${c.bgColor}`
+                      : "2px solid transparent",
+                  boxShadow:
+                    selectedCategory === c.id
+                      ? `0 4px 90px ${c.bgColor}35, 0 0 0 9px ${c.bgColor}12, inset 0 0px 9px rgba(255,255,255,0.5)`
+                      : "none",
+                  transform:
+                    selectedCategory === c.id
+                      ? "scale(1.03) translateY(-1px)"
+                      : "scale(1)",
+                }}
+              >
+                {Icon ? (
+                  <Icon size={18} color="#ffffff" />
+                ) : (
+                  <span className="w-4.5 h-4.5 bg-white rounded-sm" />
+                )}
+                <span>{c.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </>
