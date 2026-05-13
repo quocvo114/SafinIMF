@@ -30,50 +30,35 @@ export default function MaintenanceReportDetail({
   const [progressNote, setProgressNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
+  const [imageViewer, setImageViewer] = useState({ open: false, index: 0, list: [] });
   const fileInputRef = useRef(null);
 
   if (!isOpen || !report) return null;
 
-  // Hàm dùng chung cho lấy ảnh (giống bên ReportDetail-QLKV)
-  function resolveImage(data, index) {
-    const imageCandidate =
-      data && Array.isArray(data.images) ? data.images[index] : "";
-    if (typeof imageCandidate === "string") {
-      const normalizedCandidate = imageCandidate.trim().toLowerCase();
-      if (
-        normalizedCandidate &&
-        normalizedCandidate !== "null" &&
-        normalizedCandidate !== "undefined"
-      ) {
-        return imageCandidate;
-      }
-    } else if (imageCandidate) {
-      return imageCandidate;
+  function getIncidentImages(data) {
+    if (!data) return [];
+    let imgs = [];
+    if (Array.isArray(data.images) && data.images.length > 0) {
+      imgs = data.images;
+    } else if (data.image) {
+      imgs = [data.image];
     }
-    if (data && index === 0 && data.image) {
-      if (typeof data.image === "string") {
-        const normalizedSingleImage = data.image.trim().toLowerCase();
-        if (
-          normalizedSingleImage &&
-          normalizedSingleImage !== "null" &&
-          normalizedSingleImage !== "undefined"
-        ) {
-          return data.image;
-        }
-      } else {
-        return data.image;
+    return imgs.filter((img) => {
+      if (!img) return false;
+      if (typeof img === "string") {
+        const lower = img.trim().toLowerCase();
+        if (lower === "null" || lower === "undefined" || lower === "") return false;
       }
-    }
-    return "";
+      return true;
+    });
   }
 
-  const reportImageUrl = resolveImage(report, 0) || report?.imageUrl || "";
-  const afterImageUrl = resolveImage(report, 1) || report?.afterImg || "";
-  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(Boolean);
+  const incidentImages = getIncidentImages(report);
+  const reportImageUrl = incidentImages.length > 0 ? incidentImages[0] : (report?.imageUrl || "");
+  const afterImageUrl = report?.afterImg && typeof report.afterImg === "string" && report.afterImg.trim().toLowerCase() !== "null" ? report.afterImg : "";
 
-  const openImageViewer = (index) => {
-    setImageViewer({ open: true, index });
+  const openImageViewer = (index, list) => {
+    setImageViewer({ open: true, index, list });
   };
 
   // Parse lat/lng from report
@@ -363,7 +348,7 @@ export default function MaintenanceReportDetail({
                       src={reportImageUrl}
                       alt="Sự cố"
                       className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => openImageViewer(0)}
+                      onClick={() => openImageViewer(0, incidentImages.length > 0 ? incidentImages : [reportImageUrl].filter(Boolean))}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
@@ -488,10 +473,10 @@ export default function MaintenanceReportDetail({
       </div>
 
       <ImageViewer
-        images={allImages}
+        images={imageViewer.list}
         initialIndex={imageViewer.index}
         isOpen={imageViewer.open}
-        onClose={() => setImageViewer({ open: false, index: 0 })}
+        onClose={() => setImageViewer({ open: false, index: 0, list: [] })}
       />
     </>
   );

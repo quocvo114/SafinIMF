@@ -1,5 +1,5 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
 const dns = require("dns");
 dns.setDefaultResultOrder("ipv4first");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
@@ -11,8 +11,8 @@ const userRoutes = require("./src/services/user/user.routes");
 const reportRoutes = require("./src/routes/reportRoutes");
 const geocodeRoutes = require("./src/routes/geocodeRoutes");
 const maintenanceTeamRoutes = require("./src/routes/maintenanceTeamRoutes");
-const incidentTypeRoutes = require("./src/routes/incidentTypeRoutes");
 const areaRoutes = require("./src/routes/areaRoutes");
+const incidentTypeRoutes = require("./src/routes/incidentTypeRoutes");
 const statisticsRoutes = require("./src/routes/statisticsRoutes");
 
 const app = express();
@@ -68,8 +68,8 @@ app.use("/api/user", userRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/geocode", geocodeRoutes);
 app.use("/api/maintenance-teams", maintenanceTeamRoutes);
-app.use("/api/incident-types", incidentTypeRoutes);
 app.use("/api/areas", areaRoutes);
+app.use("/api/incident-types", incidentTypeRoutes);
 app.use("/api/statistics", statisticsRoutes);
 
 // Start server

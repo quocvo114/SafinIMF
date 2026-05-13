@@ -50,6 +50,11 @@ const UserSchema = new mongoose.Schema({
     default: "active",
   },
 
+  is_first_login: {
+    type: Boolean,
+    default: false,
+  },
+
   created_at: { type: Date, default: Date.now },
 });
 

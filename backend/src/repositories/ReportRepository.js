@@ -234,9 +234,7 @@ class ReportRepository {
       if (isQueryEmpty) {
         total = await Report.estimatedDocumentCount();
       } else {
-        // FAKE COUNT: Prevent 60-second full collection scans on Atlas M0 when filtering.
-        // If we got a full page of items, assume there's at least 1 more page.
-        total = skip + items.length + (items.length === safeLimit ? 1 : 0);
+        total = await Report.countDocuments(query);
       }
       console.timeEnd("getReceptionList_Count");
 
@@ -252,7 +250,7 @@ class ReportRepository {
         pagination: {
           page: safePage,
           limit: safeLimit,
-          total,
+          total: total,
           totalPages: Math.max(Math.ceil(total / safeLimit), 1),
         },
       };
@@ -274,9 +272,19 @@ class ReportRepository {
 
   async getById(id) {
     try {
-      const query = this.buildIdQuery(id);
-      if (!query) return null;
-      return await Report.findOne(query).lean();
+      const normalizedId =
+        id !== undefined && id !== null ? String(id).trim() : "";
+      if (!normalizedId) return null;
+
+      const conditions = [{ id: normalizedId }];
+
+      // Chỉ query report_id (Number) khi id thực sự là số nguyên
+      const numericId = Number(normalizedId);
+      if (Number.isInteger(numericId) && numericId > 0) {
+        conditions.push({ report_id: numericId });
+      }
+
+      return await Report.findOne({ $or: conditions });
     } catch (error) {
       throw new Error("Lỗi khi lấy báo cáo: " + error.message);
     }

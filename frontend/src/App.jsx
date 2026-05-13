@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -35,15 +35,18 @@ import ProtectedRoute from "./router/ProtectedRoute.jsx";
 import AssignedReport from "./pages/Assigned_report.jsx";
 import Info_Management from "./pages/Info_Management.jsx";
 
-import { AuthProvider } from "./context/AuthContext.jsx";
+import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
 import { Toaster } from "sonner";
+import ForcePasswordChange from "./components/ForcePasswordChange.jsx";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
-function App() {
+function AppContent() {
+  const { user } = useAuth();
+  
   return (
-    <AuthProvider>
+    <>
       <TooltipProvider>
         <Router
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
@@ -51,19 +54,7 @@ function App() {
           <Routes>
             {/* Public */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route 
-              path="/signin" 
-              element={
-                GOOGLE_CLIENT_ID ? (
-                  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-                    <SignIn />
-                  </GoogleOAuthProvider>
-                ) : (
-                  <SignIn />
-                )
-              } 
-            />
-
+            <Route path="/signin" element={<SignIn />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -134,7 +125,24 @@ function App() {
         </Router>
         <Toaster position="top-right" richColors />
       </TooltipProvider>
+      {user?.is_first_login && <ForcePasswordChange />}
+    </>
+  );
+}
+
+function App() {
+  const content = (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
+  );
+
+  return GOOGLE_CLIENT_ID ? (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      {content}
+    </GoogleOAuthProvider>
+  ) : (
+    content
   );
 }
 
