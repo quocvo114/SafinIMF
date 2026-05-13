@@ -306,7 +306,7 @@ const ReceptForm = () => {
         status: selectedReport.status || "Đang Chờ",
         time: selectedReport.time || selectedReport.date,
         district: selectedReport.district || "Chưa phân loại",
-        team: selectedReport.team || selectedReport.handlerTeam,
+        team: selectedReport.assignedTeamName || selectedReport.team || selectedReport.handlerTeam || selectedReport.assignedTeamId,
         reporter: selectedReport.reporter,
         location: selectedReport.location || "Chưa có vị trí",
         description:
@@ -445,6 +445,24 @@ const ReceptForm = () => {
     setAssignTeams(null);
   };
 
+  const refreshReceptionReports = async () => {
+    try {
+      const response = await reportApi.getReceptionReports({
+        search: query,
+        type: typeFilter,
+        status: statusFilter,
+        district: selectedArea,
+        date: dateFilter === "old" ? "old" : "recent",
+        page,
+        limit: pageSize,
+      });
+      setReports(response?.data || []);
+      setTotalPages(response?.pagination?.totalPages || 1);
+    } catch (error) {
+      console.error("Lỗi refresh danh sách:", error);
+    }
+  };
+
   const handleCancelAssignTeam = () => {
     if (assigningReport) {
       setSelectedReport(assigningReport);
@@ -472,6 +490,8 @@ const ReceptForm = () => {
       syncReportStatus(reportId, "Đang Xử Lý", team?.name);
       handleCloseAssignTeam();
       toast.success("Phân công thành công!");
+      // Refresh danh sách reports từ API ngay lập tức để lấy assignedTeamName
+      await refreshReceptionReports();
     } catch (error) {
       setErrorMessage(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
