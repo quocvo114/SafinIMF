@@ -206,9 +206,7 @@ class ReportRepository {
       if (isQueryEmpty) {
         total = await Report.estimatedDocumentCount();
       } else {
-        // FAKE COUNT: Prevent 60-second full collection scans on Atlas M0 when filtering.
-        // If we got a full page of items, assume there's at least 1 more page.
-        total = skip + items.length + (items.length === safeLimit ? 1 : 0);
+        total = await Report.countDocuments(query);
       }
       console.timeEnd("getReceptionList_Count");
 
@@ -224,15 +222,14 @@ class ReportRepository {
         pagination: {
           page: safePage,
           limit: safeLimit,
-          total: totalCount,
-          totalPages: Math.max(Math.ceil(totalCount / safeLimit), 1),
+          total: total,
+          totalPages: Math.max(Math.ceil(total / safeLimit), 1),
         },
       };
     } catch (error) {
       throw new Error("Lỗi khi lấy danh sách đơn tiếp nhận: " + error.message);
     }
   }
-
 
   async getAll() {
     try {

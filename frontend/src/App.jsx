@@ -43,86 +43,88 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 function App() {
   return (
-    <AuthProvider>
-      <TooltipProvider>
-        <Router
-          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-        >
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/register/confirm" element={<RegisterConfirm />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Router
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/register/confirm" element={<RegisterConfirm />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Citizen */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/myreport"
-              element={
-                <ProtectedRoute>
-                  <MyReports />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Maintenance */}
-            <Route
-              path="/maintenance/dashboard"
-              element={
-                <ProtectedRoute requiredRole="maintenance">
-                  <MaintenanceDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/maintenance/assigned_report"
-              element={
-                <ProtectedRoute requiredRole="maintenance">
-                  <AssignedReport />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Admin */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <LayoutAdmin />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="overview" element={<AdminDashboard />} />
-              <Route path="recept-form" element={<ReceptForm />} />
-              <Route path="reports" element={<ReportManagement />} />
+              {/* Citizen */}
               <Route
-                path="maintenanceteam"
-                element={<Maintenanceteam_Management />}
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
               />
-              <Route path="incident-types" element={<IncidentManagement />} />
-              <Route path="statistics" element={<Statistics />} />
-              <Route path="users" element={<AdminUserManagement />} />
-            </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
-        <Toaster position="top-right" richColors />
-      </TooltipProvider>
-    </AuthProvider>
+              <Route
+                path="/myreport"
+                element={
+                  <ProtectedRoute>
+                    <MyReports />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Maintenance */}
+              <Route
+                path="/maintenance/dashboard"
+                element={
+                  <ProtectedRoute requiredRole="maintenance">
+                    <MaintenanceDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/maintenance/assigned_report"
+                element={
+                  <ProtectedRoute requiredRole="maintenance">
+                    <AssignedReport />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <LayoutAdmin />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="overview" element={<AdminDashboard />} />
+                <Route path="recept-form" element={<ReceptForm />} />
+                <Route path="reports" element={<ReportManagement />} />
+                <Route
+                  path="maintenanceteam"
+                  element={<Maintenanceteam_Management />}
+                />
+                <Route path="incident-types" element={<IncidentManagement />} />
+                <Route path="statistics" element={<Statistics />} />
+                <Route path="users" element={<AdminUserManagement />} />
+              </Route>
+
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Router>
+          <Toaster position="top-right" richColors />
+        </TooltipProvider>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
 
