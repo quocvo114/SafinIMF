@@ -112,7 +112,13 @@ const normalizeTeam = (team) => ({
   status: team.status || "active",
 });
 
-
+const AREA_SELECT_OPTIONS = [
+  "Sơn Trà",
+  "Liên Chiểu",
+  "Hải Châu",
+  "Hòa Xuân",
+  "Khuê Trung",
+];
 
 const inputCls =
   "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none";
@@ -808,7 +814,6 @@ const MaintenanceTeam_Table = () => {
         )}
 
       {/* Edit Team Modal */}
-      {/* Edit Team Modal */}
       {showEditModal &&
         createPortal(
           <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -829,7 +834,52 @@ const MaintenanceTeam_Table = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chuyên Môn
+                  </label>
+                  <Popover
+                    open={specialtyPickerOpen}
+                    onOpenChange={setSpecialtyPickerOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                      >
+                        <span className={formData.specialty ? "truncate text-gray-900" : "text-gray-400"}>
+                          {formData.specialty || "-- Chọn chuyên môn --"}
+                        </span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="z-[10001] w-[--radix-popover-trigger-width] rounded-xl border border-gray-200 bg-white p-2 shadow-xl" align="start" sideOffset={8}>
+                      <ScrollArea className="h-72 rounded-lg">
+                        <div className="p-1">
+                          {SPECIALTY_OPTIONS.map((s) => {
+                            const selected = formData.specialty === s.value;
+                            return (
+                              <button
+                                key={s.value}
+                                type="button"
+                                onClick={() => {
+                                  setFormData({ ...formData, specialty: s.value });
+                                  setSpecialtyPickerOpen(false);
+                                }}
+                                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-blue-50"
+                              >
+                                <span className="truncate text-gray-700">{s.label}</span>
+                                {selected ? <Check className="h-4 w-4 text-blue-600" /> : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tên Đội
