@@ -63,14 +63,14 @@ _Giải thích: 15 là tổng điểm tối đa (5 nhóm mạnh × 2 điểm + 5
 
 ### Bảng điểm tham khảo
 
-| Kịch bản                         | Điểm |
-| -------------------------------- | ---- |
-| 5 nhóm mạnh + 5 nhóm thường      | 100  |
-| 5 nhóm mạnh                      | 67   |
-| 3 nhóm mạnh + 2 nhóm thường      | 53   |
-| 2 nhóm mạnh                      | 27   |
-| 1 nhóm mạnh                      | 13   |
-| Không có từ nào                  | 0    |
+| Kịch bản                    | Điểm |
+| --------------------------- | ---- |
+| 5 nhóm mạnh + 5 nhóm thường | 100  |
+| 5 nhóm mạnh                 | 67   |
+| 3 nhóm mạnh + 2 nhóm thường | 53   |
+| 2 nhóm mạnh                 | 27   |
+| 1 nhóm mạnh                 | 13   |
+| Không có từ nào             | 0    |
 
 ### Quy tắc
 

@@ -120,7 +120,6 @@ function calcContentScore(description) {
   return Math.min(100, (total / MAX_KEYWORD_SCORE) * 100);
 }
 
-
 // ---------------------------------------------------------------------------
 // 3. Time Score
 // score = max(0, 100 - (hoursDiff / 6) × 100)
@@ -200,7 +199,12 @@ function calcDamagePercentageFromDetections(
   aiPercent,
 ) {
   // Thử tính từ bbox nếu có kích thước ảnh và có detections
-  if (Array.isArray(detections) && detections.length > 0 && imageWidth > 0 && imageHeight > 0) {
+  if (
+    Array.isArray(detections) &&
+    detections.length > 0 &&
+    imageWidth > 0 &&
+    imageHeight > 0
+  ) {
     const totalArea = imageWidth * imageHeight;
     let bboxArea = 0;
 
@@ -225,7 +229,6 @@ function calcDamagePercentageFromDetections(
 
   return 0;
 }
-
 
 // ---------------------------------------------------------------------------
 // Đánh giá mức độ tin cậy

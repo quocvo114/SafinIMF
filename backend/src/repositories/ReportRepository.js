@@ -96,7 +96,7 @@ class ReportRepository {
       queries.push({ _id: id });
     }
 
-    if (typeof id === 'string' && id.startsWith('RPT-')) {
+    if (typeof id === "string" && id.startsWith("RPT-")) {
       // ID dạng string "RPT-..."
       queries.push({ id: id });
     } else {
@@ -111,12 +111,12 @@ class ReportRepository {
         queries.push({ id: String(id) });
       }
     }
-    
+
     // Nếu có nhiều queries, dùng $or để tìm matching document
     if (queries.length > 1) {
       return { $or: queries };
     }
-    
+
     return queries[0] || { id: String(id) };
   }
 
@@ -308,7 +308,7 @@ class ReportRepository {
       console.log(`\n🔄 [REPO-UPDATE-STATUS] Starting update...`);
       console.log(`   Query ID: ${id} (type: ${typeof id})`);
       console.log(`   New Status: ${status}`);
-      
+
       const query = this.buildIdQuery(id);
       console.log(`   Query object: ${JSON.stringify(query)}`);
 
