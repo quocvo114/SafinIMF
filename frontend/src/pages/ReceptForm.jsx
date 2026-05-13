@@ -22,7 +22,6 @@ import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
 import Update_Status from "../components/Update_Status";
 import { toast } from "sonner";
 import incidentApi from "../services/api/incidentApi";
-import { toast } from "sonner";
 
 const DISTRICTS = [
   "all",

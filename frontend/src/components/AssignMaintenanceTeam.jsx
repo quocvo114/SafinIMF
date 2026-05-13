@@ -94,10 +94,10 @@ const REPORT_TYPE_ALIASES = {
 };
 
 const REPORT_TYPE_SPECIALTIES = {
-  "giao thong": ["cau duong", "bien bao & vach ke"],
-  dien: ["den chieu sang", "den tin hieu giao thong"],
+  "giao thong": ["cau duong", "bien bao", "giao thong"],
+  dien: ["den chieu sang", "den tin hieu giao thong", "den dien", "dien"],
   "cay xanh": ["cay bong mat"],
-  ctcc: ["thoat nuoc", "cau cong", "via he"],
+  ctcc: ["thoat nuoc", "cau cong", "via he", "cong trinh cong cong"],
 };
 
 const SPECIALTY_ICON_MAP = [
@@ -213,7 +213,7 @@ const TeamCard = ({ team, selected, onSelect }) => {
   const cases = Math.max(toNumber(team?.cases, 0), 0);
   const maxCases = Math.max(toNumber(team?.maxCases, 5), 1);
   const isAtCapacity = isTeamAtCapacity(team);
-  const isSelected = selected && !isAtCapacity;
+  const isSelected = selected;
   const badgeClass = statusStyle[isAtCapacity ? "busy" : "ready"].badge;
   const specialtyLabel = team?.specialty || "Chưa rõ lĩnh vực";
   const SpecialtyIcon = getSpecialtyIcon(team?.specialty);
@@ -223,12 +223,9 @@ const TeamCard = ({ team, selected, onSelect }) => {
   return (
     <button
       type="button"
-      onClick={() => {
-        if (!isAtCapacity) onSelect(team.id);
-      }}
-      disabled={isAtCapacity}
+      onClick={() => onSelect(team.id)}
       className={cn(
-        "border-white flex min-h-20 w-full items-center justify-between gap-3 rounded-[20px] bg-[rgb(248,249,251)] p-4 text-left sm:px-5 border-2 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-70",
+        "border-white flex min-h-20 w-full items-center justify-between gap-3 rounded-[20px] bg-[rgb(248,249,251)] p-4 text-left sm:px-5 border-2 transition-colors duration-200",
         isSelected ? "border-[#2562E9] " : "border-transparent",
       )}
     >
@@ -322,11 +319,6 @@ const AssignMaintenanceTeam = ({
     return teams.filter((team) => isTeamMatchingReportType(team, reportType));
   }, [teams, reportType]);
 
-  const selectableTeams = useMemo(
-    () => filteredTeams.filter((team) => !isTeamAtCapacity(team)),
-    [filteredTeams],
-  );
-
   const [selectedTeamId, setSelectedTeamId] = useState(null);
 
   useEffect(() => {
@@ -336,7 +328,7 @@ const AssignMaintenanceTeam = ({
     }
 
     if (initialSelectedTeamId) {
-      const matchesInitial = selectableTeams.some(
+      const matchesInitial = filteredTeams.some(
         (team) => team.id === initialSelectedTeamId,
       );
 
@@ -347,21 +339,20 @@ const AssignMaintenanceTeam = ({
     }
 
     setSelectedTeamId((prev) => {
-      if (prev && selectableTeams.some((team) => team.id === prev)) {
+      if (prev && filteredTeams.some((team) => team.id === prev)) {
         return prev;
       }
 
-      return selectableTeams[0]?.id ?? null;
+      return filteredTeams[0]?.id ?? null;
     });
-  }, [filteredTeams, selectableTeams, initialSelectedTeamId]);
+  }, [filteredTeams, initialSelectedTeamId]);
 
   const selectedTeam = useMemo(
     () => filteredTeams.find((team) => team.id === selectedTeamId) ?? null,
     [filteredTeams, selectedTeamId],
   );
 
-  const isSelectedTeamUnavailable =
-    !selectedTeam || isTeamAtCapacity(selectedTeam);
+  const isSelectedTeamUnavailable = !selectedTeam;
 
   const handleAssign = () => {
     if (isSelectedTeamUnavailable) return;
