@@ -21,6 +21,7 @@ import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
 import Update_Status from "../components/Update_Status";
 import { toast } from "sonner";
+import incidentApi from "../services/api/incidentApi";
 
 const DISTRICTS = [
   "all",
@@ -205,6 +206,21 @@ const ReceptForm = () => {
   const [selectedArea, setSelectedArea] = useState("all");
   const [searchAreaQuery, setSearchAreaQuery] = useState("");
   const [isAreaOpen, setIsAreaOpen] = useState(false);
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
+  useEffect(() => {
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+  }, []);
 
   useEffect(() => {
     const fetchAreas = async () => {
@@ -599,30 +615,15 @@ const ReceptForm = () => {
               >
                 Loại sự cố
               </SelectItem>
-              <SelectItem
-                value="Giao Thông"
-                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
-              >
-                Giao thông
-              </SelectItem>
-              <SelectItem
-                value="Điện"
-                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
-              >
-                Điện
-              </SelectItem>
-              <SelectItem
-                value="Cây Xanh"
-                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
-              >
-                Cây xanh
-              </SelectItem>
-              <SelectItem
-                value="CTCC"
-                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
-              >
-                CTCC
-              </SelectItem>
+              {incidentTypes.map((type) => (
+                <SelectItem
+                  key={type._id || type.name}
+                  value={type.name}
+                  className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+                >
+                  {type.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

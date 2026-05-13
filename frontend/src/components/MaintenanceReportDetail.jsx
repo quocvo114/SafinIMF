@@ -15,6 +15,7 @@ import {
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
 import { toast } from "sonner";
 import ImageViewer from "./ImageViewer";
 import LocationMapInline from "./LocationMapInline";
@@ -30,35 +31,65 @@ export default function MaintenanceReportDetail({
   const [progressNote, setProgressNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [imageViewer, setImageViewer] = useState({ open: false, index: 0, list: [] });
+  const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
+  const [incidentTypes, setIncidentTypes] = useState([]);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    if (isOpen) fetchIncidentTypes();
+  }, [isOpen]);
 
   if (!isOpen || !report) return null;
 
-  function getIncidentImages(data) {
-    if (!data) return [];
-    let imgs = [];
-    if (Array.isArray(data.images) && data.images.length > 0) {
-      imgs = data.images;
-    } else if (data.image) {
-      imgs = [data.image];
-    }
-    return imgs.filter((img) => {
-      if (!img) return false;
-      if (typeof img === "string") {
-        const lower = img.trim().toLowerCase();
-        if (lower === "null" || lower === "undefined" || lower === "") return false;
+  // Hàm dùng chung cho lấy ảnh (giống bên ReportDetail-QLKV)
+  function resolveImage(data, index) {
+    const imageCandidate =
+      data && Array.isArray(data.images) ? data.images[index] : "";
+    if (typeof imageCandidate === "string") {
+      const normalizedCandidate = imageCandidate.trim().toLowerCase();
+      if (
+        normalizedCandidate &&
+        normalizedCandidate !== "null" &&
+        normalizedCandidate !== "undefined"
+      ) {
+        return imageCandidate;
       }
-      return true;
-    });
+    } else if (imageCandidate) {
+      return imageCandidate;
+    }
+    if (data && index === 0 && data.image) {
+      if (typeof data.image === "string") {
+        const normalizedSingleImage = data.image.trim().toLowerCase();
+        if (
+          normalizedSingleImage &&
+          normalizedSingleImage !== "null" &&
+          normalizedSingleImage !== "undefined"
+        ) {
+          return data.image;
+        }
+      } else {
+        return data.image;
+      }
+    }
+    return "";
   }
 
-  const incidentImages = getIncidentImages(report);
-  const reportImageUrl = incidentImages.length > 0 ? incidentImages[0] : (report?.imageUrl || "");
-  const afterImageUrl = report?.afterImg && typeof report.afterImg === "string" && report.afterImg.trim().toLowerCase() !== "null" ? report.afterImg : "";
+  const reportImageUrl = resolveImage(report, 0) || report?.imageUrl || "";
+  const afterImageUrl = resolveImage(report, 1) || report?.afterImg || "";
+  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(Boolean);
 
-  const openImageViewer = (index, list) => {
-    setImageViewer({ open: true, index, list });
+  const openImageViewer = (index) => {
+    setImageViewer({ open: true, index });
   };
 
   // Parse lat/lng from report
@@ -248,9 +279,21 @@ export default function MaintenanceReportDetail({
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* Type + Title */}
             <div>
-              <Badge className="inline-flex items-center rounded-full bg-[#FF7F1F] hover:bg-[#FF7F1F] px-2.5 py-0.5 h-auto border-0 text-[10px] font-semibold text-white tracking-wide shadow-sm mb-1.5">
-                {report?.type || "Giao Thông"}
-              </Badge>
+              {(() => {
+                const typeObj = incidentTypes.find(t => t.name === report?.type);
+                const badgeStyle = typeObj && typeObj.color 
+                  ? { backgroundColor: typeObj.color, color: "#fff" } 
+                  : { backgroundColor: "#FF7F1F", color: "#fff" };
+
+                return (
+                  <Badge 
+                    className="inline-flex items-center rounded-full px-2.5 py-0.5 h-auto border-0 text-[10px] font-semibold tracking-wide shadow-sm mb-1.5"
+                    style={badgeStyle}
+                  >
+                    {report?.type || "Loại sự cố"}
+                  </Badge>
+                );
+              })()}
               <h1 className="text-lg font-bold text-gray-900 leading-snug">
                 {report?.title || "Chi tiết sự cố"}
               </h1>
@@ -348,7 +391,7 @@ export default function MaintenanceReportDetail({
                       src={reportImageUrl}
                       alt="Sự cố"
                       className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => openImageViewer(0, incidentImages.length > 0 ? incidentImages : [reportImageUrl].filter(Boolean))}
+                      onClick={() => openImageViewer(0)}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">

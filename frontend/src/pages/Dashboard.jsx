@@ -23,22 +23,14 @@ import "../styles/map.css";
 import {
   currentLocationMarkerIcon,
   incidentMarkerIcons,
+  createCustomMarkerIcon,
   searchLocationMarkerIcon,
 } from "../lib/mapIcons";
+import { renderToString } from "react-dom/server";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import incidentApi from "../services/api/incidentApi";
 
-const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
-  giaothong: "traffic",
-  dien: "electric",
-  cayxanh: "tree",
-  ctcc: "building",
-});
 
-const INCIDENT_TYPE_LABELS = Object.freeze({
-  traffic: "Giao thông",
-  electric: "Điện",
-  tree: "Cây xanh",
-  building: "Công trình công cộng",
-});
 
 const STATUS_CLASS_NAME = Object.freeze({
   "Đang Chờ": "incident-popup__status incident-popup__status--pending",
@@ -306,12 +298,7 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const incidentType = mapReportTypeToIncidentType(
-        report?.type || report?.reportType || report?.category,
-      );
-      if (!incidentType) {
-        return null;
-      }
+      const incidentType = String(report?.type || report?.reportType || report?.category || "Khác").trim();
 
       let position = extractPositionFromReport(report);
 
@@ -446,6 +433,25 @@ const Dashboard = () => {
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
 
 
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (isMounted && response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+    
+    return () => { isMounted = false; };
+  }, []);
+
   useEffect(() => {
     hasCachedReportsRef.current = reports.length > 0;
   }, [reports]);
@@ -555,17 +561,37 @@ const Dashboard = () => {
 
             <LocationMarker />
 
-            {filteredIncidents.map((incident) => (
-              <Marker
-                key={incident.id}
-                position={incident.position}
-                icon={incidentMarkerIcons[incident.type]}
-              >
-                <Popup className="incident-popup" maxWidth={420} minWidth={280}>
-                  <IncidentPopupContent incident={incident} />
-                </Popup>
-              </Marker>
-            ))}
+            {filteredIncidents.map((incident) => {
+              const typeObj = incidentTypes.find((t) => t.name === incident.type);
+              let mapIcon = incidentMarkerIcons[incident.type];
+              
+              if (!mapIcon) {
+                let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
+                if (typeObj) {
+                  const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
+                  if (IconComp) {
+                    svgString = renderToString(<IconComp className="map-marker__icon" color="currentColor" />);
+                  }
+                }
+                
+                mapIcon = createCustomMarkerIcon({
+                  backgroundColor: typeObj?.color || "#f97316", // default orange
+                  svgIcon: svgString,
+                });
+              }
+
+              return (
+                <Marker
+                  key={incident.id}
+                  position={incident.position}
+                  icon={mapIcon}
+                >
+                  <Popup className="incident-popup" maxWidth={420} minWidth={280}>
+                    <IncidentPopupContent incident={incident} />
+                  </Popup>
+                </Marker>
+              );
+            })}
 
             {searchMarker && (
               <Marker

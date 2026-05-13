@@ -3,8 +3,11 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Building2, TrafficCone, TreePine, Zap } from "lucide-react";
 import IncidentPopupContent from "../components/IncidentPopupContent";
-import { incidentMarkerIcons } from "../lib/mapIcons";
+import { incidentMarkerIcons, createCustomMarkerIcon } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import { renderToString } from "react-dom/server";
 import "../styles/map.css";
 
 const DANANG_CENTER = [16.0471, 108.2068];
@@ -297,6 +300,24 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState(() => loadCachedReports());
   const mapRef = useRef(null);
   const hasAutoFittedRef = useRef(false);
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (isMounted && response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+    
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -411,7 +432,17 @@ export default function AdminDashboard() {
         style={{ left: "var(--admin-sidebar-offset, 6rem)" }}
       >
         <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap">
-          {CATEGORY_OPTIONS.map((category) => (
+          {[{ id: "all", label: "Tất Cả", icon: "⌘", color: "#2563eb" },
+            ...incidentTypes.map((t) => {
+              const IconComp = INCIDENT_ICON_MAP[t.iconKey] || Building2;
+              return {
+                id: t.name,
+                label: t.name,
+                icon: <IconComp className="h-4 w-4" />,
+                color: t.color || "#f97316",
+              };
+            })
+          ].map((category) => (
             <button
               key={category.id}
               type="button"

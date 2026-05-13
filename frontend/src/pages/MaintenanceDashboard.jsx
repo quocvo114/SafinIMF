@@ -96,9 +96,9 @@ const getReporterName = (report) => {
   return "Người dân phản ánh";
 };
 
-const loadCachedReports = (cacheKey) => {
+const loadCachedReports = () => {
   try {
-    const cachedValue = localStorage.getItem(cacheKey);
+    const cachedValue = localStorage.getItem(MAINTENANCE_REPORTS_CACHE_KEY);
     if (!cachedValue) {
       return [];
     }
@@ -111,9 +111,9 @@ const loadCachedReports = (cacheKey) => {
   }
 };
 
-const saveCachedReports = (cacheKey, reports) => {
+const saveCachedReports = (reports) => {
   try {
-    localStorage.setItem(cacheKey, JSON.stringify(reports));
+    localStorage.setItem(MAINTENANCE_REPORTS_CACHE_KEY, JSON.stringify(reports));
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }

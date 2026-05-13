@@ -16,12 +16,14 @@ import { SidebarProvider } from "./ui/sidebar";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "./IncidentTypePopup";
 
-const categories = [
+const DEFAULT_CATEGORIES = [
   {
     id: "traffic",
     name: "Giao Thông",
-    icon: <TrafficCone size={18} />,
+    iconKey: "car",
     bgColor: "#f97316",
     textColor: "#ffffff",
     activeBgColor: "#f97316",
@@ -29,7 +31,7 @@ const categories = [
   {
     id: "electric",
     name: "Điện",
-    icon: <Zap size={18} />,
+    iconKey: "electric",
     bgColor: "#eab308",
     textColor: "#ffffff",
     activeBgColor: "#eab308",
@@ -37,7 +39,7 @@ const categories = [
   {
     id: "tree",
     name: "Cây Xanh",
-    icon: <TreePine size={18} />,
+    iconKey: "tree",
     bgColor: "#22c55e",
     textColor: "#ffffff",
     activeBgColor: "#22c55e",
@@ -45,7 +47,7 @@ const categories = [
   {
     id: "public",
     name: "Công Trình",
-    icon: <Building2 size={18} />,
+    iconKey: "public",
     bgColor: "#a855f7",
     textColor: "#ffffff",
     activeBgColor: "#a855f7",
@@ -70,6 +72,30 @@ export default function HomeOverlayUI({
   const [searchQuery, setSearchQuery] = useState("");
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await incidentApi.getIncidentTypes();
+        if (res?.success && Array.isArray(res.data)) {
+          const apiCategories = res.data.map(type => ({
+            id: type.name, // Use name as ID for filtering since reports save 'type' as name
+            name: type.name,
+            iconKey: type.iconKey || "public",
+            bgColor: type.color || "#f97316",
+            textColor: "#ffffff",
+            activeBgColor: type.color || "#f97316",
+          }));
+          setCategories(apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES);
+        }
+      } catch (err) {
+        console.error("Failed to fetch incident types", err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const canCreateReport = () => {
     const isAuthenticated = Boolean(user || localStorage.getItem("token"));
@@ -180,23 +206,26 @@ export default function HomeOverlayUI({
             </span>
             <span>Tất cả</span>
           </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelectedCategory(c.id)}
-              className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
-              }`}
-              style={{
-                backgroundColor: c.bgColor,
-                color: "#ffffff",
-                border: "none",
-              }}
-            >
-              <span className="icon-wrap">{c.icon}</span>
-              <span>{c.name}</span>
-            </button>
-          ))}
+          {categories.map((c) => {
+            const IconComp = INCIDENT_ICON_MAP[c.iconKey] || Building2;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCategory(c.id)}
+                className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                  selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
+                }`}
+                style={{
+                  backgroundColor: c.bgColor,
+                  color: "#ffffff",
+                  border: "none",
+                }}
+              >
+                <span className="icon-wrap"><IconComp size={18} /></span>
+                <span>{c.name}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Floating Buttons - Bottom Right */}

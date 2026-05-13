@@ -727,6 +727,7 @@ class ReportController {
         exifMetadata,
         aiTotalObjects: aiSummary.aiTotalObjects,
         aiDetections: aiSummary.allDetections || [],
+        aiPercent: aiSummary.aiPercent || 0,
       });
 
       console.log(

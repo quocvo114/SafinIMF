@@ -172,7 +172,7 @@ score = min(100, boosted)
 | Đầy đủ 4 tiêu chí | 28%      | 28%     | 23%  | 21%       |
 | Thiếu Time        | 35%      | 35%     | -    | 30%       |
 | Thiếu Location    | -        | 40%     | 30%  | 30%       |
-| Chỉ Content       | -        | 50%     | 50%  | -         |
+| Chỉ Content       | -        | 50%     | -    | 50%       |
 
 ### Quy tắc
 
