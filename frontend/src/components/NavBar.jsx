@@ -153,7 +153,7 @@ export default function Navbar() {
     setOpenUser(false);
     setTimeout(() => {
       logout();
-      navigate("/signin");
+      navigate("/");
     }, 1500);
   };
 

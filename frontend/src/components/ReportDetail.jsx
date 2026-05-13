@@ -15,6 +15,7 @@ import {
 import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import ImageViewer from "./ImageViewer";
+import { reportApi } from "../services/api/reportApi";
 
 function getTypeLabel(type) {
   if (!type) return "khac";
@@ -97,8 +98,31 @@ export default function ReportDetail({ data, close }) {
 
   if (!isOpen) return null;
 
-  const beforeImage = resolveImage(data, 0);
-  const afterImage = data.afterImg || resolveImage(data, 1);
+  const [freshData, setFreshData] = useState(data);
+  const reportIdToUse = data?.id || data?.report_id;
+
+  // Fetch fresh data when modal opens to get latest afterImg
+  useEffect(() => {
+    if (!reportIdToUse) return;
+
+    const fetchFreshData = async () => {
+      try {
+        const response = await reportApi.getReportById(reportIdToUse);
+        const freshReport = response?.data || response;
+        setFreshData(freshReport);
+      } catch (err) {
+        console.error("Error fetching fresh report data:", err);
+        // Fallback to original data if fetch fails
+        setFreshData(data);
+      }
+    };
+
+    fetchFreshData();
+  }, [reportIdToUse, data]);
+
+  const displayData = freshData || data;
+  const beforeImage = resolveImage(displayData, 0);
+  const afterImage = displayData.afterImg || resolveImage(displayData, 1);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
 
@@ -124,7 +148,7 @@ export default function ReportDetail({ data, close }) {
         <DialogHeader className="rounded-t-[18px] bg-white px-4 pt-3 sm:px-5 sm:pt-4 md:px-6 md:pt-4">
           <div className="flex items-start justify-between gap-3">
             <DialogTitle className="pr-2 text-base font-semibold leading-snug text-zinc-900 sm:text-lg lg:text-xl">
-              {data.title || "Khong co tieu de"}
+              {displayData.title || "Khong co tieu de"}
             </DialogTitle>
             <DialogClose asChild>
               <Button
@@ -139,12 +163,12 @@ export default function ReportDetail({ data, close }) {
 
           <div className="flex flex-wrap items-center gap-2">
             <Badge
-              className={`h-7 rounded-full px-3 text-xs font-semibold ${getTypeBadgeClass(data.type)}`}
+              className={`h-7 rounded-full px-3 text-xs font-semibold ${getTypeBadgeClass(displayData.type)}`}
             >
-              {getTypeLabel(data.type)}
+              {getTypeLabel(displayData.type)}
             </Badge>
             <Badge className="h-7 rounded-full bg-[#d5d5d5] px-3 text-xs font-semibold text-zinc-800 hover:bg-[#d5d5d5]">
-              {getStatusLabel(data.status)}
+              {getStatusLabel(displayData.status)}
             </Badge>
           </div>
         </DialogHeader>
@@ -159,7 +183,7 @@ export default function ReportDetail({ data, close }) {
                   Mã báo cáo
                 </p>
                 <p className="text-xl font-semibold leading-tight text-[#1E67D6]">
-                  {data.id || "N/A"}
+                  {displayData.id || "N/A"}
                 </p>
               </div>
 
@@ -168,7 +192,7 @@ export default function ReportDetail({ data, close }) {
                   Thời gian
                 </p>
                 <p className="text-sm font-semibold leading-tight text-zinc-900">
-                  {data.time || "Chua co thoi gian"}
+                  {displayData.time || "Chua co thoi gian"}
                 </p>
               </div>
             </div>
@@ -187,7 +211,7 @@ export default function ReportDetail({ data, close }) {
                 }}
               >
                 {(() => {
-                  const loc = data.location;
+                  const loc = displayData.location;
                   if (!loc) return "Chưa có vị trí";
                   const match = loc.match(/\(([^)]+)\)/);
                   if (match && match[1]) {
@@ -214,19 +238,19 @@ export default function ReportDetail({ data, close }) {
                     overflow: "hidden",
                   }}
                 >
-                  {data.description || "Chua co mo ta cho bao cao nay."}
+                  {displayData.description || "Chua co mo ta cho bao cao nay."}
                 </p>
               </div>
             </div>
 
-            {data.progressNote && (
+            {displayData.progressNote && (
               <div>
                 <p className="mb-1 text-[11px] font-medium uppercase text-[#A3A3A3]">
                   Ghi chú từ đội xử lý
                 </p>
                 <div className="rounded-[10px] border border-green-100 bg-green-50 px-3 py-2.5 sm:px-3.5 sm:py-3">
                   <p className="text-xs italic leading-snug text-green-800">
-                    {data.progressNote}
+                    {displayData.progressNote}
                   </p>
                 </div>
               </div>

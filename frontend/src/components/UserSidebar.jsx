@@ -147,7 +147,7 @@ const UserSidebar = () => {
     setToast({ message: "Đăng xuất thành công!", type: "success" });
     setTimeout(() => {
       logout();
-      navigate("/signin");
+      navigate("/");
     }, 1500);
   };
 

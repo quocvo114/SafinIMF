@@ -1100,7 +1100,6 @@ class ReportController {
         { $or: queryConditions },
         {
           afterImg: afterImgUrl,
-          status: "Đã Giải Quyết",
           ...(progressNote !== undefined ? { progressNote: progressNote.trim() } : {}),
         },
         { new: true },
@@ -1114,7 +1113,7 @@ class ReportController {
       }
 
       console.log(
-        `✅ Progress updated: Report ${id} → Đã Giải Quyết (afterImg uploaded)`,
+        `✅ Progress updated: Report ${id} - ảnh khắc phục được lưu (chưa cập nhật trạng thái)`,
       );
 
       res.status(200).json({
