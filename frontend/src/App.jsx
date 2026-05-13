@@ -72,7 +72,9 @@ function RootRedirect() {
   return <Dashboard />;
 }
 
-function App() {
+function AppContent() {
+  const { user } = useAuth();
+
   return (
     <>
       <TooltipProvider>

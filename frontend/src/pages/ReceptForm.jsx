@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Calendar, MapPin, Search } from "lucide-react";
 import roadImage from "../image/road.png";
 import { Input } from "@/components/ui/input";
-import { toast } from "react-toastify"; 
 import {
   Select,
   SelectContent,
