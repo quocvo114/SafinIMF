@@ -16,13 +16,13 @@ import {
 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import HomeOverlayUI from "../components/HomeOverlayUI";
+import MapView from "../components/Map/MapView";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { reportApi } from "../services/api/reportApi";
 import "../styles/map.css";
 import {
   currentLocationMarkerIcon,
-  incidentMarkerIcons,
   searchLocationMarkerIcon,
 } from "../lib/mapIcons";
 
@@ -64,8 +64,16 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
+  const latFromField = parseCoordinate(
+    report?.lat ?? report?.reportLatitude,
+    -90,
+    90,
+  );
+  const lngFromField = parseCoordinate(
+    report?.lng ?? report?.reportLongitude,
+    -180,
+    180,
+  );
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }
@@ -132,7 +140,8 @@ const getReporterName = (report) => {
 };
 
 const getStatusClassName = (status) =>
-  STATUS_CLASS_NAME[status] || "incident-popup__status incident-popup__status--pending";
+  STATUS_CLASS_NAME[status] ||
+  "incident-popup__status incident-popup__status--pending";
 
 function IncidentPopupContent({ incident }) {
   const images = useMemo(() => {
@@ -260,7 +269,10 @@ const loadGeocodeCache = () => {
 
 const saveGeocodeCache = (cacheValue) => {
   try {
-    localStorage.setItem(DASHBOARD_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
+    localStorage.setItem(
+      DASHBOARD_GEOCODE_CACHE_KEY,
+      JSON.stringify(cacheValue),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -316,7 +328,9 @@ const normalizeReportsForMap = async (rawReports) => {
       let position = extractPositionFromReport(report);
 
       if (!position) {
-        const locationKey = String(report?.location || "").trim().toLowerCase();
+        const locationKey = String(report?.location || "")
+          .trim()
+          .toLowerCase();
 
         if (locationKey && Array.isArray(geocodeCache[locationKey])) {
           const [lat, lng] = geocodeCache[locationKey];
@@ -353,6 +367,8 @@ const normalizeReportsForMap = async (rawReports) => {
         images: Array.isArray(report?.images) ? report.images : [],
         displayDate: parseReportDate(report?.time, report?.createdAt),
         reporterName: getReporterName(report),
+        createdAt:
+          report?.createdAt || report?.created_at || report?.time || null,
       };
     }),
   );
@@ -426,7 +442,10 @@ function LocationMarker() {
   }, []);
 
   return position === null ? null : (
-    <Marker position={[position.lat, position.lng]} icon={currentLocationMarkerIcon}>
+    <Marker
+      position={[position.lat, position.lng]}
+      icon={currentLocationMarkerIcon}
+    >
       <Popup>📍 Bạn đang ở đây!</Popup>
     </Marker>
   );
@@ -444,7 +463,6 @@ const Dashboard = () => {
   const userName = user?.full_name || user?.name || null;
   const userAvatar = user?.avatar || null;
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
-
 
   useEffect(() => {
     hasCachedReportsRef.current = reports.length > 0;
@@ -466,7 +484,6 @@ const Dashboard = () => {
       } catch (error) {
         // ✅ Cleanup: Report fetching error handling silenced
         if (isMounted && !hasCachedReportsRef.current) {
-          
           toast.error("Không thể tải dữ liệu sự cố từ hệ thống");
         }
       }
@@ -555,17 +572,12 @@ const Dashboard = () => {
 
             <LocationMarker />
 
-            {filteredIncidents.map((incident) => (
-              <Marker
-                key={incident.id}
-                position={incident.position}
-                icon={incidentMarkerIcons[incident.type]}
-              >
-                <Popup className="incident-popup" maxWidth={420} minWidth={280}>
-                  <IncidentPopupContent incident={incident} />
-                </Popup>
-              </Marker>
-            ))}
+            <MapView
+              reports={filteredIncidents}
+              renderPopupContent={(incident) => (
+                <IncidentPopupContent incident={incident} />
+              )}
+            />
 
             {searchMarker && (
               <Marker

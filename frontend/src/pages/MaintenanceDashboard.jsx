@@ -3,8 +3,9 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import MaintenanceHomeOverlayUI from "../components/MaintenanceHomeOverlayUI";
 import IncidentPopupContent from "../components/IncidentPopupContent";
+import MapView from "../components/Map/MapView";
 import { useAuth } from "../context/AuthContext";
-import { incidentMarkerIcons, searchLocationMarkerIcon } from "../lib/mapIcons";
+import { searchLocationMarkerIcon } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
 import "../styles/map.css";
 
@@ -21,7 +22,11 @@ const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
 
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
-  if (!Number.isFinite(numericValue) || numericValue < min || numericValue > max) {
+  if (
+    !Number.isFinite(numericValue) ||
+    numericValue < min ||
+    numericValue > max
+  ) {
     return null;
   }
 
@@ -29,8 +34,16 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
+  const latFromField = parseCoordinate(
+    report?.lat ?? report?.reportLatitude,
+    -90,
+    90,
+  );
+  const lngFromField = parseCoordinate(
+    report?.lng ?? report?.reportLongitude,
+    -180,
+    180,
+  );
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }
@@ -112,7 +125,10 @@ const loadCachedReports = () => {
 
 const saveCachedReports = (reports) => {
   try {
-    localStorage.setItem(MAINTENANCE_REPORTS_CACHE_KEY, JSON.stringify(reports));
+    localStorage.setItem(
+      MAINTENANCE_REPORTS_CACHE_KEY,
+      JSON.stringify(reports),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -135,7 +151,10 @@ const loadGeocodeCache = () => {
 
 const saveGeocodeCache = (cacheValue) => {
   try {
-    localStorage.setItem(MAINTENANCE_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
+    localStorage.setItem(
+      MAINTENANCE_GEOCODE_CACHE_KEY,
+      JSON.stringify(cacheValue),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -191,7 +210,9 @@ const normalizeReportsForMap = async (rawReports) => {
       let position = extractPositionFromReport(report);
 
       if (!position) {
-        const locationKey = String(report?.location || "").trim().toLowerCase();
+        const locationKey = String(report?.location || "")
+          .trim()
+          .toLowerCase();
 
         if (locationKey && Array.isArray(geocodeCache[locationKey])) {
           const [lat, lng] = geocodeCache[locationKey];
@@ -228,6 +249,8 @@ const normalizeReportsForMap = async (rawReports) => {
         images: Array.isArray(report?.images) ? report.images : [],
         displayDate: parseReportDate(report?.time, report?.createdAt),
         reporterName: getReporterName(report),
+        createdAt:
+          report?.createdAt || report?.created_at || report?.time || null,
       };
     }),
   );
@@ -308,10 +331,13 @@ const MaintenanceDashboard = () => {
       return;
     }
 
-    mapRef.current.fitBounds(reports.map((report) => report.position), {
-      padding: [42, 42],
-      maxZoom: 15,
-    });
+    mapRef.current.fitBounds(
+      reports.map((report) => report.position),
+      {
+        padding: [42, 42],
+        maxZoom: 15,
+      },
+    );
     hasAutoFittedRef.current = true;
   }, [reports]);
 
@@ -328,7 +354,9 @@ const MaintenanceDashboard = () => {
       return reports;
     }
 
-    return reports.filter((incident) => incident.type === normalizedSelectedCategory);
+    return reports.filter(
+      (incident) => incident.type === normalizedSelectedCategory,
+    );
   }, [normalizedSelectedCategory, reports]);
 
   const handleSearchLocation = async (query) => {
@@ -393,26 +421,12 @@ const MaintenanceDashboard = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {filteredIncidents.map((incident) => (
-              <Marker
-                key={incident.id}
-                position={incident.position}
-                icon={incidentMarkerIcons[incident.type]}
-                eventHandlers={{
-                  click: (event) => event.target.openPopup(),
-                }}
-              >
-                <Popup
-                  className="incident-popup"
-                  maxWidth={420}
-                  minWidth={280}
-                  autoPan={true}
-                  keepInView={true}
-                >
-                  <IncidentPopupContent incident={incident} />
-                </Popup>
-              </Marker>
-            ))}
+            <MapView
+              reports={filteredIncidents}
+              renderPopupContent={(incident) => (
+                <IncidentPopupContent incident={incident} />
+              )}
+            />
 
             {searchMarker && (
               <Marker

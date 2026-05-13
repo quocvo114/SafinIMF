@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Building2, TrafficCone, TreePine, Zap, Layers } from "lucide-react";
 import IncidentPopupContent from "../components/IncidentPopupContent";
-import { incidentMarkerIcons } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
+import MapView from "../components/Map/MapView";
 import "../styles/map.css";
 
 const DANANG_CENTER = [16.0471, 108.2068];
@@ -190,10 +190,10 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const category = mapReportTypeToIncidentType(
+      const type = mapReportTypeToIncidentType(
         report?.type || report?.reportType || report?.category,
       );
-      if (!category) {
+      if (!type) {
         return null;
       }
 
@@ -229,7 +229,7 @@ const normalizeReportsForMap = async (rawReports) => {
 
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
-        category,
+        type,
         position,
         title: report?.title || "Báo cáo sự cố",
         status: report?.status || "Đang Chờ",
@@ -239,6 +239,8 @@ const normalizeReportsForMap = async (rawReports) => {
         images: Array.isArray(report?.images) ? report.images : [],
         displayDate: parseReportDate(report?.time, report?.createdAt),
         reporterName: getReporterName(report),
+        createdAt:
+          report?.createdAt || report?.created_at || report?.time || null,
       };
     }),
   );
@@ -367,9 +369,7 @@ export default function AdminDashboard() {
     if (normalizedSelectedCategory === "all") {
       return reports;
     }
-    return reports.filter(
-      (point) => point.category === normalizedSelectedCategory,
-    );
+    return reports.filter((point) => point.type === normalizedSelectedCategory);
   }, [normalizedSelectedCategory, reports]);
 
   return (
@@ -386,26 +386,12 @@ export default function AdminDashboard() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {visiblePoints.map((point) => (
-          <Marker
-            key={point.id}
-            position={point.position}
-            icon={incidentMarkerIcons[point.category]}
-            eventHandlers={{
-              click: (event) => event.target.openPopup(),
-            }}
-          >
-            <Popup
-              className="incident-popup"
-              maxWidth={420}
-              minWidth={280}
-              autoPan={true}
-              keepInView={true}
-            >
-              <IncidentPopupContent incident={point} />
-            </Popup>
-          </Marker>
-        ))}
+        <MapView
+          reports={visiblePoints}
+          renderPopupContent={(incident) => (
+            <IncidentPopupContent incident={incident} />
+          )}
+        />
       </MapContainer>
 
       {/* ✅ Floating Categories - Soft UI Version */}
