@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import banner from "../image/banner-public.jpeg";
 import comle from "../image/comle.png";
@@ -21,31 +21,122 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState({
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Load saved form data from localStorage
+  useEffect(() => {
+    const savedFormData = localStorage.getItem("registerFormData");
+    if (savedFormData) {
+      try {
+        const data = JSON.parse(savedFormData);
+        setFullName(data.fullName || "");
+        setPhone(data.phone || "");
+        setPassword(data.password || "");
+        setConfirmPassword(data.confirmPassword || "");
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+  }, [location.pathname]);
+
+  // Save form data to localStorage whenever it changes
+  useEffect(() => {
+    const formData = {
+      fullName,
+      phone,
+      password,
+      confirmPassword,
+    };
+    localStorage.setItem("registerFormData", JSON.stringify(formData));
+  }, [fullName, phone, password, confirmPassword]);
+
+  const validatePhone = (phoneValue) => {
+    if (!phoneValue.trim()) return "";
+    if (!VN_PHONE_PATTERN.test(phoneValue.trim())) {
+      return "Số điện thoại không đúng định dạng";
+    }
+    return "";
+  };
+
+  const validatePassword = (passwordValue) => {
+    if (!passwordValue) return "";
+    if (!STRONG_PASSWORD_PATTERN.test(passwordValue)) {
+      return "Mật khẩu cần ít nhất 8 ký tự, 1 chữ hoa, 1 số, 1 ký tự đặc biệt";
+    }
+    return "";
+  };
+
+  const handlePhoneChange = (e) => {
+    const value = e.target.value;
+    setPhone(value);
+    setErrors((prev) => ({
+      ...prev,
+      phone: validatePhone(value),
+    }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    setPassword(value);
+    setErrors((prev) => ({
+      ...prev,
+      password: validatePassword(value),
+    }));
+  };
+
+  const handleConfirmPasswordChange = (e) => {
+    const value = e.target.value;
+    setConfirmPassword(value);
+    if (value && password && value !== password) {
+      setErrors((prev) => ({
+        ...prev,
+        confirmPassword: "Mật khẩu không khớp",
+      }));
+    } else {
+      setErrors((prev) => ({
+        ...prev,
+        confirmPassword: "",
+      }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
     const normalizedPhone = phone.trim();
+    const phoneError = validatePhone(normalizedPhone);
+    const passwordError = validatePassword(password);
 
-    if (!VN_PHONE_PATTERN.test(normalizedPhone)) {
-      setMessage("Số điện thoại không đúng định dạng");
+    if (phoneError) {
+      setErrors((prev) => ({ ...prev, phone: phoneError }));
       return;
     }
 
-    if (!STRONG_PASSWORD_PATTERN.test(password)) {
-      setMessage("mật khẩu không đủ mạnh");
+    if (passwordError) {
+      setErrors((prev) => ({ ...prev, password: passwordError }));
       return;
     }
 
     if (password !== confirmPassword) {
-      setMessage("Password không khớp!");
+      setErrors((prev) => ({
+        ...prev,
+        confirmPassword: "Mật khẩu không khớp",
+      }));
       return;
     }
 
     try {
       const res = await authApi.sendRegisterOtp(normalizedPhone);
+
+      // Clear saved form data on successful registration
+      localStorage.removeItem("registerFormData");
 
       // Điều hướng sang trang nhập OTP
       navigate("/register/confirm", {
@@ -101,7 +192,11 @@ const Register = () => {
               to get started
             </h2>
 
-            {message && <p className="mb-4 text-sm text-red-600">{message}</p>}
+            {message && (
+              <p className="mb-4 text-xs text-red-600 break-words whitespace-normal">
+                {message}
+              </p>
+            )}
 
             <form onSubmit={handleSubmit}>
               <div className="mb-4 sm:mb-5">
@@ -122,10 +217,19 @@ const Register = () => {
                   type="text"
                   placeholder="Enter your phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={handlePhoneChange}
                   required
-                  className="mt-1 w-full rounded-xl border px-4 py-3"
+                  className={`mt-1 w-full rounded-xl border px-4 py-3 ${
+                    errors.phone ? "border-red-500" : ""
+                  }`}
                 />
+                <div className="h-5">
+                  {errors.phone && (
+                    <p className="mt-1 text-xs text-red-600 break-words whitespace-normal">
+                      {errors.phone}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="relative mb-5 sm:mb-7">
@@ -134,17 +238,28 @@ const Register = () => {
                   type={showPass ? "text" : "password"}
                   placeholder="Enter password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   required
-                  className="mt-1 w-full rounded-xl border px-4 py-3 pr-12"
+                  className={`mt-1 w-full rounded-xl border px-4 py-3 pr-12 ${
+                    errors.password ? "border-red-500" : ""
+                  }`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute bottom-3.5 right-4"
-                >
-                  {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
+                {password && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute top-1/2 right-4 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                )}
+                <div className="h-5">
+                  {errors.password && (
+                    <p className="mt-1 text-xs text-red-600 break-words whitespace-normal leading-snug">
+                      {errors.password}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="relative mb-6 sm:mb-7">
@@ -153,17 +268,28 @@ const Register = () => {
                   type={showConfirmPass ? "text" : "password"}
                   placeholder="Re-enter password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={handleConfirmPasswordChange}
                   required
-                  className="mt-1 w-full rounded-xl border px-4 py-3 pr-12"
+                  className={`mt-1 w-full rounded-xl border px-4 py-3 pr-12 ${
+                    errors.confirmPassword ? "border-red-500" : ""
+                  }`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPass(!showConfirmPass)}
-                  className="absolute bottom-3.5 right-4"
-                >
-                  {showConfirmPass ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
+                {confirmPassword && (
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute top-1/2 right-4 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showConfirmPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                )}
+                <div className="h-5">
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-xs text-red-600 break-words whitespace-normal">
+                      {errors.confirmPassword}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <button className="w-full rounded-lg bg-blue-600 py-3 text-white transition hover:bg-blue-700">

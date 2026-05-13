@@ -242,6 +242,7 @@ async function googleLogin(req, res) {
     const payload = ticket.getPayload();
     const email = payload.email;
     const full_name = payload.name;
+    const VN_PHONE_PATTERN = /^0(?:3|5|7|8|9)\d{8}$/;
 
     // Tìm user theo email
     let user = await userRepo.findByEmail(email);
@@ -250,7 +251,7 @@ async function googleLogin(req, res) {
     if (!user) {
       // Tạo user mới
       const user_id = await userRepo.getNextUserId();
-      const phone = `GG${Date.now()}`.slice(-10);
+      const phone = null; // Để trống thay vì tạo số ngẫu nhiên
 
       user = await userRepo.create({
         user_id,
@@ -258,7 +259,7 @@ async function googleLogin(req, res) {
         email,
         phone,
         password: null,
-        phone_verified: true,
+        phone_verified: false,
         email_verified: true,
         role: "user",
       });
@@ -267,6 +268,15 @@ async function googleLogin(req, res) {
       console.log(`✅ Tạo user mới từ Google: ${email}`);
     } else {
       console.log(`✅ Login Google cho user hiện tại: ${email}`);
+      
+      // Nếu user cũ có phone không hợp lệ (không phải số Việt Nam), reset thành null
+      if (user.phone && !VN_PHONE_PATTERN.test(user.phone)) {
+        console.log(`🔄 Resetting invalid phone: ${user.phone}`);
+        await User.findOneAndUpdate(
+          { email },
+          { $set: { phone: null, phone_verified: false } }
+        );
+      }
     }
 
     if (user.account_status && user.account_status !== "active") {
@@ -337,8 +347,13 @@ async function googleLogin(req, res) {
       },
     });
   } catch (err) {
-    console.error("googleLogin error:", err);
-    return res.status(401).json({ message: "Token Google không hợp lệ" });
+    console.error("❌ googleLogin error:", err.message);
+    console.error("❌ Error stack:", err.stack);
+    console.error("❌ GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID);
+    return res.status(401).json({ 
+      message: "Token Google không hợp lệ",
+      error: err.message 
+    });
   }
 }
 
@@ -463,6 +478,38 @@ async function logout(req, res) {
   }
 }
 
+// 7) Xác minh token còn hợp lệ
+async function verify(req, res) {
+  try {
+    // Nếu tới đây, nghĩa là middleware JWT đã xác minh token là hợp lệ
+    const user = await User.findOne({ user_id: req.user.id }).lean();
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Người dùng không tồn tại",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Token hợp lệ",
+      user: {
+        user_id: user.user_id,
+        phone: user.phone,
+        full_name: user.full_name,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error("verify error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+    });
+  }
+}
+
 module.exports = {
   sendRegisterOtp,
   confirmRegister,
@@ -471,4 +518,5 @@ module.exports = {
   sendForgotPasswordOtp,
   resetPassword,
   logout,
+  verify,
 };

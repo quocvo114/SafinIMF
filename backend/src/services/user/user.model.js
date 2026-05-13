@@ -7,7 +7,7 @@ const UserSchema = new mongoose.Schema({
   
   email: String,
 
-  phone: { type: String, unique: true, required: true },
+  phone: { type: String, unique: true, sparse: true, default: null },
   
   password: String, // hash (nullable cho Google login)
   

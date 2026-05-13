@@ -37,19 +37,19 @@ const getStatusInfo = (status) => {
 };
 
 // Lấy danh sách trạng thái 
-const getAvailableStatuses = (currentStatus) => {
+const getAvailableStatuses = (currentStatus, hasAfterImage = false) => {
   const transitions = {
-    "Đang Chờ": ["Đang Xử Lý", "Đã Giải Quyết"],
-    "Đang Xử Lý": ["Đã Giải Quyết"],
+    "Đang Chờ": ["Đang Xử Lý"],
+    "Đang Xử Lý": hasAfterImage ? ["Đã Giải Quyết"] : [],
     "Đã Giải Quyết": [],
   };
   return transitions[currentStatus] || [];
 };
 
-const Update_Status = ({ isOpen, reportId, reportCode, currentStatus, onClose, onUpdate, loading }) => {
+const Update_Status = ({ isOpen, reportId, reportCode, currentStatus, onClose, onUpdate, loading, hasAfterImage = false }) => {
   const [selectedStatus, setSelectedStatus] = useState(null);
 
-  const availableStatuses = getAvailableStatuses(currentStatus);
+  const availableStatuses = getAvailableStatuses(currentStatus, hasAfterImage);
   const canUpdate = availableStatuses.length > 0;
   const currentStatusInfo = getStatusInfo(currentStatus);
 
@@ -66,15 +66,28 @@ const Update_Status = ({ isOpen, reportId, reportCode, currentStatus, onClose, o
   };
 
   if (!canUpdate) {
+    const noImageMessage = currentStatus === "Đang Xử Lý" && !hasAfterImage;
+    
     return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="w-[90vw] xs:w-[85vw] sm:w-[calc(100vw-3rem)] max-w-lg z-[1000] bg-white shadow-2xl rounded-lg xs:rounded-xl sm:rounded-[20px] p-0">
           <DialogHeader className="text-center space-y-2 xs:space-y-2.5 px-3 xs:px-4 sm:px-6 pt-4 xs:pt-5 sm:pt-6">
-            <div className="mx-auto w-9 xs:w-10 sm:w-12 h-9 xs:h-10 sm:h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-4.5 xs:w-5 sm:w-6 h-4.5 xs:h-5 sm:h-6 text-green-600" />
+            <div className={`mx-auto w-9 xs:w-10 sm:w-12 h-9 xs:h-10 sm:h-12 ${noImageMessage ? 'bg-yellow-100' : 'bg-green-100'} rounded-full flex items-center justify-center`}>
+              {noImageMessage ? (
+                <AlertCircle className="w-4.5 xs:w-5 sm:w-6 h-4.5 xs:h-5 sm:h-6 text-yellow-600" />
+              ) : (
+                <CheckCircle className="w-4.5 xs:w-5 sm:w-6 h-4.5 xs:h-5 sm:h-6 text-green-600" />
+              )}
             </div>
-            <DialogTitle className="text-sm xs:text-base sm:text-lg font-bold">Báo cáo đã hoàn tất</DialogTitle>
-            <DialogDescription className="text-xs xs:text-sm sm:text-base">Trạng thái này không thể thay đổi</DialogDescription>
+            <DialogTitle className="text-sm xs:text-base sm:text-lg font-bold">
+              {noImageMessage ? "Chưa thể cập nhật trạng thái" : "Báo cáo đã hoàn tất"}
+            </DialogTitle>
+            <DialogDescription className="text-xs xs:text-sm sm:text-base">
+              {noImageMessage 
+                ? "Vui lòng chờ đội xử lý upload ảnh khắc phục trước khi cập nhật trạng thái thành 'Đã giải quyết'"
+                : "Trạng thái này không thể thay đổi"
+              }
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-3 xs:pt-3.5 sm:pt-4 px-3 xs:px-4 sm:px-6 pb-4 xs:pb-4.5 sm:pb-6">
             <DialogClose asChild>

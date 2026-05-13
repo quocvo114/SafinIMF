@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ShieldAlert,
   KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 const Info_Management = ({ onClose }) => {
@@ -34,6 +36,10 @@ const Info_Management = ({ onClose }) => {
   const [showGenderDropdown, setShowGenderDropdown] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [toast, setToast] = useState({ message: "", type: "", show: false });
 
@@ -69,6 +75,12 @@ const Info_Management = ({ onClose }) => {
       maintenance: "KTV",
     };
     return roleMap[role] || "Công Dân";
+  };
+
+  // Helper: kiểm tra phone hợp lệ
+  const isValidPhone = (phone) => {
+    if (!phone) return false;
+    return vnPhonePattern.test(phone);
   };
 
   const showToast = (message, type = "success") => {
@@ -145,7 +157,13 @@ const Info_Management = ({ onClose }) => {
       }
       
       await userApi.updateProfile(dataToSend);
-      const updatedUser = { ...user, ...dataToSend };
+      const updatedUser = { 
+        ...user, 
+        full_name: dataToSend.full_name,
+        gender: dataToSend.gender,
+        email: dataToSend.email || user.email,
+        phone: dataToSend.phone,
+      };
       login(localStorage.getItem("token"), updatedUser);
       showToast("Cập nhật thông tin thành công!");
       setIsEditing(false);
@@ -185,10 +203,12 @@ const Info_Management = ({ onClose }) => {
   const handleCancel = () => {
     setIsEditing(false);
     if (user) {
+      // Không hiển thị phone không hợp lệ
+      const phone = isValidPhone(user.phone) ? user.phone : "";
       setFormData({
         full_name: user.full_name || "",
         email: user.email || "",
-        phone: user.phone || "",
+        phone: phone,
         gender: user.gender || "Nam",
       });
     }
@@ -273,7 +293,7 @@ const Info_Management = ({ onClose }) => {
                       className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   ) : (
-                    <p className="text-gray-800 font-semibold text-sm">{formData.phone}</p>
+                    <p className="text-gray-800 font-semibold text-sm">{formData.phone || "-"}</p>
                   )}
                 </div>
               </div>
@@ -369,45 +389,72 @@ const Info_Management = ({ onClose }) => {
                   <label className="block text-xs font-semibold text-gray-500 mb-2">
                     Mật khẩu hiện tại
                   </label>
-                  <input
-                    type="password"
-                    name="oldPassword"
-                    value={passwordData.oldPassword}
-                    onChange={handlePasswordChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Nhập mật khẩu hiện tại"
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showOldPassword ? "text" : "password"}
+                      name="oldPassword"
+                      value={passwordData.oldPassword}
+                      onChange={handlePasswordChange}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Nhập mật khẩu hiện tại"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 pr-10 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-2">
                     Mật khẩu mới
                   </label>
-                  <input
-                    type="password"
-                    name="newPassword"
-                    value={passwordData.newPassword}
-                    onChange={handlePasswordChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Nhập mật khẩu mới"
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={handlePasswordChange}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Nhập mật khẩu mới"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 pr-10 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-2">
                     Xác nhận mật khẩu mới
                   </label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={passwordData.confirmPassword}
-                    onChange={handlePasswordChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Xác nhận mật khẩu mới"
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={passwordData.confirmPassword}
+                      onChange={handlePasswordChange}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Xác nhận mật khẩu mới"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 pr-10 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -441,6 +488,9 @@ const Info_Management = ({ onClose }) => {
               if (showPasswordForm) {
                 setShowPasswordForm(false);
                 setPasswordData({ oldPassword: "", newPassword: "", confirmPassword: "" });
+                setShowOldPassword(false);
+                setShowNewPassword(false);
+                setShowConfirmPassword(false);
               } else if (isEditing) {
                 handleCancel();
               } else {

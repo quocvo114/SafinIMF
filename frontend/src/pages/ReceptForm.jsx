@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Calendar, MapPin, Search } from "lucide-react";
 import roadImage from "../image/road.png";
 import { Input } from "@/components/ui/input";
+import { toast } from "react-toastify"; 
 import {
   Select,
   SelectContent,
@@ -884,6 +885,7 @@ const ReceptForm = () => {
         reportId={updateReportData?.report_id || updateReportData?.id}
         reportCode={updateReportData?.id || updateReportData?.report_id}
         currentStatus={updateReportData?.status || "Đang Chờ"}
+        hasAfterImage={Boolean(updateReportData?.afterImg)}
         onClose={() => {
           setShowUpdateStatusModal(false);
           setUpdateReportData(null);
@@ -913,6 +915,7 @@ const ReceptForm = () => {
         reportId={updateReportData?.id || updateReportData?.report_id}
         reportCode={updateReportData?.id}
         currentStatus={updateReportData?.status}
+        hasAfterImage={Boolean(updateReportData?.afterImg)}
         onClose={() => {
           setShowUpdateStatusModal(false);
           setUpdateReportData(null);

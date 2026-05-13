@@ -59,6 +59,7 @@ export default function HomeOverlayUI({
   userAvatar,
   userName,
   mapElement,
+  showAuthButtons = true,
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -68,6 +69,8 @@ export default function HomeOverlayUI({
   const [stream, setStream] = useState(null);
   const [localToast, setLocalToast] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -77,8 +80,59 @@ export default function HomeOverlayUI({
       return true;
     }
 
-    navigate("/signin");
+    toast.error("Vui lòng đăng nhập để sử dụng chức năng này");
+    setTimeout(() => {
+      navigate("/signin");
+    }, 500);
     return false;
+  };
+
+  const handleAuthConfirm = (action) => {
+    setConfirmAction(action);
+    setShowConfirmDialog(true);
+  };
+
+  const proceedWithAuth = () => {
+    if (confirmAction === "signin") {
+      navigate("/signin");
+    } else if (confirmAction === "signup") {
+      navigate("/register");
+    } else if (confirmAction === "camera") {
+      setShowConfirmDialog(false);
+      setConfirmAction(null);
+      openCamera();
+      return;
+    } else if (confirmAction === "report") {
+      setShowConfirmDialog(false);
+      setConfirmAction(null);
+      setIsReportOpen(true);
+      return;
+    }
+    setShowConfirmDialog(false);
+    setConfirmAction(null);
+  };
+
+  const cancelAuth = () => {
+    setShowConfirmDialog(false);
+    setConfirmAction(null);
+  };
+
+  const handleCameraClick = () => {
+    const isAuthenticated = Boolean(user || localStorage.getItem("token"));
+    if (isAuthenticated) {
+      openCamera();
+    } else {
+      handleAuthConfirm("camera");
+    }
+  };
+
+  const handlePlusClick = () => {
+    const isAuthenticated = Boolean(user || localStorage.getItem("token"));
+    if (isAuthenticated) {
+      setIsReportOpen((prev) => !prev);
+    } else {
+      handleAuthConfirm("report");
+    }
   };
 
   // Đóng dropdown khi click bên ngoài
@@ -152,59 +206,82 @@ export default function HomeOverlayUI({
           <div className="absolute inset-0 z-0 w-full h-full">{mapElement}</div>
         )}
 
-        {/* Floating Sidebar - Left Top (aligned with categories) */}
-        <div className="absolute left-3 top-4 z-10">
-          <SidebarProvider>
-            <UserSidebar />
-          </SidebarProvider>
-        </div>
+        {/* Floating Sidebar - Left Top (only show when authenticated) */}
+        {user && (
+          <div className="absolute left-3 top-4 z-10">
+            <SidebarProvider>
+              <UserSidebar />
+            </SidebarProvider>
+          </div>
+        )}
 
-        {/* Floating Categories - Right Top (next to sidebar) */}
-        <div
-          className="absolute top-4 right-4 z-10 flex gap-2 overflow-x-auto scrollbar-hide"
-          style={{ left: "var(--user-sidebar-offset, 6rem)" }}
-        >
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-              selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
-            }`}
-            style={{
-              backgroundColor: "#2563EB",
-              color: "#ffffff",
-              border: "none",
-            }}
+        {/* Floating Categories - Right Top (only show when authenticated) */}
+        {user && (
+          <div
+            className="absolute top-4 right-4 z-10 flex gap-2 overflow-x-auto scrollbar-hide"
+            style={{ left: "var(--user-sidebar-offset, 6rem)" }}
           >
-            <span className="icon-wrap">
-              <LayoutGrid size={18} />
-            </span>
-            <span>Tất cả</span>
-          </button>
-          {categories.map((c) => (
+            {/* Category buttons */}
             <button
-              key={c.id}
-              onClick={() => setSelectedCategory(c.id)}
+              onClick={() => setSelectedCategory("all")}
               className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
+                selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
               }`}
               style={{
-                backgroundColor: c.bgColor,
+                backgroundColor: "#2563EB",
                 color: "#ffffff",
                 border: "none",
               }}
             >
-              <span className="icon-wrap">{c.icon}</span>
-              <span>{c.name}</span>
+              <span className="icon-wrap">
+                <LayoutGrid size={18} />
+              </span>
+              <span>Tất cả</span>
             </button>
-          ))}
-        </div>
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedCategory(c.id)}
+                className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                  selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
+                }`}
+                style={{
+                  backgroundColor: c.bgColor,
+                  color: "#ffffff",
+                  border: "none",
+                }}
+              >
+                <span className="icon-wrap">{c.icon}</span>
+                <span>{c.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* Floating Buttons - Bottom Right */}
+        {/* Auth Buttons - Top Right Corner (only show when not authenticated) */}
+        {showAuthButtons && !user ? (
+          <div className="absolute top-4 right-4 z-10 flex gap-3">
+            <button
+              onClick={() => handleAuthConfirm("signin")}
+              className="flex items-center gap-2 px-6 h-12 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 bg-white text-blue-600 hover:shadow-lg shadow-lg border-2 border-blue-600 hover:bg-blue-50"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => handleAuthConfirm("signup")}
+              className="flex items-center gap-2 px-6 h-12 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 bg-blue-600 text-white hover:shadow-lg shadow-lg hover:bg-blue-700"
+            >
+              Sign Up
+            </button>
+          </div>
+        ) : null}
+
+        {/* Floating Buttons - Bottom Right (always show) */}
         <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-3 pointer-events-auto">
           {/* Camera Button */}
           <button
             className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center bg-black text-white hover:bg-gray-800 transition-all"
-            onClick={openCamera}
+            onClick={handleCameraClick}
             title="Chụp ảnh"
           >
             <Camera size={20} />
@@ -213,12 +290,7 @@ export default function HomeOverlayUI({
           {/* Plus Button */}
           <button
             className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white shadow-lg transition-all hover:bg-gray-800 md:h-14 md:w-14"
-            onClick={() => {
-              if (!canCreateReport()) {
-                return;
-              }
-              setIsReportOpen((prev) => !prev);
-            }}
+            onClick={handlePlusClick}
             title="Tạo báo cáo mới"
           >
             <Plus size={20} />
@@ -270,6 +342,46 @@ export default function HomeOverlayUI({
               >
                 <Camera className="w-5 h-5" />
                 <span>Chụp ảnh</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION DIALOG */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10001] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              {confirmAction === "signin" 
+                ? "Đăng Nhập" 
+                : confirmAction === "signup" 
+                ? "Tạo Tài Khoản" 
+                : confirmAction === "camera" 
+                ? "Chụp Ảnh" 
+                : "Tạo Báo Cáo"}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              {confirmAction === "signin" 
+                ? "Bạn có muốn đăng nhập không?" 
+                : confirmAction === "signup" 
+                ? "Bạn có muốn tạo tài khoản mới không?"
+                : confirmAction === "camera"
+                ? "Vui lòng đăng nhập để sử dụng chức năng chụp ảnh"
+                : "Vui lòng đăng nhập để tạo báo cáo mới"}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelAuth}
+                className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={proceedWithAuth}
+                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+              >
+                Tiếp Tục
               </button>
             </div>
           </div>
