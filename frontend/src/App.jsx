@@ -42,9 +42,37 @@ import ForcePasswordChange from "./components/ForcePasswordChange.jsx";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
-function AppContent() {
-  const { user } = useAuth();
-  
+// Component để hiển thị root route - bản đồ công cộng hoặc redirect theo role
+function RootRedirect() {
+  const { user, isChecking } = useAuth();
+
+  if (isChecking) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+          <p className="text-gray-600">Đang xác thực...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user) {
+    // Nếu đã login, redirect về dashboard theo role
+    if (user.role === "maintenance") {
+      return <Navigate to="/maintenance/dashboard" replace />;
+    } else if (user.role === "admin" || user.role === "manager") {
+      return <Navigate to="/admin/overview" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  // Nếu chưa login, hiển thị bản đồ công cộng (Dashboard không cần auth)
+  return <Dashboard />;
+}
+
+function App() {
   return (
     <>
       <TooltipProvider>
@@ -53,9 +81,9 @@ function AppContent() {
         >
           <Routes>
             {/* Public */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route 
-              path="/signin" 
+              path="/login" 
               element={
                 GOOGLE_CLIENT_ID ? (
                   <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
@@ -66,6 +94,7 @@ function AppContent() {
                 )
               } 
             />
+            <Route path="/signin" element={<Navigate to="/login" replace />} />
 
             <Route path="/register" element={<Register />} />
             <Route path="/register/confirm" element={<RegisterConfirm />} />

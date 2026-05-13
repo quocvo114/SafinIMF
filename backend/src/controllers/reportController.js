@@ -903,6 +903,17 @@ class ReportController {
         });
       }
 
+      // PB14: Kiểm tra ảnh khắc phục khi cập nhật thành "Đã Giải Quyết"
+      if (status === "Đã Giải Quyết") {
+        if (!existingReport.afterImg) {
+          console.log(`❌ [UPDATE_STATUS] Cannot resolve - no after image found for report ${id}`);
+          return res.status(400).json({
+            success: false,
+            message: "Báo cáo chưa có ảnh khắc phục từ đội xử lý. Vui lòng chờ đội xử lý upload ảnh",
+          });
+        }
+      }
+
       // Xây dựng payload phân công đội nếu có
       const assignmentPayload = {};
       if (handlingTeamId) {

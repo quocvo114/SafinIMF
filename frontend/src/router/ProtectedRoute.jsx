@@ -3,7 +3,19 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function ProtectedRoute({ children, requiredRole }) {
-  const { user } = useAuth();
+  const { user, isChecking } = useAuth();
+
+  // Nếu đang kiểm tra token, hiện loading
+  if (isChecking) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+          <p className="text-gray-600">Đang xác thực...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Nếu chưa đăng nhập -> redirect về SignIn
   if (!user) {
