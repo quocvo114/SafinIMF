@@ -19,15 +19,6 @@ import { useAuth } from "../context/AuthContext";
 import Toast from "./Toast";
 import { Button } from "@/components/ui/button";
 
-// const Avatar = ({ src, alt }) => (
-//   <img
-//     src={src}
-//     alt={alt}
-//     className="h-8 w-8 rounded-full object-cover ring-1 ring-black/5"
-//     onError={(e) => (e.currentTarget.style.display = "none")}
-//   />
-// );
-
 const CATEGORIES = [
   { id: "all", label: "Tất Cả", icon: "📋", color: "blue" },
   { id: "traffic", label: "Giao Thông", icon: "🚗", color: "orange" },
@@ -501,13 +492,13 @@ export function NavbarAdmin() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 min-w-0 flex-1 justify-center rounded-full border-gray-200 bg-[#eaeaea] px-3 text-sm text-gray-700 hover:bg-[#eaeaea] sm:flex-none sm:px-5"
+              className="h-10 min-w-0 flex-1 justify-center rounded-full !border-gray-300 bg-[#eaeaea] px-3 text-sm text-gray-700 hover:bg-[#eaeaea] sm:flex-none sm:px-5"
             >
-              <CloudSun className="h-4 w-4 text-gray-500" />
-              <span className="whitespace-nowrap font-medium text-gray-700">
+              <CloudSun className="h-4 w-4 text-gray-600" />
+              <span className="whitespace-nowrap font-medium text-gray-600">
                 {temperature}°C
               </span>
-              <span className="hidden text-gray-400 sm:inline">|</span>
+              <span className="hidden text-gray-300 sm:inline">|</span>
               <span className="hidden whitespace-nowrap font-medium text-gray-600 sm:inline">
                 {formatDate(currentDate)}
               </span>
@@ -516,90 +507,90 @@ export function NavbarAdmin() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 min-w-0 flex-1 justify-center rounded-full border-gray-200 bg-[#eaeaea] px-3 text-sm text-gray-800 hover:bg-[#eaeaea] sm:flex-none sm:px-5"
+              className="h-10 min-w-0 flex-1 gap-2 justify-center rounded-full !border-gray-300 bg-[#eaeaea] px-3 text-sm hover:bg-[#eaeaea] sm:flex-none sm:px-5"
             >
-              <Navigation className="h-4 w-4 text-gray-700" />
-              <span className="truncate font-semibold">{displayCity}</span>
+              <Navigation className="h-4 w-4 text-gray-600" />
+              <span className="truncate text-gray-600">{displayCity}</span>
             </Button>
           </div>
 
           <div className="relative" ref={notiRef}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setOpenNoti((v) => !v)}
-                className="relative h-10 w-10 rounded-full border border-gray-300 bg-[#f3f3f3] shadow-sm hover:bg-gray-100"
-              >
-                <Bell className="mx-auto h-6 w-6 text-gray-800" />
-                {noti.some((n) => n.unread) && (
-                  <span className="absolute top-1.5 right-1.5 inline-block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#f3f3f3]" />
-                )}
-              </Button>
-
-              {openNoti && (
-                <div
-                  className="absolute right-0 mt-2 w-80 rounded-2xl border border-gray-200 
-                           bg-white/95 backdrop-blur shadow-lg p-2 z-50"
-                >
-                  <div className="flex items-center justify-between px-2 py-1">
-                    <p className="text-sm font-semibold text-gray-800">
-                      Thông báo
-                    </p>
-                    <button
-                      onClick={markAllRead}
-                      className="text-xs rounded-full px-2 py-1 hover:bg-gray-100 text-gray-600"
-                    >
-                      Đánh dấu đã đọc
-                    </button>
-                  </div>
-
-                  <div className="max-h-80 overflow-auto pr-1">
-                    {noti.length === 0 ? (
-                      <p className="text-xs text-gray-500 px-3 py-6 text-center">
-                        Không có thông báo
-                      </p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {noti.map((n) => (
-                          <li
-                            key={n.id}
-                            className={`flex gap-3 rounded-xl px-3 py-2 hover:bg-gray-50 ${
-                              n.unread ? "bg-gray-50" : ""
-                            }`}
-                          >
-                            <div className="pt-1">
-                              <span
-                                className={`inline-block h-2 w-2 rounded-full ${
-                                  n.severity === "critical"
-                                    ? "bg-red-500"
-                                    : n.severity === "warning"
-                                      ? "bg-amber-500"
-                                      : "bg-blue-500"
-                                }`}
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate text-gray-800">
-                                {n.title}
-                              </p>
-                              {n.message && (
-                                <p className="text-xs text-gray-600 overflow-hidden text-ellipsis">
-                                  {n.message}
-                                </p>
-                              )}
-                              <p className="text-[10px] text-gray-400 mt-1">
-                                {new Date(n.createdAt).toLocaleString()}
-                              </p>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setOpenNoti((v) => !v)}
+              className="relative h-10 w-10 rounded-full border !border-gray-300 bg-[#f3f3f3] shadow-sm transition-colors duration-200 hover:!bg-gray-200"
+            >
+              <Bell className="mx-auto h-6 w-6 text-gray-800" />
+              {noti.some((n) => n.unread) && (
+                <span className="absolute top-1.5 right-1.5 inline-block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#f3f3f3]" />
               )}
-            </div>
+            </Button>
+
+            {openNoti && (
+              <div
+                className="absolute right-0 mt-2 w-80 rounded-2xl border border-gray-200 
+                           bg-white/95 backdrop-blur shadow-lg p-2 z-50"
+              >
+                <div className="flex items-center justify-between px-2 py-1">
+                  <p className="text-sm font-semibold text-gray-800">
+                    Thông báo
+                  </p>
+                  <button
+                    onClick={markAllRead}
+                    className="text-xs rounded-full px-2 py-1 hover:bg-gray-100 text-gray-600"
+                  >
+                    Đánh dấu đã đọc
+                  </button>
+                </div>
+
+                <div className="max-h-80 overflow-auto pr-1">
+                  {noti.length === 0 ? (
+                    <p className="text-xs text-gray-500 px-3 py-6 text-center">
+                      Không có thông báo
+                    </p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {noti.map((n) => (
+                        <li
+                          key={n.id}
+                          className={`flex gap-3 rounded-xl px-3 py-2 hover:bg-gray-50 ${
+                            n.unread ? "bg-gray-50" : ""
+                          }`}
+                        >
+                          <div className="pt-1">
+                            <span
+                              className={`inline-block h-2 w-2 rounded-full ${
+                                n.severity === "critical"
+                                  ? "bg-red-500"
+                                  : n.severity === "warning"
+                                    ? "bg-amber-500"
+                                    : "bg-blue-500"
+                              }`}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate text-gray-800">
+                              {n.title}
+                            </p>
+                            {n.message && (
+                              <p className="text-xs text-gray-600 overflow-hidden text-ellipsis">
+                                {n.message}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              {new Date(n.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
     </>

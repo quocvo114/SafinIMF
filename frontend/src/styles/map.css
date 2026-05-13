@@ -66,16 +66,16 @@
 }
 
 .map-marker--electric {
-  background: #eab308;
-  color: #1f2937;
+  background: #fdca00;
+  color: #ffffff;
 }
 
 .map-marker--tree {
-  background: #22c55e;
+  background: #74c365;
 }
 
 .map-marker--building {
-  background: #a855f7;
+  background: #b78ff2;
 }
 
 .map-marker--current-location {

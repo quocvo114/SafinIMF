@@ -2,9 +2,9 @@ import L from "leaflet";
 
 const COLOR_CLASS_BY_HEX = Object.freeze({
   "#f97316": "map-marker--traffic",
-  "#eab308": "map-marker--electric",
-  "#22c55e": "map-marker--tree",
-  "#a855f7": "map-marker--building",
+  "#fdca00": "map-marker--electric",
+  "#74c365": "map-marker--tree",
+  "#b78ff2": "map-marker--building",
   "#2563eb": "map-marker--current-location",
   "#0ea5e9": "map-marker--search",
 });
@@ -35,9 +35,13 @@ const BUILDING_SVG = buildSvg(
   '<path d="M10 12h4" /><path d="M10 8h4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" /><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />',
 );
 
-const LOCATION_SVG = buildSvg('<circle cx="12" cy="12" r="5" /><path d="M12 2v3" /><path d="M12 19v3" /><path d="M2 12h3" /><path d="M19 12h3" />');
+const LOCATION_SVG = buildSvg(
+  '<circle cx="12" cy="12" r="5" /><path d="M12 2v3" /><path d="M12 19v3" /><path d="M2 12h3" /><path d="M19 12h3" />',
+);
 
-const SEARCH_SVG = buildSvg('<circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />');
+const SEARCH_SVG = buildSvg(
+  '<circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />',
+);
 
 export const createCustomMarkerIcon = ({
   backgroundColor,
@@ -62,17 +66,17 @@ export const trafficMarkerIcon = createCustomMarkerIcon({
 });
 
 export const electricMarkerIcon = createCustomMarkerIcon({
-  backgroundColor: "#eab308",
+  backgroundColor: "#fdca00",
   svgIcon: ELECTRIC_SVG,
 });
 
 export const treeMarkerIcon = createCustomMarkerIcon({
-  backgroundColor: "#22c55e",
+  backgroundColor: "#74c365",
   svgIcon: TREE_SVG,
 });
 
 export const buildingMarkerIcon = createCustomMarkerIcon({
-  backgroundColor: "#a855f7",
+  backgroundColor: "#b78ff2",
   svgIcon: BUILDING_SVG,
 });
 

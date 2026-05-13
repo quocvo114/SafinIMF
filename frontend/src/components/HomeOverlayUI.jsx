@@ -10,7 +10,6 @@ import {
   X,
 } from "lucide-react";
 import ReportForm from "./Report";
-// Toast component imported but shadowed - using sonner toast directly
 import UserSidebar from "./UserSidebar";
 import { SidebarProvider } from "./ui/sidebar";
 import { toast } from "sonner";
@@ -26,7 +25,8 @@ const DEFAULT_CATEGORIES = [
     iconKey: "car",
     bgColor: "#f97316",
     textColor: "#ffffff",
-    activeBgColor: "#f97316",
+    activeBgColor: "#F97316",
+    borderColor: "#c2410c",
   },
   {
     id: "electric",
@@ -34,7 +34,8 @@ const DEFAULT_CATEGORIES = [
     iconKey: "electric",
     bgColor: "#eab308",
     textColor: "#ffffff",
-    activeBgColor: "#eab308",
+    activeBgColor: "#FDCA00",
+    borderColor: "#AD8D0C",
   },
   {
     id: "tree",
@@ -42,7 +43,8 @@ const DEFAULT_CATEGORIES = [
     iconKey: "tree",
     bgColor: "#22c55e",
     textColor: "#ffffff",
-    activeBgColor: "#22c55e",
+    activeBgColor: "#74C365",
+    borderColor: "#15803d",
   },
   {
     id: "public",
@@ -50,7 +52,8 @@ const DEFAULT_CATEGORIES = [
     iconKey: "public",
     bgColor: "#a855f7",
     textColor: "#ffffff",
-    activeBgColor: "#a855f7",
+    activeBgColor: "#B78FF2",
+    borderColor: "#7e22ce",
   },
 ];
 
@@ -135,7 +138,6 @@ export default function HomeOverlayUI({
         if (videoRef.current) videoRef.current.srcObject = mediaStream;
       }, 100);
     } catch (error) {
-      // ✅ Cleanup: Camera access error handling silenced
       toast.error(
         "Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.",
       );
@@ -178,54 +180,86 @@ export default function HomeOverlayUI({
           <div className="absolute inset-0 z-0 w-full h-full">{mapElement}</div>
         )}
 
-        {/* Floating Sidebar - Left Top (aligned with categories) */}
+        {/* Floating Sidebar - Left Top */}
         <div className="absolute left-3 top-4 z-10">
           <SidebarProvider>
             <UserSidebar />
           </SidebarProvider>
         </div>
 
-        {/* Floating Categories - Right Top (next to sidebar) */}
+        {/* Floating Categories - Right Top */}
         <div
-          className="absolute top-4 right-4 z-10 flex gap-2 overflow-x-auto scrollbar-hide"
+          className="absolute top-4 right-4 z-10 flex gap-2 scrollbar-hide px-3 py-1.5 -mx-1"
           style={{ left: "var(--user-sidebar-offset, 6rem)" }}
         >
+          {/* Nút "Tất cả" */}
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-              selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
-            }`}
+            className={`
+      relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
+      transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
+      ${selectedCategory === "all" ? "z-10" : "opacity-70 hover:opacity-100"}
+    `}
             style={{
-              backgroundColor: "#2563EB",
-              color: "#ffffff",
-              border: "none",
+              backgroundColor:
+                selectedCategory === "all" ? "#2563EB" : "#2563EB55",
+              color: selectedCategory === "all" ? "#ffffff" : "#ffffff",
+              border:
+                selectedCategory === "all"
+                  ? "2px solid #2563EB"
+                  : "2px solid transparent",
+              boxShadow:
+                selectedCategory === "all"
+                  ? "0 4px 90px #2563EB35, 0 0 0 9px #2563EB12, inset 0 0px 9px rgba(255,255,255,0.5)"
+                  : "none",
+              transform:
+                selectedCategory === "all"
+                  ? "scale(1.03) translateY(-1px)"
+                  : "scale(1)",
             }}
           >
-            <span className="icon-wrap">
-              <LayoutGrid size={18} />
-            </span>
+            <LayoutGrid
+              size={18}
+              color={selectedCategory === "all" ? "#ffffff" : "#ffffff"}
+            />
             <span>Tất cả</span>
           </button>
-          {categories.map((c) => {
-            const IconComp = INCIDENT_ICON_MAP[c.iconKey] || Building2;
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
-                className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                  selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
-                }`}
-                style={{
-                  backgroundColor: c.bgColor,
-                  color: "#ffffff",
-                  border: "none",
-                }}
-              >
-                <span className="icon-wrap"><IconComp size={18} /></span>
-                <span>{c.name}</span>
-              </button>
-            );
-          })}
+
+          {/* Các nút category */}
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCategory(c.id)}
+              className={`
+        relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
+        transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
+        ${selectedCategory === c.id ? "z-10" : "opacity-70 hover:opacity-100"}
+      `}
+              style={{
+                backgroundColor:
+                  selectedCategory === c.id ? c.bgColor : `${c.bgColor}55`,
+                color: selectedCategory === c.id ? "#ffffff" : "#ffffff",
+                border:
+                  selectedCategory === c.id
+                    ? `2px solid ${c.bgColor}`
+                    : "2px solid transparent",
+                boxShadow:
+                  selectedCategory === c.id
+                    ? `0 4px 90px ${c.bgColor}35, 0 0 0 9px ${c.bgColor}12, inset 0 0px 9px rgba(255,255,255,0.5)`
+                    : "none",
+                transform:
+                  selectedCategory === c.id
+                    ? "scale(1.03) translateY(-1px)"
+                    : "scale(1)",
+              }}
+            >
+              {React.cloneElement(c.icon, {
+                size: 18,
+                color: selectedCategory === c.id ? "#ffffff" : "#ffffff",
+              })}
+              <span>{c.name}</span>
+            </button>
+          ))}
         </div>
 
         {/* Floating Buttons - Bottom Right */}

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Building2, TrafficCone, TreePine, Zap } from "lucide-react";
+import { Building2, TrafficCone, TreePine, Zap, Layers } from "lucide-react";
 import IncidentPopupContent from "../components/IncidentPopupContent";
 import { incidentMarkerIcons, createCustomMarkerIcon } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
@@ -119,7 +119,6 @@ const loadCachedReports = () => {
     const parsedValue = JSON.parse(cachedValue);
     return Array.isArray(parsedValue) ? parsedValue : [];
   } catch (error) {
-    // ✅ Cleanup: Cache reading error handling silenced
     return [];
   }
 };
@@ -128,7 +127,7 @@ const saveCachedReports = (reports) => {
   try {
     localStorage.setItem(ADMIN_REPORTS_CACHE_KEY, JSON.stringify(reports));
   } catch (error) {
-    // ✅ Cleanup: Cache reading error handling silenced
+    // ✅ Cleanup: Cache writing error handling silenced
   }
 };
 
@@ -142,7 +141,6 @@ const loadGeocodeCache = () => {
     const parsedValue = JSON.parse(cachedValue);
     return parsedValue && typeof parsedValue === "object" ? parsedValue : {};
   } catch (error) {
-    // ✅ Cleanup: Cache reading error handling silenced
     return {};
   }
 };
@@ -262,36 +260,42 @@ function MapController({ mapRef }) {
   return null;
 }
 
+// ✅ CATEGORY_OPTIONS với màu sắc đồng bộ UI mềm mại
 const CATEGORY_OPTIONS = [
   {
     id: "all",
     label: "Tất Cả",
-    icon: "⌘",
-    color: "#2563eb",
+    icon: <Layers className="h-4 w-4" />,
+    color: "#2563EB",
+    borderColor: "#1d4ed8",
   },
   {
     id: "traffic",
     label: "Giao Thông",
     icon: <TrafficCone className="h-4 w-4" />,
-    color: "#f97316",
+    color: "#F97316",
+    borderColor: "#c2410c",
   },
   {
     id: "electric",
     label: "Điện",
     icon: <Zap className="h-4 w-4" />,
-    color: "#eab308",
+    color: "#FDCA00",
+    borderColor: "#AD8D0C",
   },
   {
     id: "tree",
     label: "Cây Xanh",
     icon: <TreePine className="h-4 w-4" />,
-    color: "#22c55e",
+    color: "#74C365",
+    borderColor: "#15803d",
   },
   {
     id: "public",
     label: "Công Trình Công Cộng",
     icon: <Building2 className="h-4 w-4" />,
-    color: "#a855f7",
+    color: "#B78FF2",
+    borderColor: "#7e22ce",
   },
 ];
 
@@ -377,7 +381,6 @@ export default function AdminDashboard() {
     if (selectedCategory === "public") {
       return "building";
     }
-
     return selectedCategory;
   }, [selectedCategory]);
 
@@ -385,7 +388,6 @@ export default function AdminDashboard() {
     if (normalizedSelectedCategory === "all") {
       return reports;
     }
-
     return reports.filter(
       (point) => point.category === normalizedSelectedCategory,
     );
@@ -427,12 +429,13 @@ export default function AdminDashboard() {
         ))}
       </MapContainer>
 
+      {/* ✅ Floating Categories - Soft UI Version */}
       <div
-        className="pointer-events-none absolute right-4 top-[5.4rem] z-20"
+        className="pointer-events-none absolute right-4 top-20 z-20"
         style={{ left: "var(--admin-sidebar-offset, 6rem)" }}
       >
         <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap">
-          {[{ id: "all", label: "Tất Cả", icon: "⌘", color: "#2563eb" },
+          {[{ id: "all", label: "Tất Cả", icon: <Layers className="h-4 w-4" />, color: "#2563eb" },
             ...incidentTypes.map((t) => {
               const IconComp = INCIDENT_ICON_MAP[t.iconKey] || Building2;
               return {
@@ -447,14 +450,42 @@ export default function AdminDashboard() {
               key={category.id}
               type="button"
               onClick={() => setSelectedCategory(category.id)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-white shadow-md transition hover:brightness-95 sm:h-10 sm:px-4"
+              className={`
+                relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
+                transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
+                ${selectedCategory === category.id ? "z-10" : "hover:opacity-100"}
+              `}
               style={{
-                backgroundColor: category.color,
-                opacity: selectedCategory === category.id ? 1 : 0.92,
+                backgroundColor:
+                  selectedCategory === category.id
+                    ? category.color
+                    : `${category.color}55`,
+                color: "#ffffff",
+                border:
+                  selectedCategory === category.id
+                    ? `2px solid ${category.borderColor || category.color}`
+                    : "2px solid transparent",
+                boxShadow:
+                  selectedCategory === category.id
+                    ? `0 4px 90px ${category.color}35, 0 0 0 9px ${category.color}12, inset 0 0px 9px rgba(255,255,255,0.5)`
+                    : "none",
+                transform:
+                  selectedCategory === category.id
+                    ? "scale(1.03) translateY(-1px)"
+                    : "scale(1)",
               }}
             >
               <span className="inline-flex items-center justify-center">
-                {category.icon}
+                {React.isValidElement(category.icon)
+                  ? React.cloneElement(category.icon, {
+                      size: 16,
+                      color: "#ffffff",
+                    })
+                  : (
+                    <span className="text-sm leading-none text-white">
+                      {String(category.icon ?? "")}
+                    </span>
+                  )}
               </span>
               <span>{category.label}</span>
             </button>

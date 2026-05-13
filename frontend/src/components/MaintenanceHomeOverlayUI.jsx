@@ -1,17 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import {
-  TrafficCone,
-  Zap,
-  TreePine,
-  Building2,
-  Plus,
-  Camera,
-  X,
-  Layers,
-} from "lucide-react";
+import { TrafficCone, Zap, TreePine, Building2, X, Layers } from "lucide-react";
 import ReportForm from "./Report";
 import Toast from "./Toast";
-import { useNavigate } from "react-router-dom";
 import MaintenanceUserSidebar from "./MaintenanceUserSidebar";
 import { SidebarProvider } from "./ui/sidebar";
 import { NavbarAdmin } from "./NavBar";
@@ -25,7 +15,8 @@ const DEFAULT_CATEGORIES = [
     iconKey: "car",
     bgColor: "#f97316",
     textColor: "#ffffff",
-    activeBgColor: "#f97316",
+    activeBgColor: "#F97316",
+    borderColor: "#c2410c",
   },
   {
     id: "electric",
@@ -33,7 +24,8 @@ const DEFAULT_CATEGORIES = [
     iconKey: "electric",
     bgColor: "#eab308",
     textColor: "#ffffff",
-    activeBgColor: "#eab308",
+    activeBgColor: "#FDCA00",
+    borderColor: "#AD8D0C",
   },
   {
     id: "tree",
@@ -41,7 +33,8 @@ const DEFAULT_CATEGORIES = [
     iconKey: "tree",
     bgColor: "#22c55e",
     textColor: "#ffffff",
-    activeBgColor: "#22c55e",
+    activeBgColor: "#74C365",
+    borderColor: "#15803d",
   },
   {
     id: "public",
@@ -49,7 +42,8 @@ const DEFAULT_CATEGORIES = [
     iconKey: "public",
     bgColor: "#a855f7",
     textColor: "#ffffff",
-    activeBgColor: "#a855f7",
+    activeBgColor: "#B78FF2",
+    borderColor: "#7e22ce",
   },
 ];
 
@@ -58,9 +52,6 @@ const DEFAULT_CATEGORIES = [
 export default function MaintenanceHomeOverlayUI({
   selectedCategory,
   setSelectedCategory,
-  onSearch,
-  userAvatar,
-  userName,
   mapElement,
 }) {
   const navigate = useNavigate();
@@ -93,9 +84,6 @@ export default function MaintenanceHomeOverlayUI({
   }, []);
 
   const [toast, setToast] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -107,52 +95,6 @@ export default function MaintenanceHomeOverlayUI({
       // Cleanup
     };
   }, []);
-
-  // Mở camera
-  const openCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-        audio: false,
-      });
-      setStream(mediaStream);
-      setShowCameraOnly(true);
-      setTimeout(() => {
-        if (videoRef.current) videoRef.current.srcObject = mediaStream;
-      }, 100);
-    } catch (error) {
-      // ✅ Cleanup: Camera access error handling silenced
-      alert("Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.");
-    }
-  };
-
-  // Đóng camera
-  const closeCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    setShowCameraOnly(false);
-  };
-
-  // Chụp ảnh
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const imageData = canvas.toDataURL("image/jpeg");
-
-    // Đóng camera, lưu ảnh và mở form Report
-    closeCamera();
-    setCapturedImage(imageData);
-    setIsReportOpen(true);
-  };
 
   return (
     <>
@@ -170,7 +112,7 @@ export default function MaintenanceHomeOverlayUI({
           <div className="absolute inset-0 z-0 w-full h-full">{mapElement}</div>
         )}
 
-        {/* Floating Sidebar - Left Top (aligned with categories) */}
+        {/* Floating Sidebar - Left Top */}
         <div className="absolute left-3 top-4 z-90">
           <SidebarProvider>
             <MaintenanceUserSidebar />
@@ -189,45 +131,74 @@ export default function MaintenanceHomeOverlayUI({
 
         {/* Floating Categories - Right Top (below navbar) */}
         <div
-          className="absolute right-4 top-24 z-10 flex gap-3 overflow-x-auto scrollbar-hide"
+          className="absolute right-4 top-20 z-10 flex gap-2 scrollbar-hide px-10 py-1.5 -mx-1"
           style={{ left: "var(--maintenance-sidebar-offset, 6rem)" }}
         >
+          {/* Nút "Tất cả" */}
           <button
             onClick={() => setSelectedCategory("all")}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 sm:h-10 sm:px-4 ${
-              selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
-            }`}
+            className={`
+              relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
+              transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
+              ${selectedCategory === "all" ? "z-10" : "hover:opacity-100"}
+            `}
             style={{
-              backgroundColor: "#2563EB",
+              backgroundColor:
+                selectedCategory === "all" ? "#2563EB" : "#2563EB55",
               color: "#ffffff",
-              border: "none",
+              border:
+                selectedCategory === "all"
+                  ? "2px solid #2563EB"
+                  : "2px solid transparent",
+              boxShadow:
+                selectedCategory === "all"
+                  ? "0 4px 90px #2563EB35, 0 0 0 9px #2563EB12, inset 0 0px 9px rgba(255,255,255,0.5)"
+                  : "none",
+              transform:
+                selectedCategory === "all"
+                  ? "scale(1.03) translateY(-1px)"
+                  : "scale(1)",
             }}
           >
-            <Layers size={18} />
-            Tất cả
+            <Layers size={18} color="#ffffff" />
+            <span>Tất cả</span>
           </button>
-          {categories.map((c) => {
-            const IconComp = INCIDENT_ICON_MAP[c.iconKey] || Building2;
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 sm:h-10 sm:px-4 ${
-                  selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
-                }`}
-                style={{
-                  backgroundColor: c.bgColor,
-                  color: "#ffffff",
-                  border: "none",
-                }}
-              >
-                <span className="icon-wrap">
-                  <IconComp size={18} />
-                </span>
-                <span>{c.name}</span>
-              </button>
-            );
-          })}
+
+          {/* Các nút category */}
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCategory(c.id)}
+              className={`
+                relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
+                transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
+                ${selectedCategory === c.id ? "z-10" : "hover:opacity-100"}
+              `}
+              style={{
+                backgroundColor:
+                  selectedCategory === c.id ? c.bgColor : `${c.bgColor}55`,
+                color: "#ffffff",
+                border:
+                  selectedCategory === c.id
+                    ? `2px solid ${c.bgColor}`
+                    : "2px solid transparent",
+                boxShadow:
+                  selectedCategory === c.id
+                    ? `0 4px 90px ${c.bgColor}35, 0 0 0 9px ${c.bgColor}12, inset 0 0px 9px rgba(255,255,255,0.5)`
+                    : "none",
+                transform:
+                  selectedCategory === c.id
+                    ? "scale(1.03) translateY(-1px)"
+                    : "scale(1)",
+              }}
+            >
+              {React.cloneElement(c.icon, {
+                size: 18,
+                color: "#ffffff",
+              })}
+              <span>{c.name}</span>
+            </button>
+          ))}
         </div>
       </div>
     </>
