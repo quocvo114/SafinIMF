@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import userApi from "../services/api/userApi";
+import { areaApi } from "../services/api/areaApi";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
@@ -29,14 +30,13 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const AREA_OPTIONS = [
-  { value: "all", label: "Tất cả khu vực" },
-  { value: "Sơn Trà", label: "Sơn Trà" },
-  { value: "Liên Chiểu", label: "Liên Chiểu" },
-  { value: "Hải Châu", label: "Hải Châu" },
-  { value: "Hòa Xuân", label: "Hòa Xuân" },
-  { value: "Khuê Trung", label: "Khuê Trung" },
-];
+const removeAccents = (str) => {
+  if (!str) return "";
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+};
 
 const STATUS_OPTIONS = [
   { value: "all", label: "Tất cả trạng thái" },
@@ -112,13 +112,7 @@ const normalizeTeam = (team) => ({
   status: team.status || "active",
 });
 
-const AREA_SELECT_OPTIONS = [
-  "Sơn Trà",
-  "Liên Chiểu",
-  "Hải Châu",
-  "Hòa Xuân",
-  "Khuê Trung",
-];
+
 
 const inputCls =
   "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none";
@@ -158,6 +152,9 @@ const MaintenanceTeam_Table = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
+  const [searchAreaQuery, setSearchAreaQuery] = useState("");
+  const [isFilterAreaOpen, setIsFilterAreaOpen] = useState(false);
+  const [areas, setAreas] = useState([]);
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -181,6 +178,20 @@ const MaintenanceTeam_Table = () => {
   }, [availableLeaders, leaderSearch]);
 
   const [formData, setFormData] = useState(emptyForm);
+
+  useEffect(() => {
+    const fetchAreas = async () => {
+      try {
+        const response = await areaApi.getAllAreas();
+        if (response.data?.success) {
+          setAreas(response.data.data || []);
+        }
+      } catch (error) {
+        // do nothing
+      }
+    };
+    fetchAreas();
+  }, []);
 
   const fetchTeams = useCallback(async () => {
     try {
@@ -386,32 +397,75 @@ const MaintenanceTeam_Table = () => {
         {/* Filters + Add button */}
         <div className="flex flex-wrap lg:flex-nowrap gap-2 lg:gap-3">
           {/* Khu vực */}
-          <Select
-            value={areaFilter}
-            onChange={(e) => {
-              setAreaFilter(e.target.value);
-              setCurrentPage(1);
+          <Popover 
+            open={isFilterAreaOpen} 
+            onOpenChange={(open) => {
+              setIsFilterAreaOpen(open);
+              if (!open) setSearchAreaQuery("");
             }}
           >
-            <SelectTrigger className="flex !h-11 min-w-[160px] shrink-0 items-center justify-between rounded-full border border-gray-200 bg-white px-4 py-0 text-sm font-normal text-gray-700 hover:bg-gray-50 focus:border-gray-300 focus:ring-0 focus:ring-offset-0 focus-visible:border-gray-300 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none outline-none transition-colors data-[state=open]:bg-white [&>span]:truncate [&>span]:text-left [&>span]:flex-1 [&>svg]:opacity-50">
-              <SelectValue placeholder="Tất cả khu vực" />
-            </SelectTrigger>
-            <SelectContent
-              position="popper"
-              sideOffset={5}
-              className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden"
+            <PopoverTrigger asChild>
+              <button className="flex !h-11 min-w-[160px] shrink-0 items-center justify-between rounded-full border border-gray-200 bg-white px-4 py-0 text-sm font-normal text-gray-700 hover:bg-gray-50 focus:border-gray-300 focus:ring-0 focus:ring-offset-0 focus-visible:border-gray-300 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none outline-none transition-colors data-[state=open]:bg-white">
+                <span className="truncate text-left flex-1">
+                  {areaFilter === "all"
+                    ? "Tất cả khu vực"
+                    : areas.find((a) => a.name === areaFilter)?.name ||
+                      "Tất cả khu vực"}
+                </span>
+                <ChevronDown className="opacity-50 shrink-0 ml-2 h-4 w-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[200px] p-2 bg-white border border-gray-200 shadow-xl rounded-xl z-50"
+              align="start"
+              side="bottom"
+              sideOffset={8}
             >
-              {AREA_OPTIONS.map((o) => (
-                <SelectItem
-                  key={o.value}
-                  value={o.value}
-                  className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus-visible:outline-none focus-visible:ring-0 outline-none data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              <Input
+                placeholder="Tìm phường/xã..."
+                value={searchAreaQuery}
+                onChange={(e) => setSearchAreaQuery(e.target.value)}
+                className="mb-2 h-9 text-sm rounded-md"
+              />
+              <div className="max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                <div
+                  className={`flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors ${areaFilter === "all" ? "bg-gray-100 font-medium" : ""}`}
+                  onClick={() => {
+                    setAreaFilter("all");
+                    setIsFilterAreaOpen(false);
+                    setCurrentPage(1);
+                  }}
                 >
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                  <Check
+                    className={`mr-2 h-4 w-4 ${areaFilter === "all" ? "opacity-100" : "opacity-0"}`}
+                  />
+                  Tất cả khu vực
+                </div>
+                {areas
+                  .filter((a) =>
+                    removeAccents(a.name).includes(
+                      removeAccents(searchAreaQuery)
+                    )
+                  )
+                  .map((area) => (
+                    <div
+                      key={area.area_id}
+                      className={`flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors ${areaFilter === area.name ? "bg-gray-100 font-medium" : ""}`}
+                      onClick={() => {
+                        setAreaFilter(area.name);
+                        setIsFilterAreaOpen(false);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${areaFilter === area.name ? "opacity-100" : "opacity-0"}`}
+                      />
+                      {area.name}
+                    </div>
+                  ))}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* Trạng thái */}
           <Select
@@ -501,6 +555,7 @@ const MaintenanceTeam_Table = () => {
                     <PopoverContent
                       className="z-[10001] w-[--radix-popover-trigger-width] rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
                       align="start"
+                      side="bottom"
                       sideOffset={8}
                     >
                       <ScrollArea className="h-72 rounded-lg">
@@ -662,7 +717,10 @@ const MaintenanceTeam_Table = () => {
                   </label>
                   <Popover
                     open={areaPickerOpen}
-                    onOpenChange={setAreaPickerOpen}
+                    onOpenChange={(open) => {
+                      setAreaPickerOpen(open);
+                      if (!open) setSearchAreaQuery("");
+                    }}
                   >
                     <PopoverTrigger asChild>
                       <button
@@ -684,33 +742,42 @@ const MaintenanceTeam_Table = () => {
                     <PopoverContent
                       className="z-[10001] w-[--radix-popover-trigger-width] rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
                       align="start"
+                      side="bottom"
                       sideOffset={8}
                     >
-                      <ScrollArea className="h-56 rounded-lg">
-                        <div className="p-1">
-                          {AREA_SELECT_OPTIONS.map((a) => {
-                            const selected = formData.area === a;
+                      <Input
+                        placeholder="Tìm phường/xã..."
+                        value={searchAreaQuery}
+                        onChange={(e) => setSearchAreaQuery(e.target.value)}
+                        className="mb-2 h-9 text-sm rounded-md"
+                      />
+                      <div className="max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                        {areas
+                          .filter((a) =>
+                            removeAccents(a.name).includes(
+                              removeAccents(searchAreaQuery)
+                            )
+                          )
+                          .map((a) => {
+                            const selected = formData.area === a.name;
                             return (
-                              <button
-                                key={a}
-                                type="button"
+                              <div
+                                key={a.area_id}
+                                className={`flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors ${selected ? "bg-gray-100 font-medium" : ""}`}
                                 onClick={() => {
-                                  setFormData({ ...formData, area: a });
+                                  setFormData({ ...formData, area: a.name });
                                   setAreaPickerOpen(false);
+                                  setSearchAreaQuery("");
                                 }}
-                                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-blue-50"
                               >
-                                <span className="truncate text-gray-700">
-                                  {a}
-                                </span>
-                                {selected ? (
-                                  <Check className="h-4 w-4 text-blue-600" />
-                                ) : null}
-                              </button>
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`}
+                                />
+                                {a.name}
+                              </div>
                             );
                           })}
-                        </div>
-                      </ScrollArea>
+                      </div>
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -905,6 +972,7 @@ const MaintenanceTeam_Table = () => {
                     <PopoverContent
                       className="z-[10001] w-[--radix-popover-trigger-width] rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
                       align="start"
+                      side="bottom"
                       sideOffset={8}
                     >
                       <ScrollArea className="h-56 rounded-lg">
