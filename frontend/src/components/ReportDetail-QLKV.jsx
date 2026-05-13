@@ -310,10 +310,6 @@ export default function ReportDetailQLKV({
 
   const displayLocation = formatLocationDisplay(data.location);
 
-  useEffect(() => {
-    setAfterImageFailed(false);
-  }, [afterImage]);
-
   const showAfterImage = Boolean(afterImage) && !afterImageFailed;
   const statusValueClass = getStatusValueClass(data.status);
   const statusIconTone = getStatusIconTone(data.status);
