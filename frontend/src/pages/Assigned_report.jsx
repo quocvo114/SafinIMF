@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { formatLocationDisplay } from "../utils/formatLocation";
 import { Input } from "../components/ui/input";
@@ -21,6 +21,16 @@ import MaintenanceUserSidebar from "../components/MaintenanceUserSidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
 import MaintenanceReportDetail from "../components/MaintenanceReportDetail";
 import { reportApi } from "../services/api/reportApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
+import { useAuth } from "../context/AuthContext";
+
+const normalizeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .trim();
 
 export default function Assigned_report() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,17 +40,67 @@ export default function Assigned_report() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [teamId, setTeamId] = useState("");
+  const [teamLoading, setTeamLoading] = useState(false);
   const ITEMS_PER_PAGE = 4;
+  const { user } = useAuth();
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTeam = async () => {
+      if (!user) return;
+      setTeamLoading(true);
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          page: 1,
+          limit: 200,
+          status: "active",
+        });
+        const teams = Array.isArray(response?.data) ? response.data : [];
+        const leaderName = user?.full_name || user?.name || "";
+        const leaderPhone = user?.phone || "";
+        const normalizedLeader = normalizeText(leaderName);
+        const normalizedPhone = normalizeText(leaderPhone);
+
+        const matched = teams.find((team) => {
+          const leader = normalizeText(team?.leader || "");
+          if (!leader) return false;
+          if (normalizedLeader && leader === normalizedLeader) return true;
+          return normalizedPhone && leader.includes(normalizedPhone);
+        });
+
+        if (isMounted) {
+          setTeamId(matched?.team_id || matched?.id || "");
+        }
+      } catch (teamError) {
+        if (isMounted) setTeamId("");
+      } finally {
+        if (isMounted) setTeamLoading(false);
+      }
+    };
+
+    fetchTeam();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const fetchReports = async () => {
     try {
       setLoading(true);
       setError(null);
+      if (user?.role === "maintenance" && !teamId && !teamLoading) {
+        setReports([]);
+        setError("Không tìm thấy đội xử lý của bạn.");
+        return;
+      }
+
       const response = await reportApi.getManagementReports({
         status: "Đang Xử Lý",
         search: "",
         page: 1,
         limit: 100,
+        ...(teamId ? { assignedTeamId: teamId } : {}),
       });
 
       if (response.success && Array.isArray(response.data)) {
@@ -59,7 +119,7 @@ export default function Assigned_report() {
 
   useEffect(() => {
     fetchReports();
-  }, [refreshKey]);
+  }, [refreshKey, teamId, teamLoading, user?.role]);
 
   const filteredReports = reports.filter((report) => {
     const query = searchQuery.trim().toLowerCase();

@@ -176,14 +176,14 @@ function resolveWeights(hasLocation, hasTime) {
     return { location: 28, content: 28, time: 23, ai: 21 };
   }
   if (hasLocation && !hasTime) {
+    // Thiếu Time: Location và Content cùng tăng, AI tăng nhẹ
     return { location: 35, content: 35, time: 0, ai: 30 };
   }
   if (!hasLocation && hasTime) {
     return { location: 0, content: 40, time: 30, ai: 30 };
   }
-  // Chỉ có Content và AI (Theo scroring.md mới: 30% / 50%)
-  // Tổng trọng số là 80%, giúp hạn chế điểm tối đa nếu thiếu EXIF
-  return { location: 0, content: 30, time: 0, ai: 50 };
+  // Chỉ có Content và AI (Theo scroring.md: 50% / 50%)
+  return { location: 0, content: 50, time: 0, ai: 50 };
 }
 
 // ---------------------------------------------------------------------------

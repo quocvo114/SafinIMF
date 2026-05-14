@@ -120,7 +120,7 @@ class ReportRepository {
     return queries[0] || { id: String(id) };
   }
 
-  buildFilterQuery({ search, type, status, district }) {
+  buildFilterQuery({ search, type, status, district, assignedTeamId }) {
     const query = {};
 
     if (type && type !== "all") {
@@ -129,6 +129,10 @@ class ReportRepository {
 
     if (status && status !== "all") {
       query.status = status;
+    }
+
+    if (assignedTeamId) {
+      query.assignedTeamId = String(assignedTeamId);
     }
 
     if (district && district !== "all") {
@@ -157,9 +161,21 @@ class ReportRepository {
   /**
    * Trang quản lý (admin)
    */
-  async getManagementList({ search, type, status, page = 1, limit = 10 }) {
+  async getManagementList({
+    search,
+    type,
+    status,
+    assignedTeamId,
+    page = 1,
+    limit = 10,
+  }) {
     try {
-      const query = this.buildFilterQuery({ search, type, status });
+      const query = this.buildFilterQuery({
+        search,
+        type,
+        status,
+        assignedTeamId,
+      });
 
       const safePage = Math.max(parseInt(page, 10) || 1, 1);
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);

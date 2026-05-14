@@ -14,6 +14,15 @@ const DANANG_CENTER = [16.0471, 108.2068];
 const ADMIN_REPORTS_CACHE_KEY = "admin-map-reports-cache-v1";
 const ADMIN_GEOCODE_CACHE_KEY = "admin-map-geocode-cache-v1";
 
+const normalizeTypeKey = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
   if (
@@ -57,7 +66,6 @@ const extractPositionFromReport = (report) => {
 
   return [latFromLocation, lngFromLocation];
 };
-
 
 const parseReportDate = (timeValue, createdAtValue) => {
   const matchedDate = String(timeValue || "").match(/\d{1,2}\/\d{1,2}\/\d{4}/);
@@ -214,6 +222,7 @@ const normalizeReportsForMap = async (rawReports) => {
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
         category,
+        type: category,
         position,
         title: report?.title || "Báo cáo sự cố",
         status: report?.status || "Đang Chờ",
@@ -241,7 +250,6 @@ function MapController({ mapRef }) {
   return null;
 }
 
-
 export default function AdminDashboard() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [reports, setReports] = useState(() => loadCachedReports());
@@ -262,8 +270,10 @@ export default function AdminDashboard() {
       }
     };
     fetchIncidentTypes();
-    
-    return () => { isMounted = false; };
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -320,7 +330,7 @@ export default function AdminDashboard() {
     hasAutoFittedRef.current = true;
   }, [reports]);
 
-  const normalizedSelectedCategory = selectedCategory;
+  const normalizedSelectedCategory = normalizeTypeKey(selectedCategory);
 
   const visiblePoints = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
@@ -328,7 +338,8 @@ export default function AdminDashboard() {
     }
 
     return reports.filter(
-      (point) => point.category === normalizedSelectedCategory,
+      (point) =>
+        normalizeTypeKey(point.category) === normalizedSelectedCategory,
     );
   }, [normalizedSelectedCategory, reports]);
 
@@ -347,18 +358,26 @@ export default function AdminDashboard() {
         />
 
         {visiblePoints.map((point) => {
-          const typeObj = incidentTypes.find((t) => t.name === point.category);
+          const typeObj = incidentTypes.find(
+            (t) =>
+              normalizeTypeKey(t.name) === normalizeTypeKey(point.category),
+          );
           let mapIcon = incidentMarkerIcons[point.category];
-          
+
           if (!mapIcon) {
             let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
             if (typeObj) {
               const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
               if (IconComp) {
-                svgString = renderToString(<IconComp className="map-marker__icon" color="currentColor" />);
+                svgString = renderToString(
+                  <IconComp
+                    className="map-marker__icon"
+                    color="currentColor"
+                  />,
+                );
               }
             }
-            
+
             mapIcon = createCustomMarkerIcon({
               backgroundColor: typeObj?.color || "#f97316", // default orange
               svgIcon: svgString,
@@ -393,7 +412,8 @@ export default function AdminDashboard() {
         style={{ left: "var(--admin-sidebar-offset, 6rem)" }}
       >
         <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap">
-          {[{ id: "all", label: "Tất Cả", icon: "⌘", color: "#2563eb" },
+          {[
+            { id: "all", label: "Tất Cả", icon: "⌘", color: "#2563eb" },
             ...incidentTypes.map((t) => {
               const IconComp = INCIDENT_ICON_MAP[t.iconKey] || Building2;
               return {
@@ -402,7 +422,7 @@ export default function AdminDashboard() {
                 icon: <IconComp className="h-4 w-4" />,
                 color: t.color || "#f97316",
               };
-            })
+            }),
           ].map((category) => (
             <button
               key={category.id}

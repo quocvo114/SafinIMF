@@ -30,8 +30,6 @@ import { renderToString } from "react-dom/server";
 import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
 import incidentApi from "../services/api/incidentApi";
 
-
-
 const STATUS_CLASS_NAME = Object.freeze({
   "Đang Chờ": "incident-popup__status incident-popup__status--pending",
   "Đang Xử Lý": "incident-popup__status incident-popup__status--processing",
@@ -41,6 +39,15 @@ const STATUS_CLASS_NAME = Object.freeze({
 const DANANG_CENTER = [16.0471, 108.2068];
 const DASHBOARD_REPORTS_CACHE_KEY = "dashboard-map-reports-cache-v1";
 const DASHBOARD_GEOCODE_CACHE_KEY = "dashboard-map-geocode-cache-v1";
+
+const normalizeTypeKey = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
@@ -56,8 +63,16 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
+  const latFromField = parseCoordinate(
+    report?.lat ?? report?.reportLatitude,
+    -90,
+    90,
+  );
+  const lngFromField = parseCoordinate(
+    report?.lng ?? report?.reportLongitude,
+    -180,
+    180,
+  );
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }
@@ -78,8 +93,6 @@ const extractPositionFromReport = (report) => {
 
   return [latFromLocation, lngFromLocation];
 };
-
-
 
 const parseReportDate = (timeValue, createdAtValue) => {
   const matchedDate = String(timeValue || "").match(/\d{1,2}\/\d{1,2}\/\d{4}/);
@@ -114,7 +127,8 @@ const getReporterName = (report) => {
 };
 
 const getStatusClassName = (status) =>
-  STATUS_CLASS_NAME[status] || "incident-popup__status incident-popup__status--pending";
+  STATUS_CLASS_NAME[status] ||
+  "incident-popup__status incident-popup__status--pending";
 
 function IncidentPopupContent({ incident }) {
   const images = useMemo(() => {
@@ -242,7 +256,10 @@ const loadGeocodeCache = () => {
 
 const saveGeocodeCache = (cacheValue) => {
   try {
-    localStorage.setItem(DASHBOARD_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
+    localStorage.setItem(
+      DASHBOARD_GEOCODE_CACHE_KEY,
+      JSON.stringify(cacheValue),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -288,12 +305,16 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const incidentType = String(report?.type || report?.reportType || report?.category || "Khác").trim();
+      const incidentType = String(
+        report?.type || report?.reportType || report?.category || "Khác",
+      ).trim();
 
       let position = extractPositionFromReport(report);
 
       if (!position) {
-        const locationKey = String(report?.location || "").trim().toLowerCase();
+        const locationKey = String(report?.location || "")
+          .trim()
+          .toLowerCase();
 
         if (locationKey && Array.isArray(geocodeCache[locationKey])) {
           const [lat, lng] = geocodeCache[locationKey];
@@ -321,6 +342,7 @@ const normalizeReportsForMap = async (rawReports) => {
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
         type: incidentType,
+        category: incidentType,
         position,
         title: report?.title || "Báo cáo sự cố",
         location: report?.location || "",
@@ -403,7 +425,10 @@ function LocationMarker() {
   }, []);
 
   return position === null ? null : (
-    <Marker position={[position.lat, position.lng]} icon={currentLocationMarkerIcon}>
+    <Marker
+      position={[position.lat, position.lng]}
+      icon={currentLocationMarkerIcon}
+    >
       <Popup>📍 Bạn đang ở đây!</Popup>
     </Marker>
   );
@@ -422,7 +447,6 @@ const Dashboard = () => {
   const userAvatar = user?.avatar || null;
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
 
-
   const [incidentTypes, setIncidentTypes] = useState([]);
 
   useEffect(() => {
@@ -438,8 +462,10 @@ const Dashboard = () => {
       }
     };
     fetchIncidentTypes();
-    
-    return () => { isMounted = false; };
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -462,7 +488,6 @@ const Dashboard = () => {
       } catch (error) {
         // ✅ Cleanup: Report fetching error handling silenced
         if (isMounted && !hasCachedReportsRef.current) {
-          
           toast.error("Không thể tải dữ liệu sự cố từ hệ thống");
         }
       }
@@ -475,7 +500,7 @@ const Dashboard = () => {
     };
   }, []);
 
-  const normalizedSelectedCategory = selectedCategory;
+  const normalizedSelectedCategory = normalizeTypeKey(selectedCategory);
 
   const filteredIncidents = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
@@ -483,7 +508,8 @@ const Dashboard = () => {
     }
 
     return reports.filter(
-      (incident) => incident.type === normalizedSelectedCategory,
+      (incident) =>
+        normalizeTypeKey(incident.type) === normalizedSelectedCategory,
     );
   }, [normalizedSelectedCategory, reports]);
 
@@ -546,18 +572,26 @@ const Dashboard = () => {
             <LocationMarker />
 
             {filteredIncidents.map((incident) => {
-              const typeObj = incidentTypes.find((t) => t.name === incident.type);
+              const typeObj = incidentTypes.find(
+                (t) =>
+                  normalizeTypeKey(t.name) === normalizeTypeKey(incident.type),
+              );
               let mapIcon = incidentMarkerIcons[incident.type];
-              
+
               if (!mapIcon) {
                 let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
                 if (typeObj) {
                   const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
                   if (IconComp) {
-                    svgString = renderToString(<IconComp className="map-marker__icon" color="currentColor" />);
+                    svgString = renderToString(
+                      <IconComp
+                        className="map-marker__icon"
+                        color="currentColor"
+                      />,
+                    );
                   }
                 }
-                
+
                 mapIcon = createCustomMarkerIcon({
                   backgroundColor: typeObj?.color || "#f97316", // default orange
                   svgIcon: svgString,
@@ -570,7 +604,11 @@ const Dashboard = () => {
                   position={incident.position}
                   icon={mapIcon}
                 >
-                  <Popup className="incident-popup" maxWidth={420} minWidth={280}>
+                  <Popup
+                    className="incident-popup"
+                    maxWidth={420}
+                    minWidth={280}
+                  >
                     <IncidentPopupContent incident={incident} />
                   </Popup>
                 </Marker>
