@@ -118,7 +118,7 @@ const AdminSidebar = () => {
     toast.success("Đăng xuất thành công!");
     setTimeout(() => {
       logout();
-      navigate("/signin");
+      navigate("/");
     }, 1500);
   };
 
