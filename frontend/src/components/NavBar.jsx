@@ -14,10 +14,22 @@ import {
   Building2,
   CloudSun,
   Navigation,
+  Users,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import Toast from "./Toast";
 import { Button } from "@/components/ui/button";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
+
+const normalizeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const CATEGORIES = [
   { id: "all", label: "Tất Cả", icon: "📋", color: "blue" },
@@ -372,8 +384,10 @@ export default function Navbar() {
 }
 
 export function NavbarAdmin() {
+  const { user } = useAuth();
   const [temperature, setTemperature] = useState(25);
   const [openNoti, setOpenNoti] = useState(false);
+  const [teamName, setTeamName] = useState("");
 
   const notiRef = useRef(null);
 
@@ -444,6 +458,36 @@ export function NavbarAdmin() {
     }
   }, []);
 
+  useEffect(() => {
+    const fetchTeam = async () => {
+      if (user?.role !== "maintenance") return;
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          page: 1,
+          limit: 200,
+          status: "active",
+        });
+        const teams = Array.isArray(response?.data) ? response.data : [];
+        const leaderName = user?.full_name || user?.name || "";
+        const leaderPhone = user?.phone || "";
+        const normalizedLeader = normalizeText(leaderName);
+        const normalizedPhone = normalizeText(leaderPhone);
+        const matched = teams.find((team) => {
+          const leader = normalizeText(team?.leader || "");
+          if (!leader) return false;
+          if (normalizedLeader && leader === normalizedLeader) return true;
+          return normalizedPhone && leader.includes(normalizedPhone);
+        });
+        if (matched) {
+          setTeamName(matched.name);
+        }
+      } catch (error) {
+        console.error("Failed to fetch team name", error);
+      }
+    };
+    fetchTeam();
+  }, [user]);
+
   const [noti, setNoti] = useState([
     {
       id: "1",
@@ -488,6 +532,29 @@ export function NavbarAdmin() {
                    px-3 py-2.5 sm:px-5 flex items-center justify-end gap-2 sm:gap-4"
           style={{ minHeight: "60px" }}
         >
+          {user?.role === "maintenance" && teamName && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
+                <Users className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="text-[10px] font-semibold text-blue-500 uppercase tracking-tight">Đội xử lý</span>
+                <span className="text-sm font-bold text-blue-800">{teamName}</span>
+              </div>
+            </div>
+          )}
+
+          {user?.role === "admin" && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-100 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-600 text-white">
+                <ShieldAlert className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="text-[10px] font-semibold text-purple-500 uppercase tracking-tight">Hệ thống</span>
+                <span className="text-sm font-bold text-purple-800">Quản trị viên</span>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 sm:gap-4">
             <Button
               type="button"

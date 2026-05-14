@@ -390,12 +390,14 @@ class ReportController {
         status = "all",
         page = 1,
         limit = 10,
+        assignedTeamId = "",
       } = req.query;
 
       const result = await ReportRepository.getManagementList({
         search,
         type,
         status,
+        assignedTeamId,
         page,
         limit,
       });
@@ -416,28 +418,33 @@ class ReportController {
   async getAllReports(req, res) {
     try {
       if (req.query?.view === "map") {
-        const reports = await Report.find(
-          {},
-          {
-            _id: 1,
-            id: 1,
-            report_id: 1,
-            title: 1,
-            type: 1,
-            location: 1,
-            lat: 1,
-            lng: 1,
-            status: 1,
-            description: 1,
-            image: 1,
-            images: 1,
-            time: 1,
-            userId: 1,
-            user_id: 1,
-            createdAt: 1,
-            updatedAt: 1,
-          },
-        )
+        const mapQuery = {};
+        if (req.query?.status && req.query.status !== "all") {
+          mapQuery.status = req.query.status;
+        }
+        if (req.query?.assignedTeamId) {
+          mapQuery.assignedTeamId = String(req.query.assignedTeamId);
+        }
+
+        const reports = await Report.find(mapQuery, {
+          _id: 1,
+          id: 1,
+          report_id: 1,
+          title: 1,
+          type: 1,
+          location: 1,
+          lat: 1,
+          lng: 1,
+          status: 1,
+          description: 1,
+          image: 1,
+          images: 1,
+          time: 1,
+          userId: 1,
+          user_id: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        })
           .sort({ createdAt: -1 })
           .lean();
 
@@ -465,32 +472,33 @@ class ReportController {
 
   async getMapReports(req, res) {
     try {
-      const reports = await Report.find(
-        {},
-        {
-          _id: 1,
-          id: 1,
-          report_id: 1,
-          title: 1,
-          type: 1,
-          location: 1,
-          lat: 1,
-          lng: 1,
-          status: 1,
-          description: 1,
-          image: 1,
-          images: 1,
-          time: 1,
-          assignedTeamId: 1,
-          assignedTeamName: 1,
-          handlingTeamId: 1,
-          handlingTeamName: 1,
-          userId: 1,
-          user_id: 1,
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      )
+      const mapQuery = {};
+      if (req.query?.status && req.query.status !== "all") {
+        mapQuery.status = req.query.status;
+      }
+      if (req.query?.assignedTeamId) {
+        mapQuery.assignedTeamId = String(req.query.assignedTeamId);
+      }
+
+      const reports = await Report.find(mapQuery, {
+        _id: 1,
+        id: 1,
+        report_id: 1,
+        title: 1,
+        type: 1,
+        location: 1,
+        lat: 1,
+        lng: 1,
+        status: 1,
+        description: 1,
+        image: 1,
+        images: 1,
+        time: 1,
+        userId: 1,
+        user_id: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      })
         .sort({ createdAt: -1 })
         .lean();
 
@@ -893,6 +901,10 @@ class ReportController {
         });
       }
 
+      const wasResolved = existingReport.status === "Đã Giải Quyết";
+      const resolvedTeamId =
+        existingReport.assignedTeamId || existingReport.handlingTeamId;
+
       // Ngăn phân công khi đã giải quyết
       if (existingReport.status === "Đã Giải Quyết") {
         return res.status(409).json({
@@ -939,6 +951,28 @@ class ReportController {
       console.log(
         `✅ [UPDATE_STATUS] Successfully updated report ${id} to status: ${status}`,
       );
+
+      if (status === "Đã Giải Quyết" && !wasResolved && resolvedTeamId) {
+        try {
+          const team =
+            await MaintenanceTeamRepository.findByTeamId(resolvedTeamId);
+          if (team) {
+            const currentCases = Math.max(
+              parseInt(team.currentCases, 10) || 0,
+              0,
+            );
+            await MaintenanceTeamRepository.updateCaseCountByTeamId(
+              resolvedTeamId,
+              Math.max(currentCases - 1, 0),
+            );
+          }
+        } catch (countError) {
+          console.error(
+            "⚠️ Failed to decrement maintenance team cases:",
+            countError.message,
+          );
+        }
+      }
       res.status(200).json({
         success: true,
         message: "Cập nhật trạng thái thành công",
@@ -980,6 +1014,22 @@ class ReportController {
         return res.status(404).json({
           success: false,
           message: "Không tìm thấy báo cáo",
+        });
+      }
+
+      if (report.status === "Đã Giải Quyết") {
+        return res.status(409).json({
+          success: false,
+          code: "REPORT_RESOLVED",
+          message: "Báo cáo đã giải quyết, không thể phân công",
+        });
+      }
+
+      if (report.assignedTeamId) {
+        return res.status(409).json({
+          success: false,
+          code: "REPORT_ALREADY_ASSIGNED",
+          message: "Báo cáo đã được phân công, không thể phân công lại",
         });
       }
 
@@ -1090,6 +1140,9 @@ class ReportController {
         });
       }
 
+      const wasResolved = report.status === "Đã Giải Quyết";
+      const resolvedTeamId = report.assignedTeamId || report.handlingTeamId;
+
       // Upload ảnh sau khắc phục lên Cloudinary
       let afterImgUrl = resolvedAfterImg;
       if (hasCloudinaryConfig() && isImageDataUrl(resolvedAfterImg)) {
@@ -1126,6 +1179,28 @@ class ReportController {
       console.log(
         `✅ Progress updated: Report ${id} - ảnh khắc phục được lưu (chưa cập nhật trạng thái)`,
       );
+
+      if (!wasResolved && resolvedTeamId) {
+        try {
+          const team =
+            await MaintenanceTeamRepository.findByTeamId(resolvedTeamId);
+          if (team) {
+            const currentCases = Math.max(
+              parseInt(team.currentCases, 10) || 0,
+              0,
+            );
+            await MaintenanceTeamRepository.updateCaseCountByTeamId(
+              resolvedTeamId,
+              Math.max(currentCases - 1, 0),
+            );
+          }
+        } catch (countError) {
+          console.error(
+            "⚠️ Failed to decrement maintenance team cases:",
+            countError.message,
+          );
+        }
+      }
 
       res.status(200).json({
         success: true,

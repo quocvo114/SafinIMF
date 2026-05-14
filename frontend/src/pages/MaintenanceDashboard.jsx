@@ -10,21 +10,34 @@ import {
   searchLocationMarkerIcon,
 } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
-import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import incidentApi from "../services/api/incidentApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
 import { renderToString } from "react-dom/server";
 import "../styles/map.css";
+
+const normalizeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const normalizeTypeKey = normalizeText;
 
 const DANANG_CENTER = [16.0471, 108.2068];
 const MAINTENANCE_REPORTS_CACHE_KEY = "maintenance-map-reports-cache-v1";
 const MAINTENANCE_GEOCODE_CACHE_KEY = "maintenance-map-geocode-cache-v1";
 
-
-
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
-  if (!Number.isFinite(numericValue) || numericValue < min || numericValue > max) {
+  if (
+    !Number.isFinite(numericValue) ||
+    numericValue < min ||
+    numericValue > max
+  ) {
     return null;
   }
 
@@ -32,8 +45,16 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
+  const latFromField = parseCoordinate(
+    report?.lat ?? report?.reportLatitude,
+    -90,
+    90,
+  );
+  const lngFromField = parseCoordinate(
+    report?.lng ?? report?.reportLongitude,
+    -180,
+    180,
+  );
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }
@@ -53,8 +74,6 @@ const extractPositionFromReport = (report) => {
 
   return [latFromLocation, lngFromLocation];
 };
-
-
 
 const parseReportDate = (timeValue, createdAtValue) => {
   const matchedDate = String(timeValue || "").match(/\d{1,2}\/\d{1,2}\/\d{4}/);
@@ -105,7 +124,10 @@ const loadCachedReports = () => {
 
 const saveCachedReports = (reports) => {
   try {
-    localStorage.setItem(MAINTENANCE_REPORTS_CACHE_KEY, JSON.stringify(reports));
+    localStorage.setItem(
+      MAINTENANCE_REPORTS_CACHE_KEY,
+      JSON.stringify(reports),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -128,7 +150,10 @@ const loadGeocodeCache = () => {
 
 const saveGeocodeCache = (cacheValue) => {
   try {
-    localStorage.setItem(MAINTENANCE_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
+    localStorage.setItem(
+      MAINTENANCE_GEOCODE_CACHE_KEY,
+      JSON.stringify(cacheValue),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -174,12 +199,16 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const type = String(report?.type || report?.reportType || report?.category || "Khác").trim();
+      const type = String(
+        report?.type || report?.reportType || report?.category || "Khác",
+      ).trim();
 
       let position = extractPositionFromReport(report);
 
       if (!position) {
-        const locationKey = String(report?.location || "").trim().toLowerCase();
+        const locationKey = String(report?.location || "")
+          .trim()
+          .toLowerCase();
 
         if (locationKey && Array.isArray(geocodeCache[locationKey])) {
           const [lat, lng] = geocodeCache[locationKey];
@@ -207,6 +236,7 @@ const normalizeReportsForMap = async (rawReports) => {
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
         type,
+        category: type,
         position,
         title: report?.title || "Báo cáo sự cố",
         location: report?.location || "",
@@ -252,6 +282,8 @@ const MaintenanceDashboard = () => {
   );
 
   const { user } = useAuth();
+  const [teamId, setTeamId] = useState("");
+  const [teamLoading, setTeamLoading] = useState(false);
 
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -267,6 +299,45 @@ const MaintenanceDashboard = () => {
 
   useEffect(() => {
     let isMounted = true;
+    const fetchTeam = async () => {
+      if (!user) return;
+      setTeamLoading(true);
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          page: 1,
+          limit: 200,
+          status: "active",
+        });
+        const teams = Array.isArray(response?.data) ? response.data : [];
+        const leaderName = user?.full_name || user?.name || "";
+        const leaderPhone = user?.phone || "";
+        const normalizedLeader = normalizeText(leaderName);
+        const normalizedPhone = normalizeText(leaderPhone);
+        const matched = teams.find((team) => {
+          const leader = normalizeText(team?.leader || "");
+          if (!leader) return false;
+          if (normalizedLeader && leader === normalizedLeader) return true;
+          return normalizedPhone && leader.includes(normalizedPhone);
+        });
+
+        if (isMounted) {
+          setTeamId(matched?.team_id || matched?.id || "");
+        }
+      } catch (teamError) {
+        if (isMounted) setTeamId("");
+      } finally {
+        if (isMounted) setTeamLoading(false);
+      }
+    };
+
+    fetchTeam();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    let isMounted = true;
     const fetchIncidentTypes = async () => {
       try {
         const response = await incidentApi.getIncidentTypes();
@@ -278,7 +349,9 @@ const MaintenanceDashboard = () => {
       }
     };
     fetchIncidentTypes();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -348,14 +421,24 @@ const MaintenanceDashboard = () => {
       try {
         let rawReports = [];
 
+        if (user?.role === "maintenance" && !teamId && !teamLoading) {
+          if (isMounted) {
+            setReports([]);
+          }
+          return;
+        }
+
         try {
-          const mapResponse = await reportApi.getMapReports();
+          const mapResponse = await reportApi.getMapReports({
+            ...(teamId ? { assignedTeamId: teamId } : {}),
+            status: "Đang Xử Lý",
+          });
           rawReports = Array.isArray(mapResponse?.data) ? mapResponse.data : [];
         } catch (mapError) {
           // ✅ Cleanup: Map data fallback warning removed
         }
 
-        if (rawReports.length === 0) {
+        if (rawReports.length === 0 && !teamId) {
           const fallbackResponse = await reportApi.getAllReports();
           rawReports = Array.isArray(fallbackResponse?.data)
             ? fallbackResponse.data
@@ -410,24 +493,28 @@ const MaintenanceDashboard = () => {
       return;
     }
 
-    mapRef.current.fitBounds(visibleReports.map((report) => report.position), {
-      padding: [42, 42],
-      maxZoom: 15,
-    });
+    mapRef.current.fitBounds(
+      reports.map((report) => report.position),
+      {
+        padding: [42, 42],
+        maxZoom: 15,
+      },
+    );
     hasAutoFittedRef.current = true;
   }, [visibleReports]);
 
-  const normalizedSelectedCategory = selectedCategory;
+  const normalizedSelectedCategory = normalizeTypeKey(selectedCategory);
 
   const filteredIncidents = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
       return visibleReports;
     }
 
-    return visibleReports.filter(
-      (incident) => incident.type === normalizedSelectedCategory,
+    return reports.filter(
+      (incident) =>
+        normalizeTypeKey(incident.type) === normalizedSelectedCategory,
     );
-  }, [normalizedSelectedCategory, visibleReports]);
+  }, [normalizedSelectedCategory, reports]);
 
   const handleSearchLocation = async (query) => {
     // ✅ Cleanup: Search query logging removed
@@ -492,7 +579,10 @@ const MaintenanceDashboard = () => {
             />
 
             {filteredIncidents.map((incident) => {
-              const typeObj = incidentTypes.find((t) => t.name === incident.type);
+              const typeObj = incidentTypes.find(
+                (t) =>
+                  normalizeTypeKey(t.name) === normalizeTypeKey(incident.type),
+              );
               let mapIcon = incidentMarkerIcons[incident.type];
 
               if (!mapIcon) {
@@ -500,7 +590,12 @@ const MaintenanceDashboard = () => {
                 if (typeObj) {
                   const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
                   if (IconComp) {
-                    svgString = renderToString(<IconComp className="map-marker__icon" color="currentColor" />);
+                    svgString = renderToString(
+                      <IconComp
+                        className="map-marker__icon"
+                        color="currentColor"
+                      />,
+                    );
                   }
                 }
 

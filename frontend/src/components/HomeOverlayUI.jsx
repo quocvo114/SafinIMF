@@ -103,7 +103,7 @@ export default function HomeOverlayUI({
     fetchCategories();
   }, []);
 
-  const canCreateReport = () => {
+  const requireAuth = () => {
     const isAuthenticated = Boolean(user || localStorage.getItem("token"));
     if (isAuthenticated) {
       return true;
@@ -177,7 +177,7 @@ export default function HomeOverlayUI({
 
   // Mở camera
   const openCamera = async () => {
-    if (!canCreateReport()) {
+    if (!requireAuth()) {
       return;
     }
 
@@ -248,12 +248,12 @@ export default function HomeOverlayUI({
         >
           {/* Nút "Tất cả" */}
           <button
-            onClick={() => setSelectedCategory("all")}
-            className={`
-      relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
-      transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
-      ${selectedCategory === "all" ? "z-10" : "opacity-70 hover:opacity-100"}
-    `}
+            onClick={() => {
+              if (requireAuth()) setSelectedCategory("all");
+            }}
+            className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+              selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
+            }`}
             style={{
               backgroundColor:
                 selectedCategory === "all" ? "#2563EB" : "#2563EB55",
@@ -286,12 +286,12 @@ export default function HomeOverlayUI({
             return (
               <button
                 key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
-                className={`
-          relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
-          transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
-          ${selectedCategory === c.id ? "z-10" : "opacity-70 hover:opacity-100"}
-        `}
+                onClick={() => {
+                  if (requireAuth()) setSelectedCategory(c.id);
+                }}
+                className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                  selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
+                }`}
                 style={{
                   backgroundColor:
                     selectedCategory === c.id ? c.bgColor : `${c.bgColor}55`,
@@ -356,7 +356,12 @@ export default function HomeOverlayUI({
           {/* Plus Button */}
           <button
             className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white shadow-lg transition-all hover:bg-gray-800 md:h-14 md:w-14"
-            onClick={handlePlusClick}
+            onClick={() => {
+              if (!requireAuth()) {
+                return;
+              }
+              setIsReportOpen((prev) => !prev);
+            }}
             title="Tạo báo cáo mới"
           >
             <Plus size={20} />

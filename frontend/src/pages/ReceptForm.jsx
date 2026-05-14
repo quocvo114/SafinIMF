@@ -306,7 +306,9 @@ const ReceptForm = () => {
         status: selectedReport.status || "Đang Chờ",
         time: selectedReport.time || selectedReport.date,
         district: selectedReport.district || "Chưa phân loại",
-        team: selectedReport.assignedTeamName || selectedReport.team || selectedReport.handlerTeam || selectedReport.assignedTeamId,
+        team: selectedReport.team || selectedReport.handlerTeam,
+        assignedTeamId: selectedReport.assignedTeamId || "",
+        assignedTeamName: selectedReport.assignedTeamName || "",
         reporter: selectedReport.reporter,
         location: selectedReport.location || "Chưa có vị trí",
         description:
@@ -419,6 +421,26 @@ const ReceptForm = () => {
 
   const handleSendProcess = async (report) => {
     if (!report) {
+      return;
+    }
+
+    const normalizedStatus = removeAccents(report?.status || "");
+    const isResolved =
+      normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly";
+    const hasAssignedTeam = Boolean(
+      report?.assignedTeamId ||
+      report?.assignedTeamName ||
+      report?.team ||
+      report?.handlerTeam,
+    );
+
+    if (isResolved) {
+      toast.error("Báo cáo đã giải quyết, không thể phân công.");
+      return;
+    }
+
+    if (hasAssignedTeam) {
+      toast.error("Báo cáo đã được phân công, không thể phân công lại.");
       return;
     }
 
