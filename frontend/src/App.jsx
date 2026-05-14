@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -69,14 +69,9 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Citizen */}
             <Route
               path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
+              element={<Dashboard />}
             />
 
             <Route

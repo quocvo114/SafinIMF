@@ -6,6 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   ChevronLeft,
@@ -154,13 +155,26 @@ function IncidentPopupContent({ incident }) {
   const currentImage = images[activeImageIndex] || "";
   const canNavigateImages = images.length > 1;
 
-  const handlePrevImage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const requireAuth = () => {
+    if (user) return true;
+    navigate("/signin");
+    return false;
+  };
+
+  const handlePrevImage = (e) => {
+    e.stopPropagation();
+    if (!requireAuth()) return;
     setActiveImageIndex((prevIndex) =>
       prevIndex === 0 ? images.length - 1 : prevIndex - 1,
     );
   };
 
-  const handleNextImage = () => {
+  const handleNextImage = (e) => {
+    e.stopPropagation();
+    if (!requireAuth()) return;
     setActiveImageIndex((prevIndex) =>
       prevIndex === images.length - 1 ? 0 : prevIndex + 1,
     );
@@ -603,6 +617,14 @@ const Dashboard = () => {
                   key={incident.id}
                   position={incident.position}
                   icon={mapIcon}
+                  eventHandlers={{
+                    click: (e) => {
+                      if (!user) {
+                        e.originalEvent.preventDefault();
+                        navigate("/signin");
+                      }
+                    },
+                  }}
                 >
                   <Popup
                     className="incident-popup"

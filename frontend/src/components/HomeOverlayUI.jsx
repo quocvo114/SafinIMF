@@ -97,7 +97,7 @@ export default function HomeOverlayUI({
     fetchCategories();
   }, []);
 
-  const canCreateReport = () => {
+  const requireAuth = () => {
     const isAuthenticated = Boolean(user || localStorage.getItem("token"));
     if (isAuthenticated) {
       return true;
@@ -120,7 +120,7 @@ export default function HomeOverlayUI({
 
   // Mở camera
   const openCamera = async () => {
-    if (!canCreateReport()) {
+    if (!requireAuth()) {
       return;
     }
 
@@ -191,7 +191,9 @@ export default function HomeOverlayUI({
           style={{ left: "var(--user-sidebar-offset, 6rem)" }}
         >
           <button
-            onClick={() => setSelectedCategory("all")}
+            onClick={() => {
+              if (requireAuth()) setSelectedCategory("all");
+            }}
             className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
               selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
             }`}
@@ -211,7 +213,9 @@ export default function HomeOverlayUI({
             return (
               <button
                 key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
+                onClick={() => {
+                  if (requireAuth()) setSelectedCategory(c.id);
+                }}
                 className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                   selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
                 }`}
@@ -243,7 +247,7 @@ export default function HomeOverlayUI({
           <button
             className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white shadow-lg transition-all hover:bg-gray-800 md:h-14 md:w-14"
             onClick={() => {
-              if (!canCreateReport()) {
+              if (!requireAuth()) {
                 return;
               }
               setIsReportOpen((prev) => !prev);
