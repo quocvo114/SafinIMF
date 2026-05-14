@@ -464,26 +464,9 @@ const MaintenanceDashboard = () => {
     };
   }, [assignedTeamId, isMaintenanceUser]);
 
-  const visibleReports = useMemo(() => {
-    if (!isMaintenanceUser) return reports;
-    if (!assignedTeamId && !assignedTeamName) return [];
-
-    return reports.filter((report) => {
-      const reportTeamId =
-        report?.assignedTeamId || report?.handlingTeamId || "";
-      if (assignedTeamId && reportTeamId) {
-        return reportTeamId === assignedTeamId;
-      }
-
-      const reportTeamName =
-        report?.assignedTeamName || report?.handlingTeamName || "";
-      if (assignedTeamName && reportTeamName) {
-        return reportTeamName === assignedTeamName;
-      }
-
-      return false;
-    });
-  }, [assignedTeamId, assignedTeamName, isMaintenanceUser, reports]);
+  // Dữ liệu đã được backend lọc theo assignedTeamId trong quá trình fetch (teamId)
+  // nên không cần lọc lại ở client nữa, tránh lỗi mất marker do sai lệch format ID
+  const visibleReports = reports;
 
   useEffect(() => {
     if (
@@ -511,11 +494,11 @@ const MaintenanceDashboard = () => {
       return visibleReports;
     }
 
-    return reports.filter(
+    return visibleReports.filter(
       (incident) =>
         normalizeTypeKey(incident.type) === normalizedSelectedCategory,
     );
-  }, [normalizedSelectedCategory, reports]);
+  }, [normalizedSelectedCategory, visibleReports]);
 
   const handleSearchLocation = async (query) => {
     // ✅ Cleanup: Search query logging removed
@@ -584,7 +567,17 @@ const MaintenanceDashboard = () => {
                 (t) =>
                   normalizeTypeKey(t.name) === normalizeTypeKey(incident.type),
               );
-              let mapIcon = incidentMarkerIcons[incident.type];
+
+              const getIconKey = (cat) => {
+                const normalized = normalizeTypeKey(cat);
+                if (normalized.includes("giao thong")) return "traffic";
+                if (normalized.includes("dien")) return "electric";
+                if (normalized.includes("cay xanh")) return "tree";
+                if (normalized.includes("cong trinh")) return "building";
+                return cat;
+              };
+
+              let mapIcon = incidentMarkerIcons[getIconKey(incident.type)];
 
               if (!mapIcon) {
                 let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
@@ -611,16 +604,11 @@ const MaintenanceDashboard = () => {
                   key={incident.id}
                   position={incident.position}
                   icon={mapIcon}
-                  eventHandlers={{
-                    click: (event) => event.target.openPopup(),
-                  }}
                 >
                   <Popup
                     className="incident-popup"
                     maxWidth={420}
                     minWidth={280}
-                    autoPan={true}
-                    keepInView={true}
                   >
                     <IncidentPopupContent incident={incident} />
                   </Popup>

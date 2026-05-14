@@ -954,20 +954,6 @@ const ReceptForm = () => {
         isSubmitting={assigningLoading}
         errorMessage={assigningError}
       />
-
-      <Update_Status
-        isOpen={showUpdateStatusModal}
-        reportId={updateReportData?.id || updateReportData?.report_id}
-        reportCode={updateReportData?.id}
-        currentStatus={updateReportData?.status}
-        hasAfterImage={Boolean(updateReportData?.afterImg)}
-        onClose={() => {
-          setShowUpdateStatusModal(false);
-          setUpdateReportData(null);
-        }}
-        onUpdate={handleConfirmUpdateStatus}
-        loading={updatingStatus}
-      />
     </div>
   );
 };
