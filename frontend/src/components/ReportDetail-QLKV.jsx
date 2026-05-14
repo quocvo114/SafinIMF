@@ -88,6 +88,10 @@ function getStatusValueClass(status) {
     return "text-[#74C200]";
   }
 
+  if (normalizedStatus === "da hoan tat") {
+    return "text-[#74C200]";
+  }
+
   return "text-zinc-800";
 }
 
@@ -127,6 +131,10 @@ function getStatusIconTone(status) {
   }
 
   if (normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly") {
+    return "status-resolved";
+  }
+
+  if (normalizedStatus === "da hoan tat") {
     return "status-resolved";
   }
 
@@ -369,7 +377,8 @@ export default function ReportDetailQLKV({
   const statusValueClass = getStatusValueClass(data.status);
   const statusIconTone = getStatusIconTone(data.status);
   const issueTitle = data.issueTitle || data.title || "Chưa có tiêu đề";
-  const teamName = data.team || data.handlerTeam || "Chưa phân công";
+  const teamName =
+    data.assignedTeamName || data.handlingTeamName || data.team || data.handlerTeam || "Chưa phân công";
   const normalizedStatus = normalizeTypeKey(data.status);
   const isResolved =
     normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly";

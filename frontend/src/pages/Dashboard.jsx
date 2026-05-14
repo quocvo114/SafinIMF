@@ -27,6 +27,7 @@ import {
   incidentMarkerIcons,
   createCustomMarkerIcon,
   searchLocationMarkerIcon,
+  resolveIncidentMarkerIconKey,
 } from "../lib/mapIcons";
 import { renderToString } from "react-dom/server";
 import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
@@ -593,7 +594,15 @@ const Dashboard = () => {
                 (t) =>
                   normalizeTypeKey(t.name) === normalizeTypeKey(incident.type),
               );
-              let mapIcon = incidentMarkerIcons[incident.type];
+
+              const markerIconKey = resolveIncidentMarkerIconKey({
+                typeName: incident.type,
+                iconKey: typeObj?.iconKey,
+              });
+
+              let mapIcon = markerIconKey
+                ? incidentMarkerIcons[markerIconKey]
+                : null;
 
               if (!mapIcon) {
                 let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;

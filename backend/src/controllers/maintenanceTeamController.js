@@ -1,4 +1,5 @@
 const MaintenanceTeamRepository = require("../repositories/MaintenanceTeamRepository");
+const Report = require("../models/Report");
 
 class MaintenanceTeamController {
   async getTeams(req, res) {
@@ -198,6 +199,30 @@ class MaintenanceTeamController {
   async deleteTeam(req, res) {
     try {
       const { teamId } = req.params;
+      const team = await MaintenanceTeamRepository.findByTeamId(teamId);
+      if (!team) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy đội xử lý" });
+      }
+
+      const activeReportCount = await Report.countDocuments({
+        $or: [
+          { assignedTeamId: String(teamId) },
+          { handlingTeamId: String(teamId) },
+        ],
+        status: "Đang Xử Lý",
+      });
+
+      const currentCases = Math.max(parseInt(team.currentCases, 10) || 0, 0);
+      if (currentCases > 0 || activeReportCount > 0) {
+        return res.status(409).json({
+          success: false,
+          code: "TEAM_HAS_ACTIVE_REPORTS",
+          message: "Không thể xóa đội xử lý khi đội đang xử lý báo cáo",
+        });
+      }
+
       const deleted = await MaintenanceTeamRepository.deleteByTeamId(teamId);
 
       if (!deleted) {

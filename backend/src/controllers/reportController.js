@@ -46,7 +46,7 @@ function normalizeText(value = "") {
     .trim();
 }
 
-const RECEPTION_STATUS_OPTIONS = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
+const RECEPTION_STATUS_OPTIONS = ["Đang Chờ", "Đang Xử Lý", "Đã hoàn tất", "Đã Giải Quyết"];
 
 function inferDistrict(location = "") {
   const normalizedLocation = String(location)
@@ -901,6 +901,36 @@ class ReportController {
         });
       }
 
+      // Kiểm tra quyền: citizen chỉ có thể update báo cáo của chính họ từ "Đã hoàn tất" -> "Đã Giải Quyết"
+      const userRole = req.user?.role || "user";
+      const userId = req.user?.id || req.user?._id;
+      const reportUserId = String(existingReport.userId);
+
+      if (userRole !== "admin" && userRole !== "manager" && userRole !== "maintenance") {
+        // Citizen/user can only update their own report
+        if (String(userId) !== reportUserId) {
+          return res.status(403).json({
+            success: false,
+            message: "Bạn chỉ có thể cập nhật báo cáo của chính mình",
+          });
+        }
+        // Citizen can only set status to "Đã Giải Quyết" when report is already "Đã hoàn tất"
+        if (status === "Đã Giải Quyết") {
+          if (existingReport.status !== "Đã hoàn tất") {
+            return res.status(409).json({
+              success: false,
+              message: "Báo cáo chưa được QLKV xác nhận hoàn tất. Vui lòng chờ QLKV cập nhật trạng thái 'Đã hoàn tất' trước",
+            });
+          }
+        } else if (status !== existingReport.status) {
+          // Citizen cannot change to other statuses
+          return res.status(403).json({
+            success: false,
+            message: "Bạn chỉ có thể đánh dấu báo cáo là 'Đã Giải Quyết'",
+          });
+        }
+      }
+
       const wasResolved = existingReport.status === "Đã Giải Quyết";
       const resolvedTeamId =
         existingReport.assignedTeamId || existingReport.handlingTeamId;
@@ -915,13 +945,33 @@ class ReportController {
         });
       }
 
-      // PB14: Kiểm tra ảnh khắc phục khi cập nhật thành "Đã Giải Quyết"
+      // PB14: Kiểm tra quy trình chuyển trạng thái đặc biệt
+      // - Khi QLKV cập nhật thành "Đã hoàn tất", cần có ảnh khắc phục đã upload bởi đội xử lý
+      // - Khi công dân cập nhật thành "Đã Giải Quyết", báo cáo phải đang ở trạng thái "Đã hoàn tất"
+      if (status === "Đã hoàn tất") {
+        if (!existingReport.afterImg) {
+          console.log(`❌ [UPDATE_STATUS] Cannot mark as Đã hoàn tất - no after image for report ${id}`);
+          return res.status(400).json({
+            success: false,
+            message: "Báo cáo chưa có ảnh khắc phục từ đội xử lý. Vui lòng chờ đội xử lý upload ảnh",
+          });
+        }
+      }
+
       if (status === "Đã Giải Quyết") {
         if (!existingReport.afterImg) {
           console.log(`❌ [UPDATE_STATUS] Cannot resolve - no after image found for report ${id}`);
           return res.status(400).json({
             success: false,
             message: "Báo cáo chưa có ảnh khắc phục từ đội xử lý. Vui lòng chờ đội xử lý upload ảnh",
+          });
+        }
+
+        if (existingReport.status !== "Đã hoàn tất") {
+          console.log(`❌ [UPDATE_STATUS] Cannot set Đã Giải Quyết unless report is Đã hoàn tất (report ${id})`);
+          return res.status(409).json({
+            success: false,
+            message: "Báo cáo chưa được xác nhận là hoàn tất bởi QLKV. Vui lòng chờ QLKV cập nhật trạng thái 'Đã hoàn tất' trước khi đánh dấu 'Đã Giải Quyết'",
           });
         }
       }
@@ -969,6 +1019,32 @@ class ReportController {
         } catch (countError) {
           console.error(
             "⚠️ Failed to decrement maintenance team cases:",
+            countError.message,
+          );
+        }
+      }
+      // When QLKV marks report as "Đã hoàn tất", ensure teamResolved and decrement team cases only once
+      if (status === "Đã hoàn tất" && existingReport.status !== "Đã hoàn tất" && resolvedTeamId) {
+        try {
+          // Only decrement if the team hasn't already been marked resolved by the team itself
+          if (!existingReport.teamResolved) {
+            const team = await MaintenanceTeamRepository.findByTeamId(resolvedTeamId);
+            if (team) {
+              const currentCases = Math.max(parseInt(team.currentCases, 10) || 0, 0);
+              await MaintenanceTeamRepository.updateCaseCountByTeamId(
+                resolvedTeamId,
+                Math.max(currentCases - 1, 0),
+              );
+            }
+          }
+
+          // Mark report.teamResolved true to reflect that resolution/completion is confirmed
+          if (!existingReport.teamResolved) {
+            await Report.findOneAndUpdate({ _id: updated._id }, { teamResolved: true });
+          }
+        } catch (countError) {
+          console.error(
+            "⚠️ Failed to decrement maintenance team cases for Đã hoàn tất:",
             countError.message,
           );
         }
@@ -1159,12 +1235,14 @@ class ReportController {
         }
       }
 
-      // Cập nhật báo cáo
+      // Cập nhật báo cáo: set status to 'Đã Giải Quyết' immediately when team uploads progress
       const updated = await Report.findOneAndUpdate(
         { $or: queryConditions },
         {
           afterImg: afterImgUrl,
           ...(progressNote !== undefined ? { progressNote: progressNote.trim() } : {}),
+          status: "Đã Giải Quyết",
+          teamResolved: true,
         },
         { new: true },
       );
@@ -1176,36 +1254,29 @@ class ReportController {
         });
       }
 
-      console.log(
-        `✅ Progress updated: Report ${id} - ảnh khắc phục được lưu (chưa cập nhật trạng thái)`,
-      );
-
-      if (!wasResolved && resolvedTeamId) {
-        try {
-          const team =
-            await MaintenanceTeamRepository.findByTeamId(resolvedTeamId);
+      // Nếu đội chưa đánh dấu teamResolved trước khi update (report.teamResolved === false),
+      // thì giảm currentCases một lần (we already set teamResolved: true in the update above)
+      try {
+        if (!report.teamResolved && resolvedTeamId) {
+          const team = await MaintenanceTeamRepository.findByTeamId(resolvedTeamId);
           if (team) {
-            const currentCases = Math.max(
-              parseInt(team.currentCases, 10) || 0,
-              0,
-            );
+            const currentCases = Math.max(parseInt(team.currentCases, 10) || 0, 0);
             await MaintenanceTeamRepository.updateCaseCountByTeamId(
               resolvedTeamId,
               Math.max(currentCases - 1, 0),
             );
           }
-        } catch (countError) {
-          console.error(
-            "⚠️ Failed to decrement maintenance team cases:",
-            countError.message,
-          );
         }
+      } catch (countErr) {
+        console.error("⚠️ Failed to decrement maintenance team cases on progress:", countErr.message);
       }
+
+      console.log(`✅ Progress updated: Report ${id} - after image saved; teamResolved updated if applicable`);
 
       res.status(200).json({
         success: true,
         message: "Cập nhật tiến độ thành công",
-        data: updated,
+        data: await Report.findOne({ $or: queryConditions }),
       });
     } catch (error) {
       console.error("❌ Update progress error:", error.message);

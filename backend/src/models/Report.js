@@ -71,7 +71,7 @@ const ReportSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"],
+      enum: ["Đang Chờ", "Đang Xử Lý", "Đã hoàn tất", "Đã Giải Quyết"],
       default: "Đang Chờ",
       index: true, // Add index for faster status filtering
     },
@@ -120,6 +120,13 @@ const ReportSchema = new mongoose.Schema(
     progressNote: {
       type: String,
       default: "",
+    },
+
+    // Indicates the maintenance team has uploaded final progress (team considers report resolved)
+    teamResolved: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
 
     handlingTeamId: {

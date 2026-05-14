@@ -6,12 +6,12 @@ import {
   LogOut,
   Settings,
   User,
-  BookOpen,
-  Folder,
-  Zap,
-  AlertCircle,
-  Trees,
-  Building2,
+  // BookOpen,
+  // Folder,
+  // Zap,
+  // AlertCircle,
+  // Trees,
+  // Building2,
   CloudSun,
   Navigation,
   Users,
@@ -31,14 +31,14 @@ const normalizeText = (value = "") =>
     .replace(/\s+/g, " ")
     .trim();
 
-const CATEGORIES = [
-  { id: "all", label: "Tất Cả", icon: "📋", color: "blue" },
-  { id: "traffic", label: "Giao Thông", icon: "🚗", color: "orange" },
-  { id: "electricity", label: "Điện", icon: "⚡", color: "yellow" },
-  { id: "water", label: "IU", icon: "💧", color: "red" },
-  { id: "green", label: "Cây Xanh", icon: "🌳", color: "green" },
-  { id: "public", label: "Công Trình Công Cộng", icon: "🏗️", color: "purple" },
-];
+// const CATEGORIES = [
+//   { id: "all", label: "Tất Cả", icon: "📋", color: "blue" },
+//   { id: "traffic", label: "Giao Thông", icon: "🚗", color: "orange" },
+//   { id: "electricity", label: "Điện", icon: "⚡", color: "yellow" },
+//   { id: "water", label: "IU", icon: "💧", color: "red" },
+//   { id: "green", label: "Cây Xanh", icon: "🌳", color: "green" },
+//   { id: "public", label: "Công Trình Công Cộng", icon: "🏗️", color: "purple" },
+// ];
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -551,7 +551,7 @@ export function NavbarAdmin() {
               </div>
               <div className="flex flex-col leading-none">
                 <span className="text-[10px] font-semibold text-purple-500 uppercase tracking-tight">Hệ thống</span>
-                <span className="text-sm font-bold text-purple-800">Quản trị viên</span>
+                <span className="text-sm font-bold text-purple-800">Quản lý khu vực</span>
               </div>
             </div>
           )}

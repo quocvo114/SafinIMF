@@ -42,6 +42,7 @@ export default function Assigned_report() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [teamId, setTeamId] = useState("");
   const [teamLoading, setTeamLoading] = useState(false);
+  const [teamLookupDone, setTeamLookupDone] = useState(false);
   const ITEMS_PER_PAGE = 4;
   const { user } = useAuth();
 
@@ -49,6 +50,9 @@ export default function Assigned_report() {
     let isMounted = true;
     const fetchTeam = async () => {
       if (!user) return;
+      if (isMounted) {
+        setTeamLookupDone(false);
+      }
       setTeamLoading(true);
       try {
         const response = await maintenanceTeamApi.getTeams({
@@ -76,6 +80,7 @@ export default function Assigned_report() {
         if (isMounted) setTeamId("");
       } finally {
         if (isMounted) setTeamLoading(false);
+        if (isMounted) setTeamLookupDone(true);
       }
     };
 
@@ -89,7 +94,11 @@ export default function Assigned_report() {
     try {
       setLoading(true);
       setError(null);
-      if (user?.role === "maintenance" && !teamId && !teamLoading) {
+      if (user?.role === "maintenance" && !teamLookupDone) {
+        return;
+      }
+
+      if (user?.role === "maintenance" && !teamId) {
         setReports([]);
         setError("Không tìm thấy đội xử lý của bạn.");
         return;
@@ -119,7 +128,7 @@ export default function Assigned_report() {
 
   useEffect(() => {
     fetchReports();
-  }, [refreshKey, teamId, teamLoading, user?.role]);
+  }, [refreshKey, teamId, teamLoading, teamLookupDone, user?.role]);
 
   const filteredReports = reports.filter((report) => {
     const query = searchQuery.trim().toLowerCase();

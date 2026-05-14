@@ -19,7 +19,7 @@ const getStatusClassName = (status) =>
   STATUS_CLASS_NAME[status] ||
   "incident-popup__status incident-popup__status--pending";
 
-export default function IncidentPopupContent({ incident }) {
+export default function IncidentPopupContent({ incident, onDetail }) {
   const images = useMemo(() => {
     const mergedImages = [];
 
@@ -112,20 +112,17 @@ export default function IncidentPopupContent({ incident }) {
             {incident.description || "Chưa có mô tả chi tiết cho sự cố này."}
           </p>
 
-          <div className="incident-popup-card__meta">
-            <p className="incident-popup-card__meta-row">
-              <MapPin size={15} />
-              <span>{incident.location || "Chưa có vị trí"}</span>
-            </p>
-            <p className="incident-popup-card__meta-row">
-              <CalendarDays size={15} />
-              <span>{incident.displayDate || "Không rõ"}</span>
-            </p>
-            <p className="incident-popup-card__meta-row">
-              <CircleUserRound size={15} />
-              <span>{incident.reporterName || "Người dân phản ánh"}</span>
-            </p>
-          </div>
+          <button
+            type="button"
+            className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] py-2 text-xs font-bold text-white transition-colors hover:bg-[#1d4ed8]"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDetail?.(incident);
+            }}
+          >
+            <FileText size={14} />
+            <span>Xem chi tiết báo cáo</span>
+          </button>
         </div>
       </div>
 

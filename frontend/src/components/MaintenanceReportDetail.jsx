@@ -170,6 +170,8 @@ export default function MaintenanceReportDetail({
         if (fileInputRef.current) fileInputRef.current.value = "";
         onUpdate?.();
         onClose();
+        // Dispatch event to notify teams have been updated (case count may have changed)
+        window.dispatchEvent(new CustomEvent("teams:changed"));
       } else {
         toast.error(response.message || "Cập nhật tiến độ thất bại.");
       }

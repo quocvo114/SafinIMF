@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Building2, TrafficCone, TreePine, Zap, Layers } from "lucide-react";
 import IncidentPopupContent from "../components/IncidentPopupContent";
+import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import MapView from "../components/Map/MapView";
-import { incidentMarkerIcons, createCustomMarkerIcon } from "../lib/mapIcons";
+import {
+  incidentMarkerIcons,
+  createCustomMarkerIcon,
+  resolveIncidentMarkerIconKey,
+} from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
 import incidentApi from "../services/api/incidentApi";
 import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
@@ -184,12 +189,9 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const type = mapReportTypeToIncidentType(
-        report?.type || report?.reportType || report?.category,
-      );
-      if (!type) {
-        return null;
-      }
+      const type = String(
+        report?.type || report?.reportType || report?.category || "Khác",
+      ).trim();
 
       let position = extractPositionFromReport(report);
 
@@ -223,8 +225,8 @@ const normalizeReportsForMap = async (rawReports) => {
 
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
-        category,
-        type: category,
+        category: type,
+        type,
         position,
         title: report?.title || "Báo cáo sự cố",
         status: report?.status || "Đang Chờ",
@@ -299,6 +301,7 @@ export default function AdminDashboard() {
   const mapRef = useRef(null);
   const hasAutoFittedRef = useRef(false);
   const [incidentTypes, setIncidentTypes] = useState([]);
+  const [selectedReportDetail, setSelectedReportDetail] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -379,7 +382,9 @@ export default function AdminDashboard() {
     if (normalizedSelectedCategory === "all") {
       return reports;
     }
-    return reports.filter((point) => point.type === normalizedSelectedCategory);
+    return reports.filter(
+      (point) => normalizeTypeKey(point.type) === normalizedSelectedCategory,
+    );
   }, [normalizedSelectedCategory, reports]);
 
   return (
@@ -401,7 +406,15 @@ export default function AdminDashboard() {
             (t) =>
               normalizeTypeKey(t.name) === normalizeTypeKey(point.category),
           );
-          let mapIcon = incidentMarkerIcons[point.category];
+          
+          const markerIconKey = resolveIncidentMarkerIconKey({
+            typeName: point.category,
+            iconKey: typeObj?.iconKey,
+          });
+
+          let mapIcon = markerIconKey
+            ? incidentMarkerIcons[markerIconKey]
+            : null;
 
           if (!mapIcon) {
             let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
@@ -428,23 +441,36 @@ export default function AdminDashboard() {
               key={point.id}
               position={point.position}
               icon={mapIcon}
-              eventHandlers={{
-                click: (event) => event.target.openPopup(),
-              }}
             >
-            <Popup>
-              <IncidentPopupContent incident={point} />
-            </Popup>
-          </Marker>
-        );})}
+              <Popup className="incident-popup" maxWidth={420} minWidth={280}>
+                <IncidentPopupContent 
+                  incident={point} 
+                  onDetail={(item) => setSelectedReportDetail(item)}
+                />
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
+
+      <ReportDetailQLKV
+        data={selectedReportDetail}
+        close={() => setSelectedReportDetail(null)}
+        onUpdateStatus={() => {
+          // Admin may not need to update status here, but if they do, we can implement it
+          setSelectedReportDetail(null);
+        }}
+        onSendProcess={() => {
+          setSelectedReportDetail(null);
+        }}
+      />
 
       {/* ✅ Floating Categories - Soft UI Version */}
       <div
-        className="pointer-events-none absolute right-6 top-24 z-20"
+        className="pointer-events-none absolute right-6 top-28 z-20"
         style={{ left: "calc(var(--admin-sidebar-offset, 6rem) + 1rem)" }}
       >
-        <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap">
+        <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap py-3 px-1">
           {[
             { id: "all", label: "Tất Cả", icon: "⌘", color: "#2563eb" },
             ...incidentTypes.map((t) => {

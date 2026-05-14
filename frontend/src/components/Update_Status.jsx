@@ -37,22 +37,17 @@ const getStatusInfo = (status) => {
 };
 
 // Lấy danh sách trạng thái sẵn có
-const getAvailableStatuses = (currentStatus, hasAfterImage = false) => {
+const getAvailableStatuses = (currentStatus) => {
   const transitions = {
     "Đang Chờ": ["Đang Xử Lý"],
-    "Đang Xử Lý": ["Đã Giải Quyết"], // Luôn hiển thị, nhưng có thể disabled
+    "Đang Xử Lý": ["Đã Giải Quyết"],
     "Đã Giải Quyết": [],
   };
   return transitions[currentStatus] || [];
 };
 
 // Kiểm tra nút có bị disable hay không
-const isStatusDisabled = (status, currentStatus, hasAfterImage) => {
-  if (currentStatus === "Đang Xử Lý" && status === "Đã Giải Quyết") {
-    return !hasAfterImage; // Disable nếu chưa upload ảnh
-  }
-  return false;
-};
+const isStatusDisabled = () => false;
 
 const Update_Status = ({ isOpen, reportId, reportCode, currentStatus, onClose, onUpdate, loading, hasAfterImage = false }) => {
   const [selectedStatus, setSelectedStatus] = useState(null);

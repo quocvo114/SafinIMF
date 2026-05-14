@@ -33,11 +33,10 @@ router.get(
 // POST /api/reports - Tạo báo cáo mới
 router.post("/", requireAuth, ReportController.createReport);
 
-// PATCH /api/reports/:id/status - Cập nhật trạng thái báo cáo
+// PATCH /api/reports/:id/status - Cập nhật trạng thái báo cáo (QLKV, đội, hoặc công dân cho báo cáo của họ)
 router.patch(
   "/:id/status",
   authMiddleware,
-  requireRole("admin", "manager", "maintenance"),
   ReportController.updateReportStatus,
 );
 

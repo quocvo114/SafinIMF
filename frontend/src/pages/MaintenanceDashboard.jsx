@@ -9,6 +9,7 @@ import {
   incidentMarkerIcons,
   createCustomMarkerIcon,
   searchLocationMarkerIcon,
+  resolveIncidentMarkerIconKey,
 } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
 import incidentApi from "../services/api/incidentApi";
@@ -285,6 +286,7 @@ const MaintenanceDashboard = () => {
   const { user } = useAuth();
   const [teamId, setTeamId] = useState("");
   const [teamLoading, setTeamLoading] = useState(false);
+  const [teamLookupDone, setTeamLookupDone] = useState(false);
 
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -302,6 +304,9 @@ const MaintenanceDashboard = () => {
     let isMounted = true;
     const fetchTeam = async () => {
       if (!user) return;
+      if (isMounted) {
+        setTeamLookupDone(false);
+      }
       setTeamLoading(true);
       try {
         const response = await maintenanceTeamApi.getTeams({
@@ -328,6 +333,7 @@ const MaintenanceDashboard = () => {
         if (isMounted) setTeamId("");
       } finally {
         if (isMounted) setTeamLoading(false);
+        if (isMounted) setTeamLookupDone(true);
       }
     };
 
@@ -413,21 +419,25 @@ const MaintenanceDashboard = () => {
 
   useEffect(() => {
     let isMounted = true;
-    const cacheKey =
-      isMaintenanceUser && assignedTeamId
-        ? `${MAINTENANCE_REPORTS_CACHE_KEY}-${assignedTeamId}`
-        : MAINTENANCE_REPORTS_CACHE_KEY;
+    const cacheKey = teamId
+      ? `${MAINTENANCE_REPORTS_CACHE_KEY}-${teamId}`
+      : MAINTENANCE_REPORTS_CACHE_KEY;
 
     const fetchReports = async () => {
       try {
-        let rawReports = [];
+        if (isMaintenanceUser && !teamLookupDone) {
+          return;
+        }
 
-        if (user?.role === "maintenance" && !teamId && !teamLoading) {
+        if (isMaintenanceUser && !teamId) {
           if (isMounted) {
             setReports([]);
+            setSearchMarker(null);
           }
           return;
         }
+
+        let rawReports = [];
 
         try {
           const mapResponse = await reportApi.getMapReports({
@@ -462,28 +472,11 @@ const MaintenanceDashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, [assignedTeamId, isMaintenanceUser]);
+  }, [teamId, teamLoading, teamLookupDone, isMaintenanceUser]);
 
-  const visibleReports = useMemo(() => {
-    if (!isMaintenanceUser) return reports;
-    if (!assignedTeamId && !assignedTeamName) return [];
-
-    return reports.filter((report) => {
-      const reportTeamId =
-        report?.assignedTeamId || report?.handlingTeamId || "";
-      if (assignedTeamId && reportTeamId) {
-        return reportTeamId === assignedTeamId;
-      }
-
-      const reportTeamName =
-        report?.assignedTeamName || report?.handlingTeamName || "";
-      if (assignedTeamName && reportTeamName) {
-        return reportTeamName === assignedTeamName;
-      }
-
-      return false;
-    });
-  }, [assignedTeamId, assignedTeamName, isMaintenanceUser, reports]);
+  // Dữ liệu đã được backend lọc theo assignedTeamId trong quá trình fetch (teamId)
+  // nên không cần lọc lại ở client nữa, tránh lỗi mất marker do sai lệch format ID
+  const visibleReports = reports;
 
   useEffect(() => {
     if (
@@ -511,11 +504,11 @@ const MaintenanceDashboard = () => {
       return visibleReports;
     }
 
-    return reports.filter(
+    return visibleReports.filter(
       (incident) =>
         normalizeTypeKey(incident.type) === normalizedSelectedCategory,
     );
-  }, [normalizedSelectedCategory, reports]);
+  }, [normalizedSelectedCategory, visibleReports]);
 
   const handleSearchLocation = async (query) => {
     // ✅ Cleanup: Search query logging removed
@@ -584,7 +577,15 @@ const MaintenanceDashboard = () => {
                 (t) =>
                   normalizeTypeKey(t.name) === normalizeTypeKey(incident.type),
               );
-              let mapIcon = incidentMarkerIcons[incident.type];
+
+              const markerIconKey = resolveIncidentMarkerIconKey({
+                typeName: incident.type,
+                iconKey: typeObj?.iconKey,
+              });
+
+              let mapIcon = markerIconKey
+                ? incidentMarkerIcons[markerIconKey]
+                : null;
 
               if (!mapIcon) {
                 let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
@@ -611,16 +612,11 @@ const MaintenanceDashboard = () => {
                   key={incident.id}
                   position={incident.position}
                   icon={mapIcon}
-                  eventHandlers={{
-                    click: (event) => event.target.openPopup(),
-                  }}
                 >
                   <Popup
                     className="incident-popup"
                     maxWidth={420}
                     minWidth={280}
-                    autoPan={true}
-                    keepInView={true}
                   >
                     <IncidentPopupContent incident={incident} />
                   </Popup>
