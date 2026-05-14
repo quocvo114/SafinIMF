@@ -7,7 +7,7 @@ const UserSchema = new mongoose.Schema({
   
   email: String,
 
-  phone: { type: String, unique: true, required: true },
+  phone: { type: String, unique: true, sparse: true, default: null },
   
   password: String, // hash (nullable cho Google login)
   
@@ -48,6 +48,11 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ["active", "locked", "banned"],
     default: "active",
+  },
+
+  is_first_login: {
+    type: Boolean,
+    default: false,
   },
 
   created_at: { type: Date, default: Date.now },

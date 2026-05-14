@@ -3,6 +3,7 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import { formatLocationDisplay } from "../utils/formatLocation";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
 import ReportDetail from "../components/ReportDetail";
 
 const ReportManagement = () => {
@@ -316,13 +317,18 @@ const ReportManagement = () => {
         </div>
       </div>
 
-      {/* Report Detail Modal */}
-      {selectedReport && (
-        <ReportDetail
-          data={selectedReport}
-          close={() => setSelectedReport(null)}
-        />
-      )}
+      <ReportDetailQLKV
+        data={showDetail}
+        close={() => setShowDetail(null)}
+        onUpdateStatus={() => {
+          setShowDetail(null);
+          fetchManagementReports();
+        }}
+        onSendProcess={() => {
+          setShowDetail(null);
+          fetchManagementReports();
+        }}
+      />
     </div>
   );
 };

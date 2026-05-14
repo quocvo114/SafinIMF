@@ -117,7 +117,7 @@ export default function Assigned_report() {
             </div>
 
             {/* Table Container */}
-            <div className="flex flex-col flex-1 min-h-0 rounded-[30px] border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div className="flex flex-col flex-1 min-h-0 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden p-2 sm:p-4">
               {loading ? (
                 <div className="flex-1 flex items-center justify-center py-20">
                   <div className="flex flex-col items-center gap-3">
@@ -132,51 +132,68 @@ export default function Assigned_report() {
                   <p className="text-sm text-red-500">{error}</p>
                 </div>
               ) : (
-                <div className="flex flex-col flex-1 min-h-0 pt-4 px-4 md:px-8">
+                <div className="flex flex-col flex-1 min-h-0">
                   {/* Table wrapper - scrollable internally */}
-                  <div className="flex-1 overflow-y-auto min-h-0 pb-3">
+                  <div className="flex-1 overflow-y-auto min-h-0 rounded-xl border border-gray-100">
                     <Table className="w-full min-w-[700px]">
                       <TableHeader className="sticky top-0 bg-white z-10">
                         <TableRow className="border-b border-gray-200 hover:bg-transparent">
-                          <TableHead className="w-[100px] px-3 py-3 text-[12px] font-semibold uppercase tracking-wider text-gray-600">
+                          <TableHead className="w-[140px] px-6 py-5 text-left text-[12px] font-medium uppercase tracking-wider text-gray-800">
                             Mã Báo Cáo
                           </TableHead>
-                          <TableHead className="px-3 py-3 text-[12px] font-semibold uppercase tracking-wider text-gray-600">
+                          <TableHead className="px-6 py-5 text-center text-[12px] font-medium uppercase tracking-wider text-gray-800">
                             Tiêu đề
                           </TableHead>
-                          <TableHead className="px-3 py-3 text-[12px] font-semibold uppercase tracking-wider text-gray-600">
+                          <TableHead className="px-6 py-5 text-center text-[12px] font-medium uppercase tracking-wider text-gray-800">
                             Vị trí
                           </TableHead>
-                          <TableHead className="w-[130px] px-3 py-3 text-[12px] font-semibold uppercase tracking-wider text-gray-600">
+                          <TableHead className="w-[140px] px-6 py-5 text-center text-[12px] font-medium uppercase tracking-wider text-gray-800">
                             Thời gian
                           </TableHead>
                         </TableRow>
                       </TableHeader>
-                      <TableBody className="divide-y divide-gray-100">
-                        {currentReports.map((report) => (
-                          <TableRow
-                            key={report?._id || report?.id || report?.report_id}
-                            onClick={() => setSelectedReport(report)}
-                            className="hover:bg-blue-50/50 cursor-pointer transition-colors"
-                          >
-                            <TableCell className="px-3 py-3 text-center font-semibold text-blue-600 whitespace-nowrap text-sm">
-                              {report?.id
-                                ? `#${report.id}`
-                                : report?.report_id
-                                  ? `#${report.report_id}`
-                                  : "---"}
-                            </TableCell>
-                            <TableCell className="px-3 py-3 text-left text-sm text-gray-800 max-w-[250px] truncate">
-                              {report?.title || "---"}
-                            </TableCell>
-                            <TableCell className="px-3 py-3 text-left text-sm text-gray-600 max-w-[300px] truncate">
-                              {formatLocationDisplay(report?.location)}
-                            </TableCell>
-                            <TableCell className="px-3 py-3 text-center text-sm text-gray-600 whitespace-nowrap">
-                              {report?.time || "---"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                      <TableBody>
+                        {currentReports.map((report) => {
+                          const timeStr = report?.time || "---";
+                          let topTime = timeStr;
+                          let bottomTime = "";
+                          if (timeStr !== "---" && timeStr.includes(",")) {
+                            const parts = timeStr.split(",");
+                            topTime = parts[0].trim() + ",";
+                            bottomTime = parts[1].trim();
+                          }
+                          return (
+                            <TableRow
+                              key={report?._id || report?.id || report?.report_id}
+                              onClick={() => setSelectedReport(report)}
+                              className="hover:bg-blue-50/50 cursor-pointer transition-colors h-[72px] border-b border-gray-100 last:border-none"
+                            >
+                              <TableCell className="px-6 py-4 text-left font-medium text-blue-800 whitespace-nowrap text-[15px]">
+                                {report?.id
+                                  ? `#${report.id}`
+                                  : report?.report_id
+                                    ? `#${report.report_id}`
+                                    : "---"}
+                              </TableCell>
+                              <TableCell className="px-6 py-4 text-center text-[15px] text-gray-800 max-w-[250px] truncate">
+                                {report?.title || "---"}
+                              </TableCell>
+                              <TableCell className="px-6 py-4 text-center text-[15px] text-gray-700 max-w-[300px] truncate">
+                                {formatLocationDisplay(report?.location)}
+                              </TableCell>
+                              <TableCell className="px-6 py-4 text-center text-[14px] text-gray-800 whitespace-nowrap">
+                                {bottomTime ? (
+                                  <div className="flex flex-col items-center justify-center leading-snug">
+                                    <span>{topTime}</span>
+                                    <span>{bottomTime}</span>
+                                  </div>
+                                ) : (
+                                  <span>{timeStr}</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
 
                         {currentReports.length === 0 && (
                           <TableRow className="hover:bg-transparent">
@@ -195,58 +212,38 @@ export default function Assigned_report() {
                   </div>
 
                   {/* Pagination */}
-                  <div className="flex-shrink-0 pt-3 border-t border-gray-100">
-                    <Pagination>
-                      <PaginationContent className="gap-3 text-sm font-medium text-gray-600">
-                        <PaginationItem>
-                          <button
-                            className="flex items-center gap-1 text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={currentPage === 1}
-                            onClick={() =>
-                              setCurrentPage((p) => Math.max(1, p - 1))
-                            }
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                            Trước
-                          </button>
-                        </PaginationItem>
+                  <div className="flex items-center justify-center pt-5 pb-2 bg-white">
+                    <div className="flex items-center gap-2 text-[14px] text-gray-600">
+                      <button
+                        className="flex items-center gap-1 hover:text-gray-900 disabled:opacity-50 transition-colors mr-2"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      >
+                        <ChevronLeft className="h-4 w-4" /> Trước
+                      </button>
+                      
+                      {Array.from({ length: maxPage }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`min-w-[28px] h-7 px-2 rounded-md flex items-center justify-center transition-colors ${
+                            currentPage === page
+                              ? "border border-gray-300 text-gray-800 font-medium"
+                              : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
 
-                        {Array.from({ length: maxPage }, (_, i) => i + 1).map(
-                          (page) => (
-                            <PaginationItem key={page}>
-                              <PaginationLink
-                                href="#"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setCurrentPage(page);
-                                }}
-                                isActive={currentPage === page}
-                                className={`h-8 w-8 rounded-lg flex items-center justify-center transition-colors ${
-                                  currentPage === page
-                                    ? "bg-blue-600 text-gray-500 shadow-sm"
-                                    : "text-gray-500 hover:bg-gray-100"
-                                }`}
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          ),
-                        )}
-
-                        <PaginationItem>
-                          <button
-                            className="flex items-center gap-1 text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={currentPage === maxPage}
-                            onClick={() =>
-                              setCurrentPage((p) => Math.min(maxPage, p + 1))
-                            }
-                          >
-                            Sau
-                            <ChevronRight className="h-4 w-4" />
-                          </button>
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
+                      <button
+                        className="flex items-center gap-1 hover:text-gray-900 disabled:opacity-50 transition-colors ml-2"
+                        disabled={currentPage === maxPage}
+                        onClick={() => setCurrentPage((p) => Math.min(maxPage, p + 1))}
+                      >
+                        Sau <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

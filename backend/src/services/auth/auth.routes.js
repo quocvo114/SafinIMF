@@ -8,6 +8,7 @@ const {
   sendForgotPasswordOtp,
   resetPassword,
   logout,
+  verify,
 } = require("./auth.controller");
 const requireAuth = require("../../middleware/auth");
 
@@ -18,5 +19,6 @@ router.post("/google-login", googleLogin);
 router.post("/forgot-password/send-otp", sendForgotPasswordOtp);
 router.post("/forgot-password/reset", resetPassword);
 router.post("/logout", requireAuth, logout);
+router.get("/verify", requireAuth, verify);
 
 module.exports = router;

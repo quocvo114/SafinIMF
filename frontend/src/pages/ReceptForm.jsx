@@ -20,6 +20,8 @@ import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import AssignMaintenanceTeam from "../components/AssignMaintenanceTeam";
 import Update_Status from "../components/Update_Status";
+import { toast } from "sonner";
+import incidentApi from "../services/api/incidentApi";
 
 const DISTRICTS = [
   "all",
@@ -175,7 +177,8 @@ const removeAccents = (str) => {
 };
 
 const optimizeCloudinaryUrl = (url) => {
-  if (!url || typeof url !== 'string' || !url.includes("cloudinary.com")) return url;
+  if (!url || typeof url !== "string" || !url.includes("cloudinary.com"))
+    return url;
   return url.replace("/upload/", "/upload/c_fill,w_500,h_400,q_auto,f_auto/");
 };
 
@@ -204,6 +207,21 @@ const ReceptForm = () => {
   const [selectedArea, setSelectedArea] = useState("all");
   const [searchAreaQuery, setSearchAreaQuery] = useState("");
   const [isAreaOpen, setIsAreaOpen] = useState(false);
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
+  useEffect(() => {
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+  }, []);
 
   useEffect(() => {
     const fetchAreas = async () => {
@@ -288,7 +306,7 @@ const ReceptForm = () => {
         status: selectedReport.status || "Đang Chờ",
         time: selectedReport.time || selectedReport.date,
         district: selectedReport.district || "Chưa phân loại",
-        team: selectedReport.team || selectedReport.handlerTeam,
+        team: selectedReport.assignedTeamName || selectedReport.team || selectedReport.handlerTeam || selectedReport.assignedTeamId,
         reporter: selectedReport.reporter,
         location: selectedReport.location || "Chưa có vị trí",
         description:
@@ -360,7 +378,7 @@ const ReceptForm = () => {
         page: 1,
         limit: 6,
       });
-      
+
       if (fetchResponse?.data) {
         // ✅ Cleanup: Fetch logging removed
         setReports(fetchResponse.data);
@@ -378,20 +396,20 @@ const ReceptForm = () => {
       setShowUpdateStatusModal(false);
       setUpdateReportData(null);
       setErrorMessage("");
-      
-      if (typeof toast !== 'undefined' && toast?.success) {
+
+      if (typeof toast !== "undefined" && toast?.success) {
         toast.success("Cập nhật trạng thái thành công!");
       }
     } catch (error) {
       // ✅ Cleanup: Error logging removed
-      const errorMsg = 
+      const errorMsg =
         error?.response?.data?.message ||
         error?.message ||
         "Không thể cập nhật trạng thái báo cáo";
-      
+
       setErrorMessage(errorMsg);
-      
-      if (typeof toast !== 'undefined' && toast?.error) {
+
+      if (typeof toast !== "undefined" && toast?.error) {
         toast.error(errorMsg);
       }
     } finally {
@@ -427,6 +445,24 @@ const ReceptForm = () => {
     setAssignTeams(null);
   };
 
+  const refreshReceptionReports = async () => {
+    try {
+      const response = await reportApi.getReceptionReports({
+        search: query,
+        type: typeFilter,
+        status: statusFilter,
+        district: selectedArea,
+        date: dateFilter === "old" ? "old" : "recent",
+        page,
+        limit: pageSize,
+      });
+      setReports(response?.data || []);
+      setTotalPages(response?.pagination?.totalPages || 1);
+    } catch (error) {
+      console.error("Lỗi refresh danh sách:", error);
+    }
+  };
+
   const handleCancelAssignTeam = () => {
     if (assigningReport) {
       setSelectedReport(assigningReport);
@@ -435,7 +471,8 @@ const ReceptForm = () => {
   };
 
   const handleAssignTeam = async (team) => {
-    const reportId = assigningReport?.report_id || assigningReport?.id;
+    const reportId =
+      assigningReport?.id || assigningReport?.report_id || assigningReport?._id;
     if (!reportId) {
       return;
     }
@@ -453,6 +490,8 @@ const ReceptForm = () => {
       syncReportStatus(reportId, "Đang Xử Lý", team?.name);
       handleCloseAssignTeam();
       toast.success("Phân công thành công!");
+      // Refresh danh sách reports từ API ngay lập tức để lấy assignedTeamName
+      await refreshReceptionReports();
     } catch (error) {
       setErrorMessage(
         error?.response?.data?.message || "Không thể gửi xử lý báo cáo",
@@ -598,30 +637,15 @@ const ReceptForm = () => {
               >
                 Loại sự cố
               </SelectItem>
-              <SelectItem
-                value="Giao Thông"
-                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
-              >
-                Giao thông
-              </SelectItem>
-              <SelectItem
-                value="Điện"
-                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
-              >
-                Điện
-              </SelectItem>
-              <SelectItem
-                value="Cây Xanh"
-                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
-              >
-                Cây xanh
-              </SelectItem>
-              <SelectItem
-                value="CTCC"
-                className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
-              >
-                CTCC
-              </SelectItem>
+              {incidentTypes.map((type) => (
+                <SelectItem
+                  key={type._id || type.name}
+                  value={type.name}
+                  className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+                >
+                  {type.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -884,6 +908,7 @@ const ReceptForm = () => {
         reportId={updateReportData?.report_id || updateReportData?.id}
         reportCode={updateReportData?.id || updateReportData?.report_id}
         currentStatus={updateReportData?.status || "Đang Chờ"}
+        hasAfterImage={Boolean(updateReportData?.afterImg)}
         onClose={() => {
           setShowUpdateStatusModal(false);
           setUpdateReportData(null);
@@ -913,6 +938,7 @@ const ReceptForm = () => {
         reportId={updateReportData?.id || updateReportData?.report_id}
         reportCode={updateReportData?.id}
         currentStatus={updateReportData?.status}
+        hasAfterImage={Boolean(updateReportData?.afterImg)}
         onClose={() => {
           setShowUpdateStatusModal(false);
           setUpdateReportData(null);

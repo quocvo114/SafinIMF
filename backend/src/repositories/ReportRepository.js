@@ -91,8 +91,12 @@ class ReportRepository {
   // Helper để build query tránh type casting errors
   buildIdQuery(id) {
     const queries = [];
-    
-    if (typeof id === 'string' && id.startsWith('RPT-')) {
+
+    if (typeof id === "string" && /^[a-fA-F0-9]{24}$/.test(id)) {
+      queries.push({ _id: id });
+    }
+
+    if (typeof id === "string" && id.startsWith("RPT-")) {
       // ID dạng string "RPT-..."
       queries.push({ id: id });
     } else {
@@ -107,12 +111,12 @@ class ReportRepository {
         queries.push({ id: String(id) });
       }
     }
-    
+
     // Nếu có nhiều queries, dùng $or để tìm matching document
     if (queries.length > 1) {
       return { $or: queries };
     }
-    
+
     return queries[0] || { id: String(id) };
   }
 
@@ -274,6 +278,19 @@ class ReportRepository {
 
   async getById(id) {
     try {
+      const normalizedId =
+        id !== undefined && id !== null ? String(id).trim() : "";
+      if (!normalizedId) return null;
+
+      const conditions = [{ id: normalizedId }];
+
+      // Chỉ query report_id (Number) khi id thực sự là số nguyên
+      const numericId = Number(normalizedId);
+      if (Number.isInteger(numericId) && numericId > 0) {
+        conditions.push({ report_id: numericId });
+      }
+
+      return await Report.findOne({ $or: conditions });
       const query = this.buildIdQuery(id);
       if (!query) return null;
       return await Report.findOne(query).lean();
@@ -304,7 +321,7 @@ class ReportRepository {
       console.log(`\n🔄 [REPO-UPDATE-STATUS] Starting update...`);
       console.log(`   Query ID: ${id} (type: ${typeof id})`);
       console.log(`   New Status: ${status}`);
-      
+
       const query = this.buildIdQuery(id);
       console.log(`   Query object: ${JSON.stringify(query)}`);
 

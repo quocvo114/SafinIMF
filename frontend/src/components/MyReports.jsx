@@ -58,12 +58,36 @@ const TYPE_LABELS = {
   "Cây Xanh": "Cây Xanh",
   CTCC: "Công trình công cộng",
 };
-const TYPE_BADGE = {
-  "Giao Thông": "bg-orange-100 text-orange-700",
-  Điện: "bg-yellow-100 text-yellow-700",
-  "Cây Xanh": "bg-emerald-100 text-emerald-700",
-  CTCC: "bg-violet-100 text-violet-700",
-  Khác: "bg-slate-100 text-slate-700",
+const TYPE_BADGE_FALLBACK = {
+  "Giao Thông": { bg: "#fff7ed", text: "#c2410c" }, // orange-50/orange-700
+  Điện: { bg: "#fefce8", text: "#a16207" }, // yellow-50/yellow-700
+  "Cây Xanh": { bg: "#ecfdf5", text: "#047857" }, // emerald-50/emerald-700
+  CTCC: { bg: "#f5f3ff", text: "#6d28d9" }, // violet-50/violet-700
+  Khác: { bg: "#f8fafc", text: "#334155" }, // slate-50/slate-700
+};
+
+// Helper to convert hex to rgba for background
+const hexToRgba = (hex, alpha) => {
+  if (!hex || !hex.startsWith('#')) return `rgba(248, 250, 252, ${alpha})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const getBadgeStyle = (type, activeTypes) => {
+  const typeObj = activeTypes.find(t => t.name === type);
+  if (typeObj && typeObj.color) {
+    return {
+      backgroundColor: hexToRgba(typeObj.color, 0.1),
+      color: typeObj.color,
+    };
+  }
+  const fallback = TYPE_BADGE_FALLBACK[type] || TYPE_BADGE_FALLBACK["Khác"];
+  return {
+    backgroundColor: fallback.bg,
+    color: fallback.text,
+  };
 };
 
 const STATUS_BADGE = {
@@ -529,7 +553,8 @@ export default function MyReports() {
                             <TableCell className="px-4 py-3">
                               <Badge
                                 variant="outline"
-                                className={`h-auto border-0 rounded-full px-3 py-1 text-xs font-medium ${TYPE_BADGE[item.type] || TYPE_BADGE["Khác"]}`}
+                                className="h-auto border-0 rounded-full px-3 py-1 text-xs font-medium"
+                                style={getBadgeStyle(item.type, activeIncidentTypes)}
                               >
                                 {item.type}
                               </Badge>

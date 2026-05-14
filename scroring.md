@@ -56,22 +56,21 @@ score = max(0, 100 - (distance_km / 5) × 100)
 
 ```
 total_score = Σ(điểm từ khóa tìm thấy)
-score = min(100, (total_score / 18) × 100)
+score = min(100, (total_score / 15) × 100)
 ```
 
-_Giải thích: 18 là tổng điểm tối đa (9 từ khóa mạnh × 2 điểm)_
+_Giải thích: 15 là tổng điểm tối đa (5 nhóm mạnh × 2 điểm + 5 nhóm thường × 1 điểm)_
 
 ### Bảng điểm tham khảo
 
-| Kịch bản                | Điểm |
-| ----------------------- | ---- |
-| 9 từ mạnh               | 100  |
-| 6 từ mạnh               | 67   |
-| 4 từ mạnh               | 44   |
-| 3 từ mạnh + 2 từ thường | 50   |
-| 2 từ mạnh               | 22   |
-| 1 từ mạnh               | 11   |
-| Không có từ nào         | 0    |
+| Kịch bản                    | Điểm |
+| --------------------------- | ---- |
+| 5 nhóm mạnh + 5 nhóm thường | 100  |
+| 5 nhóm mạnh                 | 67   |
+| 3 nhóm mạnh + 2 nhóm thường | 53   |
+| 2 nhóm mạnh                 | 27   |
+| 1 nhóm mạnh                 | 13   |
+| Không có từ nào             | 0    |
 
 ### Quy tắc
 
@@ -125,6 +124,7 @@ amplified_damage = damage_percentage × 5
 floor_minimum = num_detections × 15
 boosted = max(amplified_damage, floor_minimum)
 score = min(100, boosted)
+score = min(score, ai_confidence_percent)
 ```
 
 ### Giải thích
@@ -150,6 +150,7 @@ score = min(100, boosted)
 - **Phát hiện ≥1 sự cố (bất kỳ loại nào):** Tối thiểu 15% × số phát hiện
 - **Damage nhỏ nhưng có phát hiện:** Được boost nhờ floor minimum
 - **Damage lớn:** Score capped at 100%
+- **Có aiPercent:** Score không vượt quá độ tin cậy AI
 - **AI timeout / lỗi:** Từ chối báo cáo, thông báo "Hệ thống AI tạm thời không khả dụng"
 
 ---
@@ -172,7 +173,7 @@ score = min(100, boosted)
 | Đầy đủ 4 tiêu chí | 28%      | 28%     | 23%  | 21%       |
 | Thiếu Time        | 35%      | 35%     | -    | 30%       |
 | Thiếu Location    | -        | 40%     | 30%  | 30%       |
-| Chỉ Content       | -        | 50%     | 50%  | -         |
+| Chỉ Content       | -        | 30%     | -    | 50%       |
 
 ### Quy tắc
 
@@ -243,12 +244,13 @@ AI Vision:
 | -------------------- | ---------------- | ------------------------------------------ |
 | maxDistance          | 5 km             | Ngưỡng khoảng cách tối đa                  |
 | maxHoursDiff         | 6 giờ            | Ngưỡng thời gian tối đa                    |
-| maxKeywordScore      | 18 điểm          | Tổng điểm tối đa từ khóa                   |
+| maxKeywordScore      | 15 điểm          | Tổng điểm tối đa từ khóa                   |
 | weights              | 28/28/23/21      | Trọng số (Location/Content/Time/AI Vision) |
 | strongKeywordWeight  | 2 pts            | Điểm cho từ khóa mạnh                      |
 | regularKeywordWeight | 1 pt             | Điểm cho từ khóa thường                    |
 | yoloAmplify          | 5x               | Hệ số nhân damage_percentage               |
 | yoloFloorMinimum     | 15%              | Điểm tối thiểu mỗi sự cố phát hiện         |
+| aiConfidencePercent  | 0-100            | Giới hạn điểm AI theo độ tin cậy model     |
 | yoloTimeout          | 30s              | Timeout cho YOLO API call                  |
 | yoloRetryCount       | 3                | Số lần retry nếu YOLO API lỗi              |
 | yoloClasses          | 3                | Số lớp sự cố: ổ gà, đường nứt, rác         |

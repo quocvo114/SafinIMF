@@ -16,40 +16,11 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import ImageViewer from "./ImageViewer";
 
+import incidentApi from "../services/api/incidentApi";
+
 function getTypeLabel(type) {
   if (!type) return "khac";
   return String(type);
-}
-
-function normalizeTypeKey(type) {
-  return String(type || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d");
-}
-
-function getTypeBadgeClass(type) {
-  const normalizedType = normalizeTypeKey(type);
-
-  if (normalizedType === "giao thong") {
-    return "bg-[#F97316] text-white hover:bg-[#F97316]";
-  }
-
-  if (normalizedType === "dien") {
-    return "bg-[#FDCA00] text-white hover:bg-[#FDCA00]";
-  }
-
-  if (normalizedType === "cay xanh") {
-    return "bg-[#74C365] text-white hover:bg-[#74C365]";
-  }
-
-  if (normalizedType === "ctcc" || normalizedType === "cong trinh cong cong") {
-    return "bg-[#B78FF2] text-white hover:bg-[#B78FF2]";
-  }
-
-  return "bg-orange-500 text-white hover:bg-orange-500";
 }
 
 function getStatusLabel(status) {
@@ -93,24 +64,39 @@ function resolveImage(data, index) {
 }
 
 export default function ReportDetail({ data, close }) {
+  const [incidentTypes, setIncidentTypes] = useState([]);
   const isOpen = Boolean(data);
-
-  if (!isOpen) return null;
-
-  const beforeImage = resolveImage(data, 0);
-  const afterImage = data.afterImg || resolveImage(data, 1);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
+
+  const beforeImage = resolveImage(data, 0);
+  const afterImage = data?.afterImg || resolveImage(data, 1);
+
+  useEffect(() => {
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    if (isOpen) fetchIncidentTypes();
+  }, [isOpen]);
+
+  useEffect(() => {
+    setAfterImageFailed(false);
+  }, [afterImage]);
+
+  if (!isOpen) return null;
 
   const allImages = [beforeImage, afterImage].filter(Boolean);
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
   };
-
-  useEffect(() => {
-    setAfterImageFailed(false);
-  }, [afterImage]);
 
   const showAfterImage = Boolean(afterImage) && !afterImageFailed;
 
@@ -138,11 +124,21 @@ export default function ReportDetail({ data, close }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              className={`h-7 rounded-full px-3 text-xs font-semibold ${getTypeBadgeClass(data.type)}`}
-            >
-              {getTypeLabel(data.type)}
-            </Badge>
+            {(() => {
+              const typeObj = incidentTypes.find(t => t.name === data.type);
+              const badgeStyle = typeObj && typeObj.color 
+                ? { backgroundColor: typeObj.color, color: "#fff" } 
+                : { backgroundColor: "#f97316", color: "#fff" };
+
+              return (
+                <Badge
+                  className="h-7 rounded-full px-3 text-xs font-semibold"
+                  style={badgeStyle}
+                >
+                  {getTypeLabel(data.type)}
+                </Badge>
+              );
+            })()}
             <Badge className="h-7 rounded-full bg-[#d5d5d5] px-3 text-xs font-semibold text-zinc-800 hover:bg-[#d5d5d5]">
               {getStatusLabel(data.status)}
             </Badge>

@@ -1,5 +1,6 @@
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 export default function ImageViewer({
   images,
@@ -24,9 +25,9 @@ export default function ImageViewer({
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  });
+  }, [isOpen, onClose]); // Added dependency array
 
-  if (!isOpen || !images || images.length === 0) return null;
+  if (!isOpen || typeof document === "undefined" || !images || images.length === 0) return null;
 
   const validImages = images.filter(Boolean);
   if (validImages.length === 0) return null;
@@ -47,15 +48,18 @@ export default function ImageViewer({
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.5, 4));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.5, 0.5));
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm pointer-events-auto"
       onClick={onClose}
     >
       {/* Close button */}
       <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose?.();
+        }}
+        className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors pointer-events-auto"
       >
         <X className="h-5 w-5" />
       </button>
@@ -137,6 +141,7 @@ export default function ImageViewer({
           style={{ transform: `scale(${zoom})` }}
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

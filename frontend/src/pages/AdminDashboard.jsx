@@ -3,8 +3,12 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Building2, TrafficCone, TreePine, Zap, Layers } from "lucide-react";
 import IncidentPopupContent from "../components/IncidentPopupContent";
-import { reportApi } from "../services/api/reportApi";
 import MapView from "../components/Map/MapView";
+import { incidentMarkerIcons, createCustomMarkerIcon } from "../lib/mapIcons";
+import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import { renderToString } from "react-dom/server";
 import "../styles/map.css";
 
 const DANANG_CENTER = [16.0471, 108.2068];
@@ -303,6 +307,26 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState(() => loadCachedReports());
   const mapRef = useRef(null);
   const hasAutoFittedRef = useRef(false);
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (isMounted && response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -396,11 +420,27 @@ export default function AdminDashboard() {
 
       {/* ✅ Floating Categories - Soft UI Version */}
       <div
-        className="pointer-events-none absolute right-4 top-20 z-20"
-        style={{ left: "var(--admin-sidebar-offset, 6rem)" }}
+        className="pointer-events-none absolute right-6 top-24 z-20"
+        style={{ left: "calc(var(--admin-sidebar-offset, 6rem) + 1rem)" }}
       >
-        <div className="pointer-events-auto flex gap-2 scrollbar-hide px-10 py-1.5 -mx-1">
-          {CATEGORY_OPTIONS.map((category) => (
+        <div className="pointer-events-auto flex flex-wrap gap-3 scrollbar-hide sm:flex-nowrap">
+          {[
+            {
+              id: "all",
+              label: "Tất Cả",
+              icon: <Layers className="h-4 w-4" />,
+              color: "#2563eb",
+            },
+            ...incidentTypes.map((t) => {
+              const IconComp = INCIDENT_ICON_MAP[t.iconKey] || Building2;
+              return {
+                id: t.name,
+                label: t.name,
+                icon: <IconComp className="h-4 w-4" />,
+                color: t.color || "#f97316",
+              };
+            }),
+          ].map((category) => (
             <button
               key={category.id}
               type="button"
@@ -431,10 +471,16 @@ export default function AdminDashboard() {
               }}
             >
               <span className="inline-flex items-center justify-center">
-                {React.cloneElement(category.icon, {
-                  size: 16,
-                  color: "#ffffff",
-                })}
+                {React.isValidElement(category.icon) ? (
+                  React.cloneElement(category.icon, {
+                    size: 16,
+                    color: "#ffffff",
+                  })
+                ) : (
+                  <span className="text-sm leading-none text-white">
+                    {String(category.icon ?? "")}
+                  </span>
+                )}
               </span>
               <span>{category.label}</span>
             </button>

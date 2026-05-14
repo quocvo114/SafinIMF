@@ -5,20 +5,21 @@ import MaintenanceHomeOverlayUI from "../components/MaintenanceHomeOverlayUI";
 import IncidentPopupContent from "../components/IncidentPopupContent";
 import MapView from "../components/Map/MapView";
 import { useAuth } from "../context/AuthContext";
-import { searchLocationMarkerIcon } from "../lib/mapIcons";
+import {
+  incidentMarkerIcons,
+  createCustomMarkerIcon,
+  searchLocationMarkerIcon,
+} from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
+import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import { renderToString } from "react-dom/server";
 import "../styles/map.css";
 
 const DANANG_CENTER = [16.0471, 108.2068];
 const MAINTENANCE_REPORTS_CACHE_KEY = "maintenance-map-reports-cache-v1";
 const MAINTENANCE_GEOCODE_CACHE_KEY = "maintenance-map-geocode-cache-v1";
-
-const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
-  giaothong: "traffic",
-  dien: "electric",
-  cayxanh: "tree",
-  ctcc: "building",
-});
 
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
@@ -62,18 +63,6 @@ const extractPositionFromReport = (report) => {
   }
 
   return [latFromLocation, lngFromLocation];
-};
-
-const mapReportTypeToIncidentType = (reportType) => {
-  const normalizedType = String(reportType || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-  return REPORT_TYPE_TO_INCIDENT_TYPE[normalizedType] || null;
 };
 
 const parseReportDate = (timeValue, createdAtValue) => {
@@ -200,12 +189,9 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const type = mapReportTypeToIncidentType(
-        report?.type || report?.reportType || report?.category,
-      );
-      if (!type) {
-        return null;
-      }
+      const type = String(
+        report?.type || report?.reportType || report?.category || "Khác",
+      ).trim();
 
       let position = extractPositionFromReport(report);
 
@@ -249,8 +235,11 @@ const normalizeReportsForMap = async (rawReports) => {
         images: Array.isArray(report?.images) ? report.images : [],
         displayDate: parseReportDate(report?.time, report?.createdAt),
         reporterName: getReporterName(report),
-        createdAt:
-          report?.createdAt || report?.created_at || report?.time || null,
+        assignedTeamId: report?.assignedTeamId || report?.handlingTeamId || "",
+        assignedTeamName:
+          report?.assignedTeamName || report?.handlingTeamName || "",
+        handlingTeamId: report?.handlingTeamId || "",
+        handlingTeamName: report?.handlingTeamName || "",
       };
     }),
   );
@@ -277,18 +266,104 @@ const MaintenanceDashboard = () => {
   const mapRef = useRef(null);
   const hasAutoFittedRef = useRef(false);
   const [searchMarker, setSearchMarker] = useState(null);
-  const [reports, setReports] = useState(() => loadCachedReports());
+  const [reports, setReports] = useState(() =>
+    loadCachedReports(MAINTENANCE_REPORTS_CACHE_KEY),
+  );
 
   const { user } = useAuth();
 
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
 
+  const isMaintenanceUser = currentUser?.role === "maintenance";
+  const [assignedTeamId, setAssignedTeamId] = useState(null);
+  const [assignedTeamName, setAssignedTeamName] = useState(null);
+
   const userName = currentUser.full_name || currentUser.name || "Người dùng";
 
   const userAvatar = currentUser.avatar || null;
 
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
   useEffect(() => {
     let isMounted = true;
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (isMounted && response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!isMaintenanceUser) {
+      setAssignedTeamId(null);
+      setAssignedTeamName(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const leaderName = userName || "";
+    if (!leaderName.trim()) {
+      setAssignedTeamId(null);
+      setAssignedTeamName(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const fetchAssignedTeam = async () => {
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          search: leaderName,
+          area: "all",
+          status: "all",
+          page: 1,
+          limit: 20,
+        });
+
+        const items = Array.isArray(response?.data) ? response.data : [];
+        const normalizedLeader = normalizeText(leaderName);
+        const matched =
+          items.find(
+            (team) => normalizeText(team?.leader) === normalizedLeader,
+          ) || items[0];
+
+        if (isMounted) {
+          setAssignedTeamId(matched?.team_id || matched?.id || null);
+          setAssignedTeamName(matched?.name || null);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setAssignedTeamId(null);
+          setAssignedTeamName(null);
+        }
+      }
+    };
+
+    fetchAssignedTeam();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isMaintenanceUser, userName]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const cacheKey =
+      isMaintenanceUser && assignedTeamId
+        ? `${MAINTENANCE_REPORTS_CACHE_KEY}-${assignedTeamId}`
+        : MAINTENANCE_REPORTS_CACHE_KEY;
 
     const fetchReports = async () => {
       try {
@@ -312,7 +387,7 @@ const MaintenanceDashboard = () => {
 
         if (isMounted) {
           setReports(normalizedReports);
-          saveCachedReports(normalizedReports);
+          saveCachedReports(cacheKey, normalizedReports);
         }
       } catch (error) {
         // ✅ Cleanup: Report loading error handling silenced
@@ -324,40 +399,59 @@ const MaintenanceDashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [assignedTeamId, isMaintenanceUser]);
+
+  const visibleReports = useMemo(() => {
+    if (!isMaintenanceUser) return reports;
+    if (!assignedTeamId && !assignedTeamName) return [];
+
+    return reports.filter((report) => {
+      const reportTeamId =
+        report?.assignedTeamId || report?.handlingTeamId || "";
+      if (assignedTeamId && reportTeamId) {
+        return reportTeamId === assignedTeamId;
+      }
+
+      const reportTeamName =
+        report?.assignedTeamName || report?.handlingTeamName || "";
+      if (assignedTeamName && reportTeamName) {
+        return reportTeamName === assignedTeamName;
+      }
+
+      return false;
+    });
+  }, [assignedTeamId, assignedTeamName, isMaintenanceUser, reports]);
 
   useEffect(() => {
-    if (!mapRef.current || hasAutoFittedRef.current || reports.length === 0) {
+    if (
+      !mapRef.current ||
+      hasAutoFittedRef.current ||
+      visibleReports.length === 0
+    ) {
       return;
     }
 
     mapRef.current.fitBounds(
-      reports.map((report) => report.position),
+      visibleReports.map((report) => report.position),
       {
         padding: [42, 42],
         maxZoom: 15,
       },
     );
     hasAutoFittedRef.current = true;
-  }, [reports]);
+  }, [visibleReports]);
 
-  const normalizedSelectedCategory = useMemo(() => {
-    if (selectedCategory === "public") {
-      return "building";
-    }
-
-    return selectedCategory;
-  }, [selectedCategory]);
+  const normalizedSelectedCategory = selectedCategory;
 
   const filteredIncidents = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
-      return reports;
+      return visibleReports;
     }
 
-    return reports.filter(
+    return visibleReports.filter(
       (incident) => incident.type === normalizedSelectedCategory,
     );
-  }, [normalizedSelectedCategory, reports]);
+  }, [normalizedSelectedCategory, visibleReports]);
 
   const handleSearchLocation = async (query) => {
     // ✅ Cleanup: Search query logging removed
@@ -421,12 +515,53 @@ const MaintenanceDashboard = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <MapView
-              reports={filteredIncidents}
-              renderPopupContent={(incident) => (
-                <IncidentPopupContent incident={incident} />
-              )}
-            />
+            {filteredIncidents.map((incident) => {
+              const typeObj = incidentTypes.find(
+                (t) => t.name === incident.type,
+              );
+              let mapIcon = incidentMarkerIcons[incident.type];
+
+              if (!mapIcon) {
+                let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
+                if (typeObj) {
+                  const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
+                  if (IconComp) {
+                    svgString = renderToString(
+                      <IconComp
+                        className="map-marker__icon"
+                        color="currentColor"
+                      />,
+                    );
+                  }
+                }
+
+                mapIcon = createCustomMarkerIcon({
+                  backgroundColor: typeObj?.color || "#f97316",
+                  svgIcon: svgString,
+                });
+              }
+
+              return (
+                <Marker
+                  key={incident.id}
+                  position={incident.position}
+                  icon={mapIcon}
+                  eventHandlers={{
+                    click: (event) => event.target.openPopup(),
+                  }}
+                >
+                  <Popup
+                    className="incident-popup"
+                    maxWidth={420}
+                    minWidth={280}
+                    autoPan={true}
+                    keepInView={true}
+                  >
+                    <IncidentPopupContent incident={incident} />
+                  </Popup>
+                </Marker>
+              );
+            })}
 
             {searchMarker && (
               <Marker
