@@ -100,8 +100,8 @@ export default function ClusterPopup({ type, reports }) {
           </div>
         ))}
       </div>
-      <div className="cluster-popup__divider" />
-      <div className="cluster-popup__footer">Xem chi tiết từng báo cáo →</div>
+      {/* <div className="cluster-popup__divider" /> */}
+      {/* <div className="cluster-popup__footer">Xem chi tiết từng báo cáo →</div> */}
     </div>
   );
 }

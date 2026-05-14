@@ -86,7 +86,9 @@ export default function MaintenanceReportDetail({
 
   const reportImageUrl = resolveImage(report, 0) || report?.imageUrl || "";
   const afterImageUrl = resolveImage(report, 1) || report?.afterImg || "";
-  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(Boolean);
+  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(
+    Boolean,
+  );
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
@@ -280,13 +282,16 @@ export default function MaintenanceReportDetail({
             {/* Type + Title */}
             <div>
               {(() => {
-                const typeObj = incidentTypes.find(t => t.name === report?.type);
-                const badgeStyle = typeObj && typeObj.color 
-                  ? { backgroundColor: typeObj.color, color: "#fff" } 
-                  : { backgroundColor: "#FF7F1F", color: "#fff" };
+                const typeObj = incidentTypes.find(
+                  (t) => t.name === report?.type,
+                );
+                const badgeStyle =
+                  typeObj && typeObj.color
+                    ? { backgroundColor: typeObj.color, color: "#fff" }
+                    : { backgroundColor: "#FF7F1F", color: "#fff" };
 
                 return (
-                  <Badge 
+                  <Badge
                     className="inline-flex items-center rounded-full px-2.5 py-0.5 h-auto border-0 text-[10px] font-semibold tracking-wide shadow-sm mb-1.5"
                     style={badgeStyle}
                   >
