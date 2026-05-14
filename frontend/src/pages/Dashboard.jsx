@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import HomeOverlayUI from "../components/HomeOverlayUI";
+import MapView from "../components/Map/MapView";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { reportApi } from "../services/api/reportApi";
@@ -366,6 +367,8 @@ const normalizeReportsForMap = async (rawReports) => {
         images: Array.isArray(report?.images) ? report.images : [],
         displayDate: parseReportDate(report?.time, report?.createdAt),
         reporterName: getReporterName(report),
+        createdAt:
+          report?.createdAt || report?.created_at || report?.time || null,
       };
     }),
   );

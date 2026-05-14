@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import MaintenanceHomeOverlayUI from "../components/MaintenanceHomeOverlayUI";
 import IncidentPopupContent from "../components/IncidentPopupContent";
+import MapView from "../components/Map/MapView";
 import { useAuth } from "../context/AuthContext";
 import {
   incidentMarkerIcons,

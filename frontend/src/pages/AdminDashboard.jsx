@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Building2, TrafficCone, TreePine, Zap, Layers } from "lucide-react";
 import IncidentPopupContent from "../components/IncidentPopupContent";
+import MapView from "../components/Map/MapView";
 import { incidentMarkerIcons, createCustomMarkerIcon } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
 import incidentApi from "../services/api/incidentApi";
@@ -183,10 +184,10 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const category = mapReportTypeToIncidentType(
+      const type = mapReportTypeToIncidentType(
         report?.type || report?.reportType || report?.category,
       );
-      if (!category) {
+      if (!type) {
         return null;
       }
 
@@ -233,6 +234,8 @@ const normalizeReportsForMap = async (rawReports) => {
         images: Array.isArray(report?.images) ? report.images : [],
         displayDate: parseReportDate(report?.time, report?.createdAt),
         reporterName: getReporterName(report),
+        createdAt:
+          report?.createdAt || report?.created_at || report?.time || null,
       };
     }),
   );
@@ -376,10 +379,7 @@ export default function AdminDashboard() {
     if (normalizedSelectedCategory === "all") {
       return reports;
     }
-    return reports.filter(
-      (point) =>
-        normalizeTypeKey(point.category) === normalizedSelectedCategory,
-    );
+    return reports.filter((point) => point.type === normalizedSelectedCategory);
   }, [normalizedSelectedCategory, reports]);
 
   return (
@@ -487,16 +487,16 @@ export default function AdminDashboard() {
               }}
             >
               <span className="inline-flex items-center justify-center">
-                {React.isValidElement(category.icon)
-                  ? React.cloneElement(category.icon, {
-                      size: 16,
-                      color: "#ffffff",
-                    })
-                  : (
-                    <span className="text-sm leading-none text-white">
-                      {String(category.icon ?? "")}
-                    </span>
-                  )}
+                {React.isValidElement(category.icon) ? (
+                  React.cloneElement(category.icon, {
+                    size: 16,
+                    color: "#ffffff",
+                  })
+                ) : (
+                  <span className="text-sm leading-none text-white">
+                    {String(category.icon ?? "")}
+                  </span>
+                )}
               </span>
               <span>{category.label}</span>
             </button>
