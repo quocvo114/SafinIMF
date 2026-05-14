@@ -516,7 +516,7 @@ export default function MyReports() {
                             Trạng thái
                           </TableHead>
                           <TableHead className="px-4 py-3 font-semibold">
-                            % AI
+                            Độ tin cậy
                           </TableHead>
                           <TableHead className="px-4 py-3 font-semibold">
                             Thời gian
