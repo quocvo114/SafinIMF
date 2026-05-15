@@ -38,39 +38,10 @@ function normalizeTypeKey(type) {
     .replace(/đ/g, "d");
 }
 
-function resolveImage(data, index) {
-  const imageCandidate =
-    data && Array.isArray(data.images) ? data.images[index] : "";
-
-  if (typeof imageCandidate === "string") {
-    const normalizedCandidate = imageCandidate.trim().toLowerCase();
-    if (
-      normalizedCandidate &&
-      normalizedCandidate !== "null" &&
-      normalizedCandidate !== "undefined"
-    ) {
-      return imageCandidate;
-    }
-  } else if (imageCandidate) {
-    return imageCandidate;
-  }
-
-  if (data && index === 0 && data.image) {
-    if (typeof data.image === "string") {
-      const normalizedSingleImage = data.image.trim().toLowerCase();
-      if (
-        normalizedSingleImage &&
-        normalizedSingleImage !== "null" &&
-        normalizedSingleImage !== "undefined"
-      ) {
-        return data.image;
-      }
-    } else {
-      return data.image;
-    }
-  }
-
-  return "";
+function isValidImage(value) {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim().toLowerCase();
+  return Boolean(normalized && normalized !== "null" && normalized !== "undefined");
 }
 
 function getStatusValueClass(status) {
@@ -318,8 +289,30 @@ export default function ReportDetailQLKV({
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
 
-  const beforeImage = resolveImage(data, 0);
-  const afterImage = data?.afterImg || resolveImage(data, 1);
+  const incidentImages = Array.isArray(data?.images)
+    ? data.images.filter((img) => isValidImage(img))
+    : [];
+
+  const beforeImage =
+    incidentImages[0] ||
+    (isValidImage(data?.image) ? data.image : "") ||
+    (isValidImage(data?.imageUrl) ? data.imageUrl : "") ||
+    "";
+
+  const afterImage =
+    (isValidImage(data?.afterImg) ? data.afterImg : "") ||
+    (isValidImage(data?.after_img) ? data.after_img : "") ||
+    (isValidImage(data?.afterImage) ? data.afterImage : "") ||
+    "";
+
+  const normalizedBeforeImage =
+    typeof beforeImage === "string" ? beforeImage.trim() : "";
+  const normalizedAfterImage =
+    typeof afterImage === "string" ? afterImage.trim() : "";
+  const effectiveAfterImage =
+    normalizedBeforeImage && normalizedAfterImage === normalizedBeforeImage
+      ? ""
+      : afterImage;
 
   useEffect(() => {
     const fetchIncidentTypes = async () => {
@@ -336,12 +329,36 @@ export default function ReportDetailQLKV({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) {
+      setImageViewer({ open: false, index: 0 });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     setAfterImageFailed(false);
-  }, [afterImage]);
+  }, [effectiveAfterImage]);
 
   if (!isOpen || !data) return null;
 
-  const allImages = [beforeImage, afterImage].filter(Boolean);
+  const viewerIncidentImages = incidentImages.length > 0
+    ? incidentImages
+    : beforeImage
+      ? [beforeImage]
+      : [];
+
+  const showAfterImage = Boolean(effectiveAfterImage) && !afterImageFailed;
+
+  const hasAfterInIncidentImages = showAfterImage
+    ? viewerIncidentImages.some(
+        (img) =>
+          typeof img === "string" &&
+          img.trim() === String(effectiveAfterImage).trim(),
+      )
+    : false;
+
+  const allImages = showAfterImage && !hasAfterInIncidentImages
+    ? [...viewerIncidentImages, effectiveAfterImage]
+    : [...viewerIncidentImages];
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
@@ -373,7 +390,6 @@ export default function ReportDetailQLKV({
 
   const displayLocation = formatLocationDisplay(data.location);
 
-  const showAfterImage = Boolean(afterImage) && !afterImageFailed;
   const statusValueClass = getStatusValueClass(data.status);
   const statusIconTone = getStatusIconTone(data.status);
   const issueTitle = data.issueTitle || data.title || "Chưa có tiêu đề";
@@ -511,16 +527,16 @@ export default function ReportDetailQLKV({
                 </div>
               )}
 
-              {/* Photos - flexible height row */}
-              <div className="grid grid-cols-2 gap-2 flex-1 min-h-[200px]">
-                <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden h-full">
+              {/* Photos - unified thumbnail height */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden">
                   <div className="flex items-center gap-1.5 mb-1.5 px-0.5 shrink-0">
                     <Camera className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-semibold text-zinc-900">
                       Ảnh Sự Cố
                     </span>
                   </div>
-                  <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
+                  <div className="h-40 rounded-lg overflow-hidden bg-[#dcdcdf]">
                     {beforeImage ? (
                       <img
                         src={beforeImage}
@@ -543,15 +559,13 @@ export default function ReportDetailQLKV({
                       Ảnh Khắc Phục
                     </span>
                   </div>
-                  <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
+                  <div className="h-40 rounded-lg overflow-hidden bg-[#dcdcdf]">
                     {showAfterImage ? (
                       <img
-                        src={afterImage}
+                        src={effectiveAfterImage}
                         alt="Ảnh khắc phục"
                         className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() =>
-                          openImageViewer(allImages.indexOf(afterImage))
-                        }
+                        onClick={() => openImageViewer(viewerIncidentImages.length)}
                         onError={() => setAfterImageFailed(true)}
                       />
                     ) : (

@@ -74,8 +74,6 @@ export default function HomeOverlayUI({
   const [stream, setStream] = useState(null);
   const [localToast, setLocalToast] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -116,51 +114,16 @@ export default function HomeOverlayUI({
     return false;
   };
 
-  const handleAuthConfirm = (action) => {
-    setConfirmAction(action);
-    setShowConfirmDialog(true);
-  };
-
-  const proceedWithAuth = () => {
-    if (confirmAction === "signin") {
-      navigate("/signin");
-    } else if (confirmAction === "signup") {
-      navigate("/register");
-    } else if (confirmAction === "camera") {
-      setShowConfirmDialog(false);
-      setConfirmAction(null);
-      openCamera();
-      return;
-    } else if (confirmAction === "report") {
-      setShowConfirmDialog(false);
-      setConfirmAction(null);
-      setIsReportOpen(true);
-      return;
-    }
-    setShowConfirmDialog(false);
-    setConfirmAction(null);
-  };
-
-  const cancelAuth = () => {
-    setShowConfirmDialog(false);
-    setConfirmAction(null);
-  };
 
   const handleCameraClick = () => {
-    const isAuthenticated = Boolean(user || localStorage.getItem("token"));
-    if (isAuthenticated) {
+    if (requireAuth()) {
       openCamera();
-    } else {
-      handleAuthConfirm("camera");
     }
   };
 
   const handlePlusClick = () => {
-    const isAuthenticated = Boolean(user || localStorage.getItem("token"));
-    if (isAuthenticated) {
+    if (requireAuth()) {
       setIsReportOpen((prev) => !prev);
-    } else {
-      handleAuthConfirm("report");
     }
   };
 
@@ -249,7 +212,7 @@ export default function HomeOverlayUI({
           {/* Nút "Tất cả" */}
           <button
             onClick={() => {
-              if (requireAuth()) setSelectedCategory("all");
+              setSelectedCategory("all");
             }}
             className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
               selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
@@ -287,7 +250,7 @@ export default function HomeOverlayUI({
               <button
                 key={c.id}
                 onClick={() => {
-                  if (requireAuth()) setSelectedCategory(c.id);
+                  setSelectedCategory(c.id);
                 }}
                 className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                   selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
@@ -328,13 +291,13 @@ export default function HomeOverlayUI({
         {showAuthButtons && !user ? (
           <div className="absolute top-4 right-4 z-10 flex gap-3">
             <button
-              onClick={() => handleAuthConfirm("signin")}
+              onClick={() => navigate("/signin")}
               className="flex items-center gap-2 px-6 h-12 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 bg-white text-blue-600 hover:shadow-lg shadow-lg border-2 border-blue-600 hover:bg-blue-50"
             >
               Sign In
             </button>
             <button
-              onClick={() => handleAuthConfirm("signup")}
+              onClick={() => navigate("/register")}
               className="flex items-center gap-2 px-6 h-12 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 bg-blue-600 text-white hover:shadow-lg shadow-lg hover:bg-blue-700"
             >
               Sign Up
@@ -419,45 +382,6 @@ export default function HomeOverlayUI({
         </div>
       )}
 
-      {/* CONFIRMATION DIALOG */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10001] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
-              {confirmAction === "signin" 
-                ? "Đăng Nhập" 
-                : confirmAction === "signup" 
-                ? "Tạo Tài Khoản" 
-                : confirmAction === "camera" 
-                ? "Chụp Ảnh" 
-                : "Tạo Báo Cáo"}
-            </h2>
-            <p className="text-gray-600 mb-6">
-              {confirmAction === "signin" 
-                ? "Bạn có muốn đăng nhập không?" 
-                : confirmAction === "signup" 
-                ? "Bạn có muốn tạo tài khoản mới không?"
-                : confirmAction === "camera"
-                ? "Vui lòng đăng nhập để sử dụng chức năng chụp ảnh"
-                : "Vui lòng đăng nhập để tạo báo cáo mới"}
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={cancelAuth}
-                className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={proceedWithAuth}
-                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
-              >
-                Tiếp Tục
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

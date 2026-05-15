@@ -80,15 +80,32 @@ const getIncidentImages = (data) => {
         images.push(img);
       }
     });
-  } else if (
+  }
+
+  if (
     data?.image &&
     typeof data.image === "string" &&
     data.image.trim() &&
     data.image.trim().toLowerCase() !== "null" &&
     data.image.trim().toLowerCase() !== "undefined"
   ) {
-    images.push(data.image);
+    if (!images.includes(data.image)) {
+      images.push(data.image);
+    }
   }
+
+  if (
+    data?.imageUrl &&
+    typeof data.imageUrl === "string" &&
+    data.imageUrl.trim() &&
+    data.imageUrl.trim().toLowerCase() !== "null" &&
+    data.imageUrl.trim().toLowerCase() !== "undefined"
+  ) {
+    if (!images.includes(data.imageUrl)) {
+      images.push(data.imageUrl);
+    }
+  }
+
   return images;
 };
 
@@ -128,6 +145,15 @@ export default function ReportDetail({ data, close }) {
       ? afterImageCandidate
       : "";
 
+  const normalizedBeforeImage =
+    typeof beforeImage === "string" ? beforeImage.trim() : "";
+  const normalizedAfterImage =
+    typeof afterImage === "string" ? afterImage.trim() : "";
+  const effectiveAfterImage =
+    normalizedBeforeImage && normalizedAfterImage === normalizedBeforeImage
+      ? ""
+      : afterImage;
+
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
 
@@ -146,27 +172,46 @@ export default function ReportDetail({ data, close }) {
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) {
+      setImageViewer({ open: false, index: 0 });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     setAfterImageFailed(false);
-  }, [afterImage]);
+  }, [effectiveAfterImage]);
 
   if (!isOpen) return null;
 
-  const showAfterImage = Boolean(afterImage) && !afterImageFailed;
+  const showAfterImage = Boolean(effectiveAfterImage) && !afterImageFailed;
 
-  const allImages = [...incidentImages];
-  if (showAfterImage) {
-    allImages.push(afterImage);
-  }
+  const viewerIncidentImages = incidentImages.length > 0
+    ? incidentImages
+    : beforeImage
+      ? [beforeImage]
+      : [];
+
+  const hasAfterInIncidentImages = showAfterImage
+    ? viewerIncidentImages.some(
+        (img) =>
+          typeof img === "string" &&
+          img.trim() === String(effectiveAfterImage).trim(),
+      )
+    : false;
+
+  const allImages = showAfterImage && !hasAfterInIncidentImages
+    ? [...viewerIncidentImages, effectiveAfterImage]
+    : [...viewerIncidentImages];
 
   const openImageViewerForIncident = () => {
-    if (incidentImages.length > 0) {
+    if (viewerIncidentImages.length > 0) {
       setImageViewer({ open: true, index: 0 });
     }
   };
 
   const openImageViewerForAfter = () => {
     if (showAfterImage) {
-      setImageViewer({ open: true, index: incidentImages.length });
+      setImageViewer({ open: true, index: viewerIncidentImages.length });
     }
   };
 
@@ -180,9 +225,9 @@ export default function ReportDetail({ data, close }) {
               e.preventDefault();
             }
           }}
-          className="z-[60] flex max-h-[90vh] w-[min(92vw,760px)] flex-col gap-0 overflow-hidden rounded-[16px] border border-[#f0f0f0] bg-white p-0 shadow-2xl sm:w-[min(88vw,760px)] sm:max-w-[760px]"
+          className="z-[60] flex max-h-[96vh] w-[min(94vw,820px)] flex-col gap-0 overflow-hidden rounded-[12px] border border-[#f0f0f0] bg-white p-0 shadow-2xl sm:w-[min(92vw,820px)] sm:max-w-[820px]"
         >
-          <DialogHeader className="bg-white px-5 pt-5 pb-2 sm:px-6 sm:pt-6">
+          <DialogHeader className="bg-white px-4 pt-4 pb-2 sm:px-5 sm:pt-5">
             <div className="flex items-start justify-between gap-3 mb-2.5">
               <DialogTitle className="pr-2 text-xl font-bold leading-snug text-zinc-900">
                 {displayData?.title || "Không có tiêu đề"}
@@ -226,7 +271,7 @@ export default function ReportDetail({ data, close }) {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto min-h-0">
-            <div className="flex flex-col gap-5 sm:gap-6 px-5 py-5 sm:px-6">
+            <div className="flex flex-col gap-3 sm:gap-4 px-4 py-4 sm:px-5">
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
@@ -311,13 +356,13 @@ export default function ReportDetail({ data, close }) {
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col rounded-[12px] bg-[#f8f9fa] p-3 sm:p-4 min-w-0 border border-[#f0f0f0]">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col rounded-[10px] bg-[#f8f9fa] p-2 sm:p-3 min-w-0 border border-[#f0f0f0]">
                   <div className="flex items-center text-[14px] font-medium text-[#2563eb] mb-3">
                     <Camera className="mr-2 h-4 w-4" />
                     Ảnh Sự Cố
                   </div>
-                  <div className="relative w-full aspect-video overflow-hidden rounded-[8px] bg-white border border-[#e5e7eb]">
+                  <div className="relative w-full overflow-hidden rounded-[8px] bg-white border border-[#e5e7eb] h-40">
                     {beforeImage ? (
                       <>
                         <img
@@ -326,9 +371,9 @@ export default function ReportDetail({ data, close }) {
                           className="absolute inset-0 h-full w-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
                           onClick={openImageViewerForIncident}
                         />
-                        {incidentImages.length > 1 && (
+                        {viewerIncidentImages.length > 1 && (
                           <div className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-bold text-white pointer-events-none z-10 backdrop-blur-sm">
-                            1 / {incidentImages.length}
+                            1 / {viewerIncidentImages.length}
                           </div>
                         )}
                       </>
@@ -340,15 +385,15 @@ export default function ReportDetail({ data, close }) {
                   </div>
                 </div>
 
-                <div className="flex flex-col rounded-[12px] bg-[#f8f9fa] p-3 sm:p-4 min-w-0 border border-[#f0f0f0]">
+                <div className="flex flex-col rounded-[10px] bg-[#f8f9fa] p-2 sm:p-3 min-w-0 border border-[#f0f0f0]">
                   <div className="flex items-center text-[14px] font-medium text-[#2563eb] mb-3">
                     <Camera className="mr-2 h-4 w-4" />
                     Ảnh Sau Khắc Phục
                   </div>
-                  <div className="relative w-full aspect-video overflow-hidden rounded-[8px] bg-[#e5e7eb] border border-[#e5e7eb]">
+                  <div className="relative w-full overflow-hidden rounded-[8px] bg-[#e5e7eb] border border-[#e5e7eb] h-40">
                     {showAfterImage ? (
                       <img
-                        src={afterImage}
+                        src={effectiveAfterImage}
                         alt="Ảnh sau khắc phục"
                         className="absolute inset-0 h-full w-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
                         onClick={openImageViewerForAfter}
@@ -363,7 +408,7 @@ export default function ReportDetail({ data, close }) {
             </div>
           </div>
 
-          <DialogFooter className="!mx-0 !mb-0 !border-t-0 shrink-0 bg-white px-5 py-4 sm:px-6 flex sm:justify-end">
+          <DialogFooter className="!mx-0 !mb-0 !border-t-0 shrink-0 bg-white px-4 py-3 sm:px-5 flex sm:justify-end">
             <DialogClose asChild>
               <Button className="h-10 w-full sm:w-auto rounded-[8px] bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-8 text-[14px] font-semibold transition-colors">
                 Đóng

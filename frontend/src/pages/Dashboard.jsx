@@ -30,8 +30,10 @@ import {
   resolveIncidentMarkerIconKey,
 } from "../lib/mapIcons";
 import { renderToString } from "react-dom/server";
-import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
 import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import IncidentPopupContent from "../components/IncidentPopupContent";
+import ReportDetail from "../components/ReportDetail";
 
 const STATUS_CLASS_NAME = Object.freeze({
   "Đang Chờ": "incident-popup__status incident-popup__status--pending",
@@ -133,7 +135,7 @@ const getStatusClassName = (status) =>
   STATUS_CLASS_NAME[status] ||
   "incident-popup__status incident-popup__status--pending";
 
-function IncidentPopupContent({ incident, incidentTypes = [] }) {
+function IncidentPopupContent({ incident }) {
   const images = useMemo(() => {
     const mergedImages = [];
 
@@ -227,26 +229,9 @@ function IncidentPopupContent({ incident, incidentTypes = [] }) {
       <div className="incident-popup-card__body">
         <div className="incident-popup-card__header">
           <h3 className="incident-popup-card__title">{incident.title}</h3>
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            <span className={getStatusClassName(incident.status)}>
-              {incident.status || "Đang Chờ"}
-            </span>
-            {(() => {
-              const categoryStr = String(incident.category || incident.type || "").toLowerCase().trim();
-              const typeObj = incidentTypes.find(t => String(t.name).toLowerCase() === categoryStr);
-              if (typeObj && typeObj.color) {
-                return (
-                  <span 
-                    className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm flex items-center justify-center"
-                    style={{ backgroundColor: typeObj.color }}
-                  >
-                    {incident.category || incident.type}
-                  </span>
-                );
-              }
-              return null;
-            })()}
-          </div>
+          <span className={getStatusClassName(incident.status)}>
+            {incident.status || "Đang Chờ"}
+          </span>
         </div>
 
         <p className="incident-popup-card__description">
@@ -477,6 +462,7 @@ const Dashboard = () => {
   const [reports, setReports] = useState(() => loadCachedReports());
   const hasCachedReportsRef = useRef(false);
   const { user } = useAuth();
+  const [selectedReportDetail, setSelectedReportDetail] = useState(null);
 
   const userName = user?.full_name || user?.name || null;
   const userAvatar = user?.avatar || null;
@@ -611,15 +597,7 @@ const Dashboard = () => {
                 (t) =>
                   normalizeTypeKey(t.name) === normalizeTypeKey(incident.type),
               );
-
-              const markerIconKey = resolveIncidentMarkerIconKey({
-                typeName: incident.type,
-                iconKey: typeObj?.iconKey,
-              });
-
-              let mapIcon = markerIconKey
-                ? incidentMarkerIcons[markerIconKey]
-                : null;
+              let mapIcon = incidentMarkerIcons[incident.type];
 
               if (!mapIcon) {
                 let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
@@ -646,21 +624,13 @@ const Dashboard = () => {
                   key={incident.id}
                   position={incident.position}
                   icon={mapIcon}
-                  eventHandlers={{
-                    click: (e) => {
-                      if (!user) {
-                        e.originalEvent.preventDefault();
-                        navigate("/signin");
-                      }
-                    },
-                  }}
                 >
                   <Popup
                     className="incident-popup"
                     maxWidth={420}
                     minWidth={280}
                   >
-                    <IncidentPopupContent incident={incident} incidentTypes={incidentTypes} />
+                    <IncidentPopupContent incident={incident} />
                   </Popup>
                 </Marker>
               );
@@ -676,6 +646,10 @@ const Dashboard = () => {
             )}
           </MapContainer>
         }
+      />
+      <ReportDetail
+        data={selectedReportDetail}
+        close={() => setSelectedReportDetail(null)}
       />
     </div>
   );

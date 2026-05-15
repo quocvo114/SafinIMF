@@ -14,11 +14,18 @@ export default function ImageViewer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  const validImages = (images || []).filter(Boolean);
+
   useEffect(() => {
-    setCurrentIndex(initialIndex);
+    const nextIndex = Math.min(
+      Math.max(initialIndex, 0),
+      Math.max(validImages.length - 1, 0),
+    );
+    setCurrentIndex(nextIndex);
     setZoom(1);
     setPosition({ x: 0, y: 0 });
-  }, [initialIndex, isOpen]);
+    setIsDragging(false);
+  }, [initialIndex, isOpen, validImages.length]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -31,9 +38,8 @@ export default function ImageViewer({
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]); 
 
-  if (!isOpen || typeof document === "undefined" || !images || images.length === 0) return null;
+  if (!isOpen || typeof document === "undefined" || validImages.length === 0) return null;
 
-  const validImages = images.filter(Boolean);
   if (validImages.length === 0) return null;
 
   const currentImage = validImages[currentIndex] || validImages[0];
@@ -64,6 +70,9 @@ export default function ImageViewer({
     if (zoom <= 1) return;
     setIsDragging(true);
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    if (e.currentTarget?.setPointerCapture) {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
   };
 
   const handlePointerMove = (e) => {
@@ -106,19 +115,31 @@ export default function ImageViewer({
         <>
           <button
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               handlePrev();
             }}
-            className="absolute left-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            type="button"
+            className="absolute left-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors pointer-events-auto"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
           <button
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               handleNext();
             }}
-            className="absolute right-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            type="button"
+            className="absolute right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors pointer-events-auto"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
@@ -158,24 +179,39 @@ export default function ImageViewer({
 
       {/* Image */}
       <div
-        className="flex items-center justify-center w-full h-full p-16 select-none"
+        className="flex items-center justify-center w-full h-full p-6 md:p-12 select-none"
         onClick={(e) => e.stopPropagation()}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       >
-        <img
-          src={currentImage}
-          alt={`Ảnh ${currentIndex + 1}`}
-          draggable="false"
-          className="max-w-full max-h-full object-contain transition-transform duration-200"
-          style={{ 
-            transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-            cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
-            transition: isDragging ? "none" : "transform 0.2s ease-out"
-          }}
-        />
+        <div className="max-w-[90vw] max-h-[85vh] w-full flex items-center justify-center">
+          <div
+            className="flex items-center justify-center"
+            style={{
+              transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+              transition: isDragging ? "none" : "transform 0.2s ease-out",
+              cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
+              willChange: "transform",
+            }}
+          >
+            <img
+              src={currentImage}
+              alt={`Ảnh ${currentIndex + 1}`}
+              draggable="false"
+              className="w-full h-full object-contain"
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: "center center",
+                transition: isDragging ? "none" : "transform 0.2s ease-out",
+                willChange: "transform",
+                maxWidth: "100%",
+                maxHeight: "100%",
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>,
     document.body

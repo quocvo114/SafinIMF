@@ -49,46 +49,62 @@ export default function MaintenanceReportDetail({
     if (isOpen) fetchIncidentTypes();
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setImageViewer({ open: false, index: 0 });
+    }
+  }, [isOpen]);
+
   if (!isOpen || !report) return null;
 
-  // Hàm dùng chung cho lấy ảnh (giống bên ReportDetail-QLKV)
-  function resolveImage(data, index) {
-    const imageCandidate =
-      data && Array.isArray(data.images) ? data.images[index] : "";
-    if (typeof imageCandidate === "string") {
-      const normalizedCandidate = imageCandidate.trim().toLowerCase();
-      if (
-        normalizedCandidate &&
-        normalizedCandidate !== "null" &&
-        normalizedCandidate !== "undefined"
-      ) {
-        return imageCandidate;
-      }
-    } else if (imageCandidate) {
-      return imageCandidate;
-    }
-    if (data && index === 0 && data.image) {
-      if (typeof data.image === "string") {
-        const normalizedSingleImage = data.image.trim().toLowerCase();
-        if (
-          normalizedSingleImage &&
-          normalizedSingleImage !== "null" &&
-          normalizedSingleImage !== "undefined"
-        ) {
-          return data.image;
-        }
-      } else {
-        return data.image;
-      }
-    }
-    return "";
-  }
+  const isValidImage = (value) => {
+    if (typeof value !== "string") return false;
+    const normalized = value.trim().toLowerCase();
+    return Boolean(normalized && normalized !== "null" && normalized !== "undefined");
+  };
 
-  const reportImageUrl = resolveImage(report, 0) || report?.imageUrl || "";
-  const afterImageUrl = resolveImage(report, 1) || report?.afterImg || "";
-  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(
-    Boolean,
-  );
+  const incidentImages = Array.isArray(report?.images)
+    ? report.images.filter((img) => isValidImage(img))
+    : [];
+
+  const reportImageUrl =
+    incidentImages[0] ||
+    (isValidImage(report?.image) ? report.image : "") ||
+    (isValidImage(report?.imageUrl) ? report.imageUrl : "") ||
+    "";
+
+  const afterImageUrl =
+    (isValidImage(report?.afterImg) ? report.afterImg : "") ||
+    (isValidImage(report?.after_img) ? report.after_img : "") ||
+    (isValidImage(report?.afterImage) ? report.afterImage : "") ||
+    "";
+
+  const normalizedBeforeImage =
+    typeof reportImageUrl === "string" ? reportImageUrl.trim() : "";
+  const normalizedAfterImage =
+    typeof afterImageUrl === "string" ? afterImageUrl.trim() : "";
+  const effectiveAfterImageUrl =
+    normalizedBeforeImage && normalizedAfterImage === normalizedBeforeImage
+      ? ""
+      : afterImageUrl;
+
+  const viewerIncidentImages = incidentImages.length > 0
+    ? incidentImages
+    : reportImageUrl
+      ? [reportImageUrl]
+      : [];
+
+  const hasAfterInIncidentImages = effectiveAfterImageUrl
+    ? viewerIncidentImages.some(
+        (img) =>
+          typeof img === "string" &&
+          img.trim() === String(effectiveAfterImageUrl).trim(),
+      )
+    : false;
+
+  const viewerImages = effectiveAfterImageUrl && !hasAfterInIncidentImages
+    ? [...viewerIncidentImages, effectiveAfterImageUrl]
+    : [...viewerIncidentImages];
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
@@ -382,8 +398,8 @@ export default function MaintenanceReportDetail({
               </div>
             </div>
 
-            {/* Photos - chiều cao cố định */}
-            <div className="grid grid-cols-2 gap-3" style={{ height: "160px" }}>
+            {/* Photos - unified thumbnail height */}
+            <div className="grid grid-cols-2 gap-3">
               {/* Ảnh sự cố */}
               <div className="flex flex-col bg-gray-100 rounded-2xl p-2 overflow-hidden">
                 <div className="flex items-center gap-1.5 mb-1.5 px-0.5 shrink-0">
@@ -392,7 +408,7 @@ export default function MaintenanceReportDetail({
                     Ảnh Sự Cố
                   </span>
                 </div>
-                <div className="flex-1 rounded-xl overflow-hidden bg-gray-200 min-h-0">
+                <div className="h-40 rounded-xl overflow-hidden bg-gray-200">
                   {reportImageUrl ? (
                     <img
                       src={reportImageUrl}
@@ -435,7 +451,7 @@ export default function MaintenanceReportDetail({
                   onChange={handleImageUpload}
                 />
 
-                <div className="flex-1 rounded-xl overflow-hidden bg-gray-200 min-h-0">
+                <div className="h-40 rounded-xl overflow-hidden bg-gray-200">
                   {selectedImage ? (
                     <div
                       className="w-full h-full cursor-pointer group relative"
@@ -453,6 +469,13 @@ export default function MaintenanceReportDetail({
                         </span>
                       </div>
                     </div>
+                  ) : effectiveAfterImageUrl ? (
+                    <img
+                      src={effectiveAfterImageUrl}
+                      alt="Khắc phục"
+                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openImageViewer(viewerIncidentImages.length)}
+                    />
                   ) : (
                     <button
                       onClick={() => fileInputRef.current.click()}
@@ -523,7 +546,7 @@ export default function MaintenanceReportDetail({
       </div>
 
       <ImageViewer
-        images={allImages}
+        images={viewerImages}
         initialIndex={imageViewer.index}
         isOpen={imageViewer.open}
         onClose={() => setImageViewer({ open: false, index: 0, list: [] })}

@@ -12,12 +12,24 @@ import {
   Tag,
   PanelLeftClose,
   PanelLeftOpen,
+  Bell,
+  BellRing,
+  CheckCheck,
+  X,
+  AlertTriangle,
+  FileText,
+  ShieldAlert,
+  Clock3,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useIsMobile } from "../hooks/use-mobile";
 import { toast } from "sonner";
 import InfoManagement from "../pages/Info_Management";
+import { notificationApi } from "../services/api/notificationApi";
 import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { ScrollArea } from "./ui/scroll-area";
+import { Badge } from "./ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +57,9 @@ const AdminSidebar = () => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showNotificationsPopup, setShowNotificationsPopup] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const portalTarget = typeof document !== "undefined" ? document.body : null;
   const [isCollapsed, setIsCollapsed] = useState(true);
   const isMobile = useIsMobile();
@@ -67,6 +82,73 @@ const AdminSidebar = () => {
       root.style.removeProperty("--admin-sidebar-gap");
     };
   }, [sidebarWidth, contentOffset, sidebarGap]);
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    setLoadingNotifications(true);
+    try {
+      const response = await notificationApi.getNotifications();
+      if (response.success) {
+        setNotifications(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const unreadCount = notifications.filter((item) => !item.isRead).length;
+
+  const markNotificationRead = async (id) => {
+    try {
+      const response = await notificationApi.markAsRead(id);
+      if (response.success) {
+        setNotifications((prev) =>
+          prev.map((item) => (item._id === id ? { ...item, isRead: true } : item)),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      const response = await notificationApi.markAllAsRead();
+      if (response.success) {
+        setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+      }
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    if (type === "warning") return AlertTriangle;
+    if (type === "report") return FileText;
+    return ShieldAlert;
+  };
+
+  const getLevelBadgeClass = (level) => {
+    if (level === "critical") return "bg-red-100 text-red-700";
+    if (level === "low") return "bg-emerald-100 text-emerald-700";
+    return "bg-slate-100 text-slate-700";
+  };
+
+  const getLevelLabel = (level) => {
+    if (level === "critical") return "Khẩn cấp";
+    if (level === "low") return "Thông tin";
+    return "Bình thường";
+  };
 
   const menuItems = [
     {
@@ -104,6 +186,12 @@ const AdminSidebar = () => {
       path: "/admin/statistics",
       icon: <BarChart3 className="h-6 w-6" />,
       label: "Thống kê",
+    },
+    {
+      id: "notifications",
+      path: "/notifications",
+      icon: <Bell className="h-6 w-6" />,
+      label: "Thông báo",
     },
   ];
 
@@ -187,7 +275,14 @@ const AdminSidebar = () => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <SidebarMenuButton
-                            onClick={() => navigate(item.path)}
+                            onClick={() => {
+                              if (item.id === "notifications") {
+                                setShowNotificationsPopup(!showNotificationsPopup);
+                                return;
+                              }
+                              setShowNotificationsPopup(false);
+                              navigate(item.path);
+                            }}
                             className={`relative flex items-center transition-all overflow-visible ${
                               isCollapsed
                                 ? "w-12 h-12 mx-auto justify-center rounded-lg"
@@ -202,6 +297,17 @@ const AdminSidebar = () => {
                             {!isCollapsed && (
                               <span className="ml-3 font-medium">
                                 {item.label}
+                              </span>
+                            )}
+                            {item.id === "notifications" && unreadCount > 0 && (
+                              <span
+                                className={`absolute z-20 inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white ${
+                                  isCollapsed
+                                    ? "-right-2 -top-2 h-4 min-w-4"
+                                    : "right-3 -top-2 h-5 min-w-5 text-xs"
+                                }`}
+                              >
+                                {unreadCount > 9 ? "9+" : unreadCount}
                               </span>
                             )}
                           </SidebarMenuButton>
@@ -334,6 +440,148 @@ const AdminSidebar = () => {
         portalTarget &&
         createPortal(
           <InfoManagement onClose={() => setShowInfoModal(false)} />,
+          portalTarget,
+        )}
+
+      {showNotificationsPopup &&
+        portalTarget &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-[1900]"
+              onClick={() => setShowNotificationsPopup(false)}
+            />
+            <div
+              className={`fixed top-20 z-[2000] w-[380px] max-w-[calc(100vw-7.5rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl ${
+                isCollapsed ? "left-24" : "left-[19.5rem]"
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="border-b border-gray-100 bg-gradient-to-r from-slate-50 via-white to-blue-50 px-4 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                      <BellRing className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Thông báo
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowNotificationsPopup(false)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-600">
+                    <span className="font-semibold text-gray-900">
+                      {unreadCount}
+                    </span>{" "}
+                    chưa đọc
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 rounded-full border-gray-200 px-3 text-xs"
+                    onClick={markAllRead}
+                    disabled={unreadCount === 0}
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    Đánh dấu tất cả
+                  </Button>
+                </div>
+              </div>
+              <ScrollArea className="h-[430px]">
+                <div className="space-y-3 p-3">
+                  {loadingNotifications && notifications.length === 0 && (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      Đang tải thông báo...
+                    </div>
+                  )}
+                  {!loadingNotifications && notifications.length === 0 && (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      Không có thông báo mới.
+                    </div>
+                  )}
+                  {notifications.map((item) => {
+                    const NoticeIcon = getNotificationIcon(item.type);
+                    const notificationId = item._id || item.id;
+                    const timeLabel = item.timeAgo || (item.createdAt ? new Date(item.createdAt).toLocaleDateString("vi-VN") : "Vừa xong");
+
+                    return (
+                      <Card
+                        size="sm"
+                        key={notificationId}
+                        className={`border bg-white py-0 ring-0 transition-all duration-200 hover:-translate-y-px hover:shadow-md ${
+                          item.isRead
+                            ? "border-gray-200 shadow-[0_2px_10px_rgba(15,23,42,0.05)]"
+                            : "border-blue-300 shadow-[0_8px_20px_rgba(59,130,246,0.14)]"
+                        }`}
+                      >
+                        <CardContent className="px-3 py-3">
+                          <div className="mb-2 flex items-start gap-2">
+                            <span
+                              className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                                item.isRead
+                                  ? "bg-gray-100 text-gray-500"
+                                  : "bg-blue-100 text-blue-600"
+                              }`}
+                            >
+                              <NoticeIcon className="h-3.5 w-3.5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-1 flex items-center gap-2">
+                                <p className="truncate text-sm font-semibold text-gray-900">
+                                  {item.title}
+                                </p>
+                                {!item.isRead && (
+                                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-blue-500" />
+                                )}
+                              </div>
+                              <p className="mb-2 line-clamp-2 text-xs leading-relaxed text-gray-700">
+                                {item.message}
+                              </p>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5">
+                                  <Badge
+                                    variant="outline"
+                                    className={`h-auto border-0 px-2 py-0.5 text-[10px] ${getLevelBadgeClass(item.level)}`}
+                                  >
+                                    {getLevelLabel(item.level)}
+                                  </Badge>
+                                  <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                                    <Clock3 className="h-3 w-3" />
+                                    {timeLabel}
+                                  </span>
+                                </div>
+                                {!item.isRead && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="link"
+                                    className="h-auto px-0 text-[11px] text-slate-700 hover:text-slate-900"
+                                    onClick={() => markNotificationRead(notificationId)}
+                                  >
+                                    Đã đọc
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          </>,
           portalTarget,
         )}
     </>
