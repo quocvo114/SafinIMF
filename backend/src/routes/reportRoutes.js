@@ -57,6 +57,9 @@ router.patch(
   ReportController.updateProgress,
 );
 
+// GET /api/reports/:id/cluster-peers - Lấy danh sách báo cáo trong cụm
+router.get("/:id/cluster-peers", ReportController.getClusterPeers);
+
 // GET /api/reports/:id - Lấy 1 báo cáo (phải đặt sau /user/:userId)
 router.get("/:id", ReportController.getReportById);
 

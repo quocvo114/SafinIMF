@@ -41,6 +41,8 @@ export default function Assigned_report() {
         search: "",
         page: 1,
         limit: 100,
+        assignedTo: "me",
+        excludeClusterFollowers: true,
       });
 
       if (response.success && Array.isArray(response.data)) {
@@ -164,7 +166,9 @@ export default function Assigned_report() {
                           }
                           return (
                             <TableRow
-                              key={report?._id || report?.id || report?.report_id}
+                              key={
+                                report?._id || report?.id || report?.report_id
+                              }
                               onClick={() => setSelectedReport(report)}
                               className="hover:bg-blue-50/50 cursor-pointer transition-colors h-[72px] border-b border-gray-100 last:border-none"
                             >
@@ -217,29 +221,35 @@ export default function Assigned_report() {
                       <button
                         className="flex items-center gap-1 hover:text-gray-900 disabled:opacity-50 transition-colors mr-2"
                         disabled={currentPage === 1}
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        onClick={() =>
+                          setCurrentPage((p) => Math.max(1, p - 1))
+                        }
                       >
                         <ChevronLeft className="h-4 w-4" /> Trước
                       </button>
-                      
-                      {Array.from({ length: maxPage }, (_, i) => i + 1).map((page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`min-w-[28px] h-7 px-2 rounded-md flex items-center justify-center transition-colors ${
-                            currentPage === page
-                              ? "border border-gray-300 text-gray-800 font-medium"
-                              : "text-gray-600 hover:bg-gray-100"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
+
+                      {Array.from({ length: maxPage }, (_, i) => i + 1).map(
+                        (page) => (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`min-w-[28px] h-7 px-2 rounded-md flex items-center justify-center transition-colors ${
+                              currentPage === page
+                                ? "border border-gray-300 text-gray-800 font-medium"
+                                : "text-gray-600 hover:bg-gray-100"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ),
+                      )}
 
                       <button
                         className="flex items-center gap-1 hover:text-gray-900 disabled:opacity-50 transition-colors ml-2"
                         disabled={currentPage === maxPage}
-                        onClick={() => setCurrentPage((p) => Math.min(maxPage, p + 1))}
+                        onClick={() =>
+                          setCurrentPage((p) => Math.min(maxPage, p + 1))
+                        }
                       >
                         Sau <ChevronRight className="h-4 w-4" />
                       </button>

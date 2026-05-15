@@ -90,6 +90,11 @@
   background: #64748b;
 }
 
+.map-marker--resolved {
+  background: #22c55e;
+  color: #ffffff;
+}
+
 .incident-popup .leaflet-popup-content-wrapper {
   padding: 0;
   border-radius: 14px;

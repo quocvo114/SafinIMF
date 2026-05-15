@@ -109,10 +109,13 @@ export const incidentMarkerSvgs = Object.freeze(TYPE_TO_SVG);
 
 const formatClusterBadge = (count) => (count > 9 ? "9+" : String(count));
 
-export const createClusterMarkerIcon = ({ type, count }) => {
+export const createClusterMarkerIcon = ({ type, count, isResolved = false }) => {
   const backgroundColor = TYPE_TO_COLOR[type] || "#64748b";
   const svgIcon = TYPE_TO_SVG[type] || SEARCH_SVG;
-  const colorClass = getColorClass(backgroundColor);
+  const colorClass = isResolved
+    ? "map-marker--resolved"
+    : getColorClass(backgroundColor);
+  const resolvedClass = isResolved ? " cluster-marker--resolved" : "";
   const badge =
     count > 1
       ? `<span class="cluster-badge">${formatClusterBadge(count)}</span>`
@@ -120,7 +123,7 @@ export const createClusterMarkerIcon = ({ type, count }) => {
 
   return L.divIcon({
     className: "map-marker-wrapper cluster-marker-wrapper",
-    html: `<div class="map-marker cluster-marker ${colorClass}">${svgIcon}${badge}</div>`,
+    html: `<div class="map-marker cluster-marker ${colorClass}${resolvedClass}">${svgIcon}${badge}</div>`,
     iconSize: [40, 40],
     iconAnchor: [20, 20],
     popupAnchor: [0, -22],

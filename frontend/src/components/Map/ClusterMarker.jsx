@@ -2,10 +2,16 @@ import { useMemo } from "react";
 import { Marker } from "react-leaflet";
 import { createClusterMarkerIcon } from "../../lib/mapIcons";
 
-export default function ClusterMarker({ type, count, position, children }) {
+export default function ClusterMarker({
+  type,
+  count,
+  position,
+  isResolved = false,
+  children,
+}) {
   const icon = useMemo(
-    () => createClusterMarkerIcon({ type, count }),
-    [type, count],
+    () => createClusterMarkerIcon({ type, count, isResolved }),
+    [type, count, isResolved],
   );
 
   return (

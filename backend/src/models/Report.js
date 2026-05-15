@@ -122,6 +122,20 @@ const ReportSchema = new mongoose.Schema(
       default: "",
     },
 
+    clusterSourceId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    clusterSyncedAt: {
+      type: Date,
+      default: null,
+    },
+    clusterSyncNote: {
+      type: String,
+      default: null,
+    },
+
     handlingTeamId: {
       type: String,
       default: "",

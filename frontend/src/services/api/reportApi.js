@@ -58,6 +58,19 @@ export const reportApi = {
     }
   },
 
+  // Lấy danh sách báo cáo đồng bộ trong cụm
+  getClusterPeers: async (reportId) => {
+    try {
+      const response = await axiosClient.get(
+        `/reports/${reportId}/cluster-peers`,
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi lấy báo cáo trong cụm:", error);
+      throw error;
+    }
+  },
+
   // Lấy báo cáo theo userId
   getReportsByUserId: async (userId, params = {}) => {
     try {

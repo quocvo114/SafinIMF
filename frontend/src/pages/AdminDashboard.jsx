@@ -383,10 +383,16 @@ export default function AdminDashboard() {
   }, [reports]);
 
   const normalizedSelectedCategory = useMemo(() => {
+    if (selectedCategory === "all") {
+      return "all";
+    }
+
     if (selectedCategory === "public") {
       return "building";
     }
-    return selectedCategory;
+
+    const mappedType = mapReportTypeToIncidentType(selectedCategory);
+    return mappedType || selectedCategory;
   }, [selectedCategory]);
 
   const visiblePoints = useMemo(() => {

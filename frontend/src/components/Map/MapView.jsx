@@ -134,6 +134,9 @@ export default function MapView({
       {clusters.map((cluster) => {
         const [report] = cluster.reports;
         const markerIcon = markerIcons[cluster.type];
+        const isClusterResolved = cluster.reports.every(
+          (item) => item?.status === "Đã Giải Quyết",
+        );
 
         if (cluster.count > 1) {
           return (
@@ -142,6 +145,7 @@ export default function MapView({
               type={cluster.type}
               count={cluster.count}
               position={cluster.position}
+              isResolved={isClusterResolved}
             >
               <Tooltip sticky={true} offset={[0, -12]}>
                 {cluster.count} báo cáo cùng loại trong khu vực này
