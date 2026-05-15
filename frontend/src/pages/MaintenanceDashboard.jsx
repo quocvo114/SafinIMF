@@ -15,6 +15,7 @@ import incidentApi from "../services/api/incidentApi";
 import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
 import { renderToString } from "react-dom/server";
+import MaintenanceReportDetail from "../components/MaintenanceReportDetail";
 import "../styles/map.css";
 
 const normalizeText = (value = "") =>
@@ -281,6 +282,7 @@ const MaintenanceDashboard = () => {
   const [reports, setReports] = useState(() =>
     loadCachedReports(MAINTENANCE_REPORTS_CACHE_KEY),
   );
+  const [selectedReportDetail, setSelectedReportDetail] = useState(null);
 
   const { user } = useAuth();
   const [teamId, setTeamId] = useState("");
@@ -610,7 +612,10 @@ const MaintenanceDashboard = () => {
                     maxWidth={420}
                     minWidth={280}
                   >
-                    <IncidentPopupContent incident={incident} />
+                    <IncidentPopupContent 
+                      incident={incident} 
+                      onDetail={(item) => setSelectedReportDetail(item)}
+                    />
                   </Popup>
                 </Marker>
               );
@@ -626,6 +631,14 @@ const MaintenanceDashboard = () => {
             )}
           </MapContainer>
         }
+      />
+      <MaintenanceReportDetail
+        data={selectedReportDetail}
+        close={() => setSelectedReportDetail(null)}
+        onUpdateStatus={() => {
+          setSelectedReportDetail(null);
+          // Refresh reports if needed, although they usually refresh via effect
+        }}
       />
     </div>
   );

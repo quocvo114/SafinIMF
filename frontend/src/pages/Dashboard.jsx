@@ -29,8 +29,10 @@ import {
   searchLocationMarkerIcon,
 } from "../lib/mapIcons";
 import { renderToString } from "react-dom/server";
-import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
 import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import IncidentPopupContent from "../components/IncidentPopupContent";
+import ReportDetail from "../components/ReportDetail";
 
 const STATUS_CLASS_NAME = Object.freeze({
   "Đang Chờ": "incident-popup__status incident-popup__status--pending",
@@ -132,127 +134,6 @@ const getStatusClassName = (status) =>
   STATUS_CLASS_NAME[status] ||
   "incident-popup__status incident-popup__status--pending";
 
-function IncidentPopupContent({ incident }) {
-  const images = useMemo(() => {
-    const mergedImages = [];
-
-    if (Array.isArray(incident.images)) {
-      mergedImages.push(...incident.images.filter(Boolean));
-    }
-
-    if (incident.image) {
-      mergedImages.push(incident.image);
-    }
-
-    return [...new Set(mergedImages)];
-  }, [incident.image, incident.images]);
-
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-
-  useEffect(() => {
-    setActiveImageIndex(0);
-  }, [incident.id]);
-
-  const currentImage = images[activeImageIndex] || "";
-  const canNavigateImages = images.length > 1;
-
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  
-  const requireAuth = () => {
-    if (user) return true;
-    navigate("/signin");
-    return false;
-  };
-
-  const handlePrevImage = (e) => {
-    e.stopPropagation();
-    if (!requireAuth()) return;
-    setActiveImageIndex((prevIndex) =>
-      prevIndex === 0 ? images.length - 1 : prevIndex - 1,
-    );
-  };
-
-  const handleNextImage = (e) => {
-    e.stopPropagation();
-    if (!requireAuth()) return;
-    setActiveImageIndex((prevIndex) =>
-      prevIndex === images.length - 1 ? 0 : prevIndex + 1,
-    );
-  };
-
-  return (
-    <div className="incident-popup-card">
-      <div className="incident-popup-card__image-wrap">
-        {currentImage ? (
-          <img
-            src={currentImage}
-            alt={incident.title}
-            className="incident-popup-card__image"
-            loading="lazy"
-          />
-        ) : (
-          <div className="incident-popup-card__image incident-popup-card__image--fallback">
-            <FileText size={22} />
-            <span>Không có hình ảnh</span>
-          </div>
-        )}
-
-        {canNavigateImages ? (
-          <>
-            <button
-              type="button"
-              className="incident-popup-card__nav incident-popup-card__nav--left"
-              onClick={handlePrevImage}
-              aria-label="Ảnh trước"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              type="button"
-              className="incident-popup-card__nav incident-popup-card__nav--right"
-              onClick={handleNextImage}
-              aria-label="Ảnh tiếp theo"
-            >
-              <ChevronRight size={18} />
-            </button>
-            <div className="incident-popup-card__image-indicator">
-              {activeImageIndex + 1}/{images.length}
-            </div>
-          </>
-        ) : null}
-      </div>
-
-      <div className="incident-popup-card__body">
-        <div className="incident-popup-card__header">
-          <h3 className="incident-popup-card__title">{incident.title}</h3>
-          <span className={getStatusClassName(incident.status)}>
-            {incident.status || "Đang Chờ"}
-          </span>
-        </div>
-
-        <p className="incident-popup-card__description">
-          {incident.description || "Chưa có mô tả chi tiết cho sự cố này."}
-        </p>
-
-        <div className="incident-popup-card__meta">
-          <p className="incident-popup-card__meta-row">
-            <MapPin size={15} />
-            <span>{incident.location || "Chưa có vị trí"}</span>
-          </p>
-          <p className="incident-popup-card__meta-row">
-            <CalendarDays size={15} />
-            <span>{incident.displayDate}</span>
-          </p>
-          <p className="incident-popup-card__meta-row">
-            <CircleUserRound size={15} />
-            <span>{incident.reporterName}</span>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const loadGeocodeCache = () => {
   try {
@@ -459,6 +340,7 @@ const Dashboard = () => {
   const [reports, setReports] = useState(() => loadCachedReports());
   const hasCachedReportsRef = useRef(false);
   const { user } = useAuth();
+  const [selectedReportDetail, setSelectedReportDetail] = useState(null);
 
   const userName = user?.full_name || user?.name || null;
   const userAvatar = user?.avatar || null;
@@ -630,21 +512,22 @@ const Dashboard = () => {
                   key={incident.id}
                   position={incident.position}
                   icon={mapIcon}
-                  eventHandlers={{
-                    click: (e) => {
-                      if (!user) {
-                        e.originalEvent.preventDefault();
-                        navigate("/signin");
-                      }
-                    },
-                  }}
                 >
                   <Popup
                     className="incident-popup"
                     maxWidth={420}
                     minWidth={280}
                   >
-                    <IncidentPopupContent incident={incident} />
+                    <IncidentPopupContent 
+                      incident={incident} 
+                      onDetail={(item) => {
+                        if (!user) {
+                          navigate("/signin");
+                        } else {
+                          setSelectedReportDetail(item);
+                        }
+                      }}
+                    />
                   </Popup>
                 </Marker>
               );
@@ -660,6 +543,10 @@ const Dashboard = () => {
             )}
           </MapContainer>
         }
+      />
+      <ReportDetail
+        data={selectedReportDetail}
+        close={() => setSelectedReportDetail(null)}
       />
     </div>
   );

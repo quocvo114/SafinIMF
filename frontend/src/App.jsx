@@ -110,11 +110,7 @@ function AppContent() {
 
             <Route
               path="/myreport"
-              element={
-                <ProtectedRoute>
-                  <MyReports />
-                </ProtectedRoute>
-              }
+              element={<MyReports />}
             />
 
             {/* Maintenance */}

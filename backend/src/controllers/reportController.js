@@ -2,6 +2,7 @@ const ReportRepository = require("../repositories/ReportRepository");
 const MaintenanceTeamRepository = require("../repositories/MaintenanceTeamRepository");
 const cloudinary = require("../config/cloudinary");
 const AiValidationLog = require("../models/AiValidationLog");
+const NotificationController = require("./notificationController");
 
 const CLOUDINARY_REQUIRED_ENV = [
   "CLOUDINARY_CLOUD_NAME",
@@ -858,6 +859,23 @@ class ReportController {
         message: "Tạo báo cáo thành công",
         data: newReport,
       });
+
+      // Notify Admins
+      try {
+        const admins = await User.find({ role: "admin" }, { _id: 1 });
+        for (const admin of admins) {
+          await NotificationController.createNotification({
+            userId: admin._id,
+            title: "Báo cáo mới",
+            message: `Người dân đã gửi báo cáo mới: ${title}`,
+            type: "report",
+            level: "normal",
+            relatedId: newReport.id || newReport.report_id,
+          });
+        }
+      } catch (notiError) {
+        console.error("⚠️ Failed to notify admins:", notiError.message);
+      }
     } catch (error) {
       console.error("❌ Error in createReport:", error);
       res.status(500).json({
@@ -978,6 +996,20 @@ class ReportController {
         message: "Cập nhật trạng thái thành công",
         data: toReceptionItem(updated),
       });
+
+      // Notify Citizen
+      try {
+        await NotificationController.createNotification({
+          userId: updated.userId,
+          title: "Cập nhật trạng thái báo cáo",
+          message: `Báo cáo "${updated.title}" của bạn đã được cập nhật thành: ${status}`,
+          type: "report",
+          level: status === "Đã Giải Quyết" ? "low" : "normal",
+          relatedId: updated.id || updated.report_id,
+        });
+      } catch (notiError) {
+        console.error("⚠️ Failed to notify citizen:", notiError.message);
+      }
     } catch (error) {
       console.error(`❌ [UPDATE_STATUS] Error:`, error.message);
       console.error("❌ updateReportStatus error:", error.message);
@@ -1071,11 +1103,29 @@ class ReportController {
         report.assignedTeamName = nextTeamName;
         const updated = await report.save();
 
-        return res.status(200).json({
+        res.status(200).json({
           success: true,
           message: "Phân công đội xử lý thành công",
           data: toReceptionItem(updated),
         });
+
+        // Notify Maintenance Team Leader
+        try {
+          const leader = await User.findOne({ full_name: team.leader, role: "maintenance" }, { _id: 1 });
+          if (leader) {
+            await NotificationController.createNotification({
+              userId: leader._id,
+              title: "Nhiệm vụ mới",
+              message: `Bạn đã được phân công xử lý báo cáo: ${updated.title}`,
+              type: "report",
+              level: "critical",
+              relatedId: updated.id || updated.report_id,
+            });
+          }
+        } catch (notiError) {
+          console.error("⚠️ Failed to notify maintenance team:", notiError.message);
+        }
+        return;
       } catch (error) {
         if (!isSameTeam) {
           await MaintenanceTeamRepository.updateCaseCountByTeamId(
@@ -1207,6 +1257,23 @@ class ReportController {
         message: "Cập nhật tiến độ thành công",
         data: updated,
       });
+
+      // Notify Admins
+      try {
+        const admins = await User.find({ role: "admin" }, { _id: 1 });
+        for (const admin of admins) {
+          await NotificationController.createNotification({
+            userId: admin._id,
+            title: "Tiến độ xử lý mới",
+            message: `Đội xử lý đã cập nhật tiến độ cho báo cáo: ${updated.title}`,
+            type: "report",
+            level: "normal",
+            relatedId: updated.id || updated.report_id,
+          });
+        }
+      } catch (notiError) {
+        console.error("⚠️ Failed to notify admins:", notiError.message);
+      }
     } catch (error) {
       console.error("❌ Update progress error:", error.message);
       res.status(500).json({

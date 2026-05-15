@@ -213,7 +213,7 @@ export default function MyReports() {
     if (!userId) {
       setReports([]);
       setLoading(false);
-      setError("Vui lòng đăng nhập để xem báo cáo.");
+      // No error message for guests, just show empty state
       return;
     }
 
