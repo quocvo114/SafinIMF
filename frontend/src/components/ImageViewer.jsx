@@ -10,10 +10,14 @@ export default function ImageViewer({
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     setCurrentIndex(initialIndex);
     setZoom(1);
+    setPosition({ x: 0, y: 0 });
   }, [initialIndex, isOpen]);
 
   useEffect(() => {
@@ -25,7 +29,7 @@ export default function ImageViewer({
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose]); // Added dependency array
+  }, [isOpen, onClose]); 
 
   if (!isOpen || typeof document === "undefined" || !images || images.length === 0) return null;
 
@@ -38,15 +42,41 @@ export default function ImageViewer({
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
     setZoom(1);
+    setPosition({ x: 0, y: 0 });
   };
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
     setZoom(1);
+    setPosition({ x: 0, y: 0 });
   };
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.5, 4));
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.5, 0.5));
+  const handleZoomOut = () => {
+    setZoom((z) => {
+      const newZoom = Math.max(z - 0.5, 1);
+      if (newZoom === 1) setPosition({ x: 0, y: 0 });
+      return newZoom;
+    });
+  };
+
+  const handlePointerDown = (e) => {
+    if (zoom <= 1) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging || zoom <= 1) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  };
+
+  const handlePointerUp = () => {
+    setIsDragging(false);
+  };
 
   return createPortal(
     <div
@@ -66,7 +96,7 @@ export default function ImageViewer({
 
       {/* Image counter */}
       {canNavigate && (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm">
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm z-10 pointer-events-none">
           {currentIndex + 1} / {validImages.length}
         </div>
       )}
@@ -96,12 +126,12 @@ export default function ImageViewer({
       )}
 
       {/* Zoom controls */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 backdrop-blur-sm">
+      <div 
+        className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 backdrop-blur-sm z-10"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleZoomOut();
-          }}
+          onClick={handleZoomOut}
           className="flex h-8 w-8 items-center justify-center rounded-full text-white hover:bg-white/20 transition-colors"
         >
           <ZoomOut className="h-4 w-4" />
@@ -110,18 +140,15 @@ export default function ImageViewer({
           {Math.round(zoom * 100)}%
         </span>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleZoomIn();
-          }}
+          onClick={handleZoomIn}
           className="flex h-8 w-8 items-center justify-center rounded-full text-white hover:bg-white/20 transition-colors"
         >
           <ZoomIn className="h-4 w-4" />
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             setZoom(1);
+            setPosition({ x: 0, y: 0 });
           }}
           className="ml-1 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-white/30 transition-colors"
         >
@@ -131,14 +158,23 @@ export default function ImageViewer({
 
       {/* Image */}
       <div
-        className="flex items-center justify-center w-full h-full p-16"
+        className="flex items-center justify-center w-full h-full p-16 select-none"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
       >
         <img
           src={currentImage}
           alt={`Ảnh ${currentIndex + 1}`}
+          draggable="false"
           className="max-w-full max-h-full object-contain transition-transform duration-200"
-          style={{ transform: `scale(${zoom})` }}
+          style={{ 
+            transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+            cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
+            transition: isDragging ? "none" : "transform 0.2s ease-out"
+          }}
         />
       </div>
     </div>,

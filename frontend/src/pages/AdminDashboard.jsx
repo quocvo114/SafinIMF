@@ -445,6 +445,7 @@ export default function AdminDashboard() {
               <Popup className="incident-popup" maxWidth={420} minWidth={280}>
                 <IncidentPopupContent 
                   incident={point} 
+                  incidentTypes={incidentTypes}
                   onDetail={(item) => setSelectedReportDetail(item)}
                 />
               </Popup>

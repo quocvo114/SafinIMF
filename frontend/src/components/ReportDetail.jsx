@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
-import { Camera, X } from "lucide-react";
+import {
+  Camera,
+  X,
+  MapPin,
+  Clock,
+  FileText,
+  Hash,
+  CheckCircle2,
+} from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Skeleton } from "./ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import {
   Dialog,
   DialogClose,
@@ -12,85 +18,89 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { ScrollArea } from "./ui/scroll-area";
-import { Separator } from "./ui/separator";
+
 import ImageViewer from "./ImageViewer";
 import { reportApi } from "../services/api/reportApi";
-
 import incidentApi from "../services/api/incidentApi";
 
 function getTypeLabel(type) {
-  if (!type) return "khac";
+  if (!type) return "Khác";
   return String(type);
 }
 
 function getStatusLabel(status) {
-  if (!status) return "dang cho";
+  if (!status) return "Đang chờ";
   return String(status);
 }
 
 function getTypeBadgeClass(type) {
-  const typeStr = String(type || "").toLowerCase().trim();
-  
+  const typeStr = String(type || "")
+    .toLowerCase()
+    .trim();
+
   const colorMap = {
-    "đường sá": "bg-blue-100 text-blue-800 hover:bg-blue-100",
-    "cây xanh": "bg-green-100 text-green-800 hover:bg-green-100",
-    "đèn giao thông": "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
-    "thấp thỏm": "bg-red-100 text-red-800 hover:bg-red-100",
-    "cấp nước": "bg-cyan-100 text-cyan-800 hover:bg-cyan-100",
-    "vệ sinh": "bg-purple-100 text-purple-800 hover:bg-purple-100",
+    "đường sá": "bg-[#f97316] text-white hover:bg-[#ea580c]",
+    "giao thông": "bg-[#f97316] text-white hover:bg-[#ea580c]",
+    "cây xanh": "bg-[#22c55e] text-white hover:bg-[#16a34a]",
+    "đèn giao thông": "bg-[#eab308] text-white hover:bg-[#ca8a04]",
+    "thấp thỏm": "bg-[#ef4444] text-white hover:bg-[#dc2626]",
+    "cấp nước": "bg-[#06b6d4] text-white hover:bg-[#0891b2]",
+    "vệ sinh": "bg-[#a855f7] text-white hover:bg-[#9333ea]",
   };
 
-  return colorMap[typeStr] || "bg-gray-100 text-gray-800 hover:bg-gray-100";
+  return colorMap[typeStr] || "bg-[#f97316] text-white hover:bg-[#ea580c]";
 }
 
-function resolveImage(data, index) {
-  const imageCandidate =
-    data && Array.isArray(data.images) ? data.images[index] : "";
-
-  if (typeof imageCandidate === "string") {
-    const normalizedCandidate = imageCandidate.trim().toLowerCase();
-    if (
-      normalizedCandidate &&
-      normalizedCandidate !== "null" &&
-      normalizedCandidate !== "undefined"
-    ) {
-      return imageCandidate;
-    }
-  } else if (imageCandidate) {
-    return imageCandidate;
+function getStatusBadgeClass(status) {
+  const statusStr = String(status || "")
+    .toLowerCase()
+    .trim();
+  if (statusStr === "đang chờ" || statusStr === "pending") {
+    return "bg-[#d4d4d8] text-white hover:bg-[#a1a1aa]";
   }
+  if (statusStr === "đã xử lý" || statusStr === "resolved") {
+    return "bg-[#22c55e] text-white hover:bg-[#16a34a]";
+  }
+  if (statusStr === "đang xử lý" || statusStr === "processing") {
+    return "bg-[#3b82f6] text-white hover:bg-[#2563eb]";
+  }
+  return "bg-[#d4d4d8] text-white hover:bg-[#a1a1aa]";
+}
 
-  if (data && index === 0 && data.image) {
-    if (typeof data.image === "string") {
-      const normalizedSingleImage = data.image.trim().toLowerCase();
+const getIncidentImages = (data) => {
+  const images = [];
+  if (data?.images && Array.isArray(data.images)) {
+    data.images.forEach((img) => {
       if (
-        normalizedSingleImage &&
-        normalizedSingleImage !== "null" &&
-        normalizedSingleImage !== "undefined"
+        typeof img === "string" &&
+        img.trim() &&
+        img.trim().toLowerCase() !== "null" &&
+        img.trim().toLowerCase() !== "undefined"
       ) {
-        return data.image;
+        images.push(img);
       }
-    } else {
-      return data.image;
-    }
+    });
+  } else if (
+    data?.image &&
+    typeof data.image === "string" &&
+    data.image.trim() &&
+    data.image.trim().toLowerCase() !== "null" &&
+    data.image.trim().toLowerCase() !== "undefined"
+  ) {
+    images.push(data.image);
   }
-
-  return "";
-}
+  return images;
+};
 
 export default function ReportDetail({ data, close }) {
   const [incidentTypes, setIncidentTypes] = useState([]);
   const isOpen = Boolean(data);
 
-  if (!isOpen) return null;
-
   const [freshData, setFreshData] = useState(data);
   const reportIdToUse = data?.id || data?.report_id;
 
-  // Fetch fresh data when modal opens to get latest afterImg
   useEffect(() => {
-    if (!reportIdToUse) return;
+    if (!reportIdToUse || !isOpen) return;
 
     const fetchFreshData = async () => {
       try {
@@ -99,22 +109,27 @@ export default function ReportDetail({ data, close }) {
         setFreshData(freshReport);
       } catch (err) {
         console.error("Error fetching fresh report data:", err);
-        // Fallback to original data if fetch fails
         setFreshData(data);
       }
     };
 
     fetchFreshData();
-  }, [reportIdToUse, data]);
+  }, [reportIdToUse, data, isOpen]);
 
   const displayData = freshData || data;
-  const beforeImage = resolveImage(displayData, 0);
-  const afterImage = displayData.afterImg || resolveImage(displayData, 1);
+  const incidentImages = getIncidentImages(displayData);
+  const beforeImage = incidentImages[0] || "";
+
+  let afterImageCandidate = displayData?.afterImg || displayData?.after_img;
+  const afterImage =
+    typeof afterImageCandidate === "string" &&
+    afterImageCandidate.trim().toLowerCase() !== "null" &&
+    afterImageCandidate.trim().toLowerCase() !== "undefined"
+      ? afterImageCandidate
+      : "";
+
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
-
-  // const beforeImage = resolveImage(data, 0);
-  // const afterImage = data?.afterImg || resolveImage(data, 1);
 
   useEffect(() => {
     const fetchIncidentTypes = async () => {
@@ -136,206 +151,234 @@ export default function ReportDetail({ data, close }) {
 
   if (!isOpen) return null;
 
-  const allImages = [beforeImage, afterImage].filter(Boolean);
+  const showAfterImage = Boolean(afterImage) && !afterImageFailed;
 
-  const openImageViewer = (index) => {
-    setImageViewer({ open: true, index });
+  const allImages = [...incidentImages];
+  if (showAfterImage) {
+    allImages.push(afterImage);
+  }
+
+  const openImageViewerForIncident = () => {
+    if (incidentImages.length > 0) {
+      setImageViewer({ open: true, index: 0 });
+    }
   };
 
-  const showAfterImage = Boolean(afterImage) && !afterImageFailed;
+  const openImageViewerForAfter = () => {
+    if (showAfterImage) {
+      setImageViewer({ open: true, index: incidentImages.length });
+    }
+  };
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && close?.()}>
         <DialogContent
           showCloseButton={false}
-          className="z-[60] flex max-h-[90vh] w-[min(92vw,760px)] flex-col gap-0 overflow-hidden rounded-[18px] border border-[#d8e6ff] bg-white p-0 shadow-2xl sm:w-[min(88vw,760px)] sm:max-w-[760px]"
+          onInteractOutside={(e) => {
+            if (imageViewer.open) {
+              e.preventDefault();
+            }
+          }}
+          className="z-[60] flex max-h-[90vh] w-[min(92vw,760px)] flex-col gap-0 overflow-hidden rounded-[16px] border border-[#f0f0f0] bg-white p-0 shadow-2xl sm:w-[min(88vw,760px)] sm:max-w-[760px]"
         >
-        <DialogHeader className="rounded-t-[18px] bg-white px-4 pt-3 sm:px-5 sm:pt-4 md:px-6 md:pt-4">
-          <div className="flex items-start justify-between gap-3">
-            <DialogTitle className="pr-2 text-base font-semibold leading-snug text-zinc-900 sm:text-lg lg:text-xl">
-              {displayData.title || "Khong co tieu de"}
-            </DialogTitle>
-            <DialogClose asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-full bg-[#f5f5f5] text-zinc-600 hover:bg-[#ebebeb] sm:h-9 sm:w-9"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogClose>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              className={`h-7 rounded-full px-3 text-xs font-semibold ${getTypeBadgeClass(displayData.type)}`}
-            >
-              {getTypeLabel(displayData.type)}
-            </Badge>
-            <Badge className="h-7 rounded-full bg-[#d5d5d5] px-3 text-xs font-semibold text-zinc-800 hover:bg-[#d5d5d5]">
-              {getStatusLabel(displayData.status)}
-            </Badge>
-          </div>
-        </DialogHeader>
-
-        <Separator className="mt-2 bg-[#dbe8ff]" />
-
-        <ScrollArea className="max-h-[calc(90vh-170px)] px-4 py-3 sm:px-5 md:px-6">
-          <div className="flex flex-col gap-2.5 sm:gap-3">
-            <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-3">
-              <div className="rounded-[12px] border border-[#dce9ff] bg-[#edf5ff] px-3 py-2 sm:px-3.5 sm:py-2.5">
-                <p className="text-[11px] font-medium uppercase text-[#A3A3A3]">
-                  Mã báo cáo
-                </p>
-                <p className="text-xl font-semibold leading-tight text-[#1E67D6]">
-                  {displayData.id || "N/A"}
-                </p>
-              </div>
-
-              <div className="rounded-[12px] border border-[#e6e6dc] bg-[#fff9ea] px-3 py-2 sm:px-3.5 sm:py-2.5">
-                <p className="text-[11px] font-medium uppercase text-[#A3A3A3]">
-                  Thời gian
-                </p>
-                <p className="text-sm font-semibold leading-tight text-zinc-900">
-                  {displayData.time || "Chua co thoi gian"}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-[12px] border border-[#e4ecfb] bg-[#f7faff] px-3 py-2.5 sm:px-3.5 sm:py-3">
-              <p className="text-[11px] font-medium uppercase text-[#A3A3A3]">
-                Vị trí
-              </p>
-              <p
-                className="text-sm font-semibold leading-tight text-zinc-900"
-                style={{
-                  display: "-webkit-box",
-                  WebkitLineClamp: 1,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}
-              >
-                {(() => {
-                  const loc = displayData.location;
-                  if (!loc) return "Chưa có vị trí";
-                  const match = loc.match(/\(([^)]+)\)/);
-                  if (match && match[1]) {
-                    const inside = match[1].trim();
-                    if (!/^[\d.-]+,\s*[\d.-]+$/.test(inside)) return inside;
-                  }
-                  if (/^[\d.-]+,\s*[\d.-]+$/.test(loc.trim())) return "Chưa cập nhật địa chỉ cụ thể";
-                  return loc;
-                })()}
-              </p>
-            </div>
-
-            <div>
-              <p className="mb-1 text-[11px] font-medium uppercase text-[#A3A3A3]">
-                Mô tả
-              </p>
-              <div className="rounded-[10px] border border-[#e4ecfb] bg-[#f5f9ff] px-3 py-2.5 sm:px-3.5 sm:py-3">
-                <p
-                  className="text-xs italic leading-snug text-zinc-700"
-                  style={{
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
+          <DialogHeader className="bg-white px-5 pt-5 pb-2 sm:px-6 sm:pt-6">
+            <div className="flex items-start justify-between gap-3 mb-2.5">
+              <DialogTitle className="pr-2 text-xl font-bold leading-snug text-zinc-900">
+                {displayData?.title || "Không có tiêu đề"}
+              </DialogTitle>
+              <DialogClose asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 rounded-full bg-[#f5f5f5] text-zinc-500 hover:bg-[#ebebeb] hover:text-zinc-700"
                 >
-                  {displayData.description || "Chua co mo ta cho bao cao nay."}
-                </p>
-              </div>
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogClose>
             </div>
 
-            {displayData.progressNote && (
-              <div>
-                <p className="mb-1 text-[11px] font-medium uppercase text-[#A3A3A3]">
-                  Ghi chú từ đội xử lý
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                className={`h-6 rounded-full px-3 text-[12px] font-semibold border-0 ${!incidentTypes.find(t => String(t.name).toLowerCase() === String(displayData?.type).toLowerCase().trim()) ? getTypeBadgeClass(displayData?.type) : ''}`}
+                style={
+                  (() => {
+                    const typeStr = String(displayData?.type || "").toLowerCase().trim();
+                    const typeObj = incidentTypes.find(t => String(t.name).toLowerCase() === typeStr);
+                    if (typeObj && typeObj.color) {
+                      return {
+                        backgroundColor: typeObj.color,
+                        color: "#ffffff"
+                      };
+                    }
+                    return {};
+                  })()
+                }
+              >
+                {getTypeLabel(displayData?.type)}
+              </Badge>
+              <Badge
+                className={`h-6 rounded-full px-3 text-[12px] font-semibold border-0 ${getStatusBadgeClass(displayData?.status)}`}
+              >
+                {getStatusLabel(displayData?.status)}
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="flex flex-col gap-5 sm:gap-6 px-5 py-5 sm:px-6">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                    <Hash className="w-3.5 h-3.5" />
+                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                    Mã báo cáo
+                  </p>
+                </div>
+                <p className="text-[15px] font-semibold text-zinc-900 pl-8">
+                  {displayData?.id || "N/A"}
                 </p>
-                <div className="rounded-[10px] border border-green-100 bg-green-50 px-3 py-2.5 sm:px-3.5 sm:py-3">
-                  <p className="text-xs italic leading-snug text-green-800">
-                    {displayData.progressNote}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                    <MapPin className="w-3.5 h-3.5" />
+                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">
+                    Vị trí
+                  </p>
+                </div>
+                <p className="text-[15px] font-semibold leading-snug text-zinc-900 pl-8">
+                  {(() => {
+                    const loc = displayData?.location;
+                    if (!loc) return "Chưa có vị trí";
+                    const match = loc.match(/\(([^)]+)\)/);
+                    if (match && match[1]) {
+                      const inside = match[1].trim();
+                      if (!/^[\d.-]+,\s*[\d.-]+$/.test(inside)) return inside;
+                    }
+                    if (/^[\d.-]+,\s*[\d.-]+$/.test(loc.trim()))
+                      return "Chưa cập nhật địa chỉ cụ thể";
+                    return loc;
+                  })()}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                    <Clock className="w-3.5 h-3.5" />
+                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-amber-600">
+                    Thời gian
+                  </p>
+                </div>
+                <p className="text-[15px] font-semibold text-zinc-900 pl-8">
+                  {displayData?.time || "Chưa có thời gian"}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                    <FileText className="w-3.5 h-3.5" />
+                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
+                    Mô tả
+                  </p>
+                </div>
+                <div className="ml-8 rounded-[10px] bg-[#f8f9fa] px-4 py-3.5 border border-[#e5e7eb] shadow-sm">
+                  <p className="text-[14px] italic leading-relaxed text-zinc-700">
+                    {displayData?.description ||
+                      "Chưa có mô tả cho báo cáo này."}
                   </p>
                 </div>
               </div>
-            )}
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <Card className="gap-0 rounded-[12px] border border-[#dce9ff] bg-[#f6faff] py-0 ring-0 shadow-sm">
-                <CardHeader className="px-3 pb-1 pt-2 sm:px-3.5 sm:pt-2.5">
-                  <CardTitle className="flex text-xs font-medium text-[#1E67D6]">
-                    <Camera className="mr-1.5 h-4 w-4 text-[#1E67D6]" />
-                    Ảnh sự cố
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-3 pb-2.5 sm:px-3.5 sm:pb-3">
-                  <div className="mx-auto aspect-[16/9] w-full max-h-[190px] overflow-hidden rounded-[10px] bg-white">
+              {displayData?.progressNote && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#166534] flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Ghi chú từ đội xử
+                    lý
+                  </p>
+                  <div className="rounded-[10px] bg-[#f0fdf4] px-4 py-3.5 border border-[#bbf7d0] mt-0.5">
+                    <p className="text-[14px] italic leading-relaxed text-[#166534]">
+                      {displayData.progressNote}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col rounded-[12px] bg-[#f8f9fa] p-3 sm:p-4 min-w-0 border border-[#f0f0f0]">
+                  <div className="flex items-center text-[14px] font-medium text-[#2563eb] mb-3">
+                    <Camera className="mr-2 h-4 w-4" />
+                    Ảnh Sự Cố
+                  </div>
+                  <div className="relative w-full aspect-video overflow-hidden rounded-[8px] bg-white border border-[#e5e7eb]">
                     {beforeImage ? (
-                      <img
-                        src={beforeImage}
-                        alt="Anh su co"
-                        className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => openImageViewer(0)}
-                      />
+                      <>
+                        <img
+                          src={beforeImage}
+                          alt="Ảnh sự cố"
+                          className="absolute inset-0 h-full w-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                          onClick={openImageViewerForIncident}
+                        />
+                        {incidentImages.length > 1 && (
+                          <div className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-bold text-white pointer-events-none z-10 backdrop-blur-sm">
+                            1 / {incidentImages.length}
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-zinc-400 sm:text-sm">
+                      <div className="absolute inset-0 flex items-center justify-center text-[13px] text-zinc-400">
                         Chưa có ảnh
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              <Card className="gap-0 rounded-[12px] border border-[#dce9ff] bg-[#f6faff] py-0 ring-0 shadow-sm">
-                <CardHeader className="px-3 pb-1 pt-2 sm:px-3.5 sm:pt-2.5">
-                  <CardTitle className="flex text-xs font-medium text-[#1E67D6]">
-                    <Camera className="mr-1.5 h-4 w-4 text-[#1E67D6]" />
-                    Ảnh sau khắc phục
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-3 pb-2.5 sm:px-3.5 sm:pb-3">
-                  <div className="mx-auto aspect-[16/9] w-full max-h-[190px] overflow-hidden rounded-[10px] bg-[#f2f2f2]">
+                <div className="flex flex-col rounded-[12px] bg-[#f8f9fa] p-3 sm:p-4 min-w-0 border border-[#f0f0f0]">
+                  <div className="flex items-center text-[14px] font-medium text-[#2563eb] mb-3">
+                    <Camera className="mr-2 h-4 w-4" />
+                    Ảnh Sau Khắc Phục
+                  </div>
+                  <div className="relative w-full aspect-video overflow-hidden rounded-[8px] bg-[#e5e7eb] border border-[#e5e7eb]">
                     {showAfterImage ? (
                       <img
                         src={afterImage}
-                        alt="Anh sau khac phuc"
-                        className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => openImageViewer(allImages.indexOf(afterImage))}
+                        alt="Ảnh sau khắc phục"
+                        className="absolute inset-0 h-full w-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                        onClick={openImageViewerForAfter}
                         onError={() => setAfterImageFailed(true)}
                       />
                     ) : (
-                      <Skeleton className="h-full w-full rounded-[10px] bg-zinc-200/60" />
+                      <div className="absolute inset-0 bg-[#e5e7eb]" />
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
           </div>
-        </ScrollArea>
 
-        <DialogFooter className="!mx-0 !mb-0 !border-t-0 shrink-0 bg-white px-4 py-2.5 sm:px-5 md:px-6">
-          <div className="flex gap-2 w-full">
+          <DialogFooter className="!mx-0 !mb-0 !border-t-0 shrink-0 bg-white px-5 py-4 sm:px-6 flex sm:justify-end">
             <DialogClose asChild>
-              <Button
-                variant="outline"
-                className="h-9 flex-1 rounded-[10px] text-sm font-semibold sm:h-10"
-              >
+              <Button className="h-10 w-full sm:w-auto rounded-[8px] bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-8 text-[14px] font-semibold transition-colors">
                 Đóng
               </Button>
             </DialogClose>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-    <ImageViewer
-      images={allImages}
-      initialIndex={imageViewer.index}
-      isOpen={imageViewer.open}
-      onClose={() => setImageViewer({ open: false, index: 0 })}
-    />
+      <ImageViewer
+        images={allImages}
+        initialIndex={imageViewer.index}
+        isOpen={imageViewer.open}
+        onClose={() => setImageViewer({ open: false, index: 0 })}
+      />
     </>
   );
 }

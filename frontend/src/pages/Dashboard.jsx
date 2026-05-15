@@ -133,7 +133,7 @@ const getStatusClassName = (status) =>
   STATUS_CLASS_NAME[status] ||
   "incident-popup__status incident-popup__status--pending";
 
-function IncidentPopupContent({ incident }) {
+function IncidentPopupContent({ incident, incidentTypes = [] }) {
   const images = useMemo(() => {
     const mergedImages = [];
 
@@ -227,9 +227,26 @@ function IncidentPopupContent({ incident }) {
       <div className="incident-popup-card__body">
         <div className="incident-popup-card__header">
           <h3 className="incident-popup-card__title">{incident.title}</h3>
-          <span className={getStatusClassName(incident.status)}>
-            {incident.status || "Đang Chờ"}
-          </span>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            <span className={getStatusClassName(incident.status)}>
+              {incident.status || "Đang Chờ"}
+            </span>
+            {(() => {
+              const categoryStr = String(incident.category || incident.type || "").toLowerCase().trim();
+              const typeObj = incidentTypes.find(t => String(t.name).toLowerCase() === categoryStr);
+              if (typeObj && typeObj.color) {
+                return (
+                  <span 
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm flex items-center justify-center"
+                    style={{ backgroundColor: typeObj.color }}
+                  >
+                    {incident.category || incident.type}
+                  </span>
+                );
+              }
+              return null;
+            })()}
+          </div>
         </div>
 
         <p className="incident-popup-card__description">
@@ -643,7 +660,7 @@ const Dashboard = () => {
                     maxWidth={420}
                     minWidth={280}
                   >
-                    <IncidentPopupContent incident={incident} />
+                    <IncidentPopupContent incident={incident} incidentTypes={incidentTypes} />
                   </Popup>
                 </Marker>
               );

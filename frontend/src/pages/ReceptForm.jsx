@@ -85,7 +85,36 @@ const getStatusConfig = (status) => {
   }
 };
 
-const getCategoryConfig = (category) => {
+const getDynamicCategoryConfig = (category, incidentTypes = []) => {
+  const typeObj = incidentTypes.find(
+    (t) => String(t.name).toLowerCase() === String(category).toLowerCase()
+  );
+
+  if (typeObj && typeObj.color) {
+    const hex = typeObj.color;
+    // Convert hex to rgb
+    const r = parseInt(hex.slice(1, 3), 16) || 249;
+    const g = parseInt(hex.slice(3, 5), 16) || 115;
+    const b = parseInt(hex.slice(5, 7), 16) || 22;
+
+    return {
+      isDynamic: true,
+      style: {
+        container: {
+          backgroundColor: `rgba(${r}, ${g}, ${b}, 0.3)`,
+          borderColor: `rgba(${r}, ${g}, ${b}, 0.5)`,
+        },
+        dot: {
+          backgroundColor: hex,
+        },
+        text: {
+          color: hex, // Or any readable color
+        },
+      },
+    };
+  }
+
+  // Fallback to static mapping if not found
   switch (category) {
     case "Giao Thông":
       return {
@@ -863,18 +892,42 @@ const ReceptForm = () => {
                           {report.status}
                         </span>
                       </div>
-                      <div
-                        className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110 ${getCategoryConfig(category).bg} ${getCategoryConfig(category).border}`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor] ${getCategoryConfig(category).dot}`}
-                        />
-                        <span
-                          className={`text-[11px] font-bold tracking-wide capitalize ${getCategoryConfig(category).color}`}
-                        >
-                          {String(category).toLowerCase()}
-                        </span>
-                      </div>
+                      {(() => {
+                        const catConfig = getDynamicCategoryConfig(category, incidentTypes);
+                        if (catConfig.isDynamic) {
+                          return (
+                            <div
+                              className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110"
+                              style={catConfig.style.container}
+                            >
+                              <span
+                                className="h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor]"
+                                style={catConfig.style.dot}
+                              />
+                              <span
+                                className="text-[11px] font-bold tracking-wide capitalize"
+                                style={catConfig.style.text}
+                              >
+                                {String(category).toLowerCase()}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div
+                            className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 backdrop-blur-md border shadow-sm transition-all group-hover:brightness-110 ${catConfig.bg} ${catConfig.border}`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full shadow-[0_0_4px_currentColor] ${catConfig.dot}`}
+                            />
+                            <span
+                              className={`text-[11px] font-bold tracking-wide capitalize ${catConfig.color}`}
+                            >
+                              {String(category).toLowerCase()}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
