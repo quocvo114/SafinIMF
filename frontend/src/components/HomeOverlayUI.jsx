@@ -8,6 +8,7 @@ import {
   Camera,
   LayoutGrid,
   X,
+  AlertCircle,
 } from "lucide-react";
 import ReportForm from "./Report";
 import UserSidebar from "./UserSidebar";
@@ -17,6 +18,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import incidentApi from "../services/api/incidentApi";
 import { INCIDENT_ICON_MAP } from "./IncidentTypePopup";
+import { Button } from "./ui/button";
 
 const DEFAULT_CATEGORIES = [
   {
@@ -74,6 +76,7 @@ export default function HomeOverlayUI({
   const [stream, setStream] = useState(null);
   const [localToast, setLocalToast] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAuthConfirm, setShowAuthConfirm] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -107,10 +110,7 @@ export default function HomeOverlayUI({
       return true;
     }
 
-    toast.error("Vui lòng đăng nhập để sử dụng chức năng này");
-    setTimeout(() => {
-      navigate("/signin");
-    }, 500);
+    setShowAuthConfirm(true);
     return false;
   };
 
@@ -319,12 +319,7 @@ export default function HomeOverlayUI({
           {/* Plus Button */}
           <button
             className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white shadow-lg transition-all hover:bg-gray-800 md:h-14 md:w-14"
-            onClick={() => {
-              if (!requireAuth()) {
-                return;
-              }
-              setIsReportOpen((prev) => !prev);
-            }}
+            onClick={handlePlusClick}
             title="Tạo báo cáo mới"
           >
             <Plus size={20} />
@@ -377,6 +372,42 @@ export default function HomeOverlayUI({
                 <Camera className="w-5 h-5" />
                 <span>Chụp ảnh</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Confirmation Dialog */}
+      {showAuthConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+            <div className="flex flex-col items-center gap-4 px-6 py-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                <AlertCircle className="h-7 w-7" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">Xác nhận đăng nhập</h3>
+              <p className="text-center text-sm text-gray-600">
+                Bạn cần đăng nhập để thực hiện hành động này
+              </p>
+            </div>
+
+            <div className="flex gap-3 border-t border-gray-200 px-6 py-4 sm:flex-row">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={() => setShowAuthConfirm(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                className="flex-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => {
+                  setShowAuthConfirm(false);
+                  navigate("/signin");
+                }}
+              >
+                Đăng nhập
+              </Button>
             </div>
           </div>
         </div>
