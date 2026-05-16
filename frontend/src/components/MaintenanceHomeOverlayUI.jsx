@@ -48,8 +48,6 @@ const DEFAULT_CATEGORIES = [
   },
 ];
 
-
-
 export default function MaintenanceHomeOverlayUI({
   selectedCategory,
   setSelectedCategory,
@@ -67,7 +65,7 @@ export default function MaintenanceHomeOverlayUI({
       try {
         const res = await incidentApi.getIncidentTypes();
         if (res?.success && Array.isArray(res.data)) {
-          const apiCategories = res.data.map(type => ({
+          const apiCategories = res.data.map((type) => ({
             id: type.name, // Đồng bộ với Dashboard/AdminDashboard sử dụng tên làm ID lọc
             name: type.name,
             iconKey: type.iconKey || "public",
@@ -75,7 +73,9 @@ export default function MaintenanceHomeOverlayUI({
             textColor: "#ffffff",
             activeBgColor: type.color || "#f97316",
           }));
-          setCategories(apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES);
+          setCategories(
+            apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES,
+          );
         }
       } catch (err) {
         console.error("Failed to fetch incident types", err);
@@ -122,8 +122,10 @@ export default function MaintenanceHomeOverlayUI({
 
         {/* Floating Navbar */}
         <div
-          className="pointer-events-none absolute right-6 top-6 z-20"
-          style={{ left: "calc(var(--maintenance-sidebar-offset, 6rem) + 1rem)" }}
+          className="pointer-events-none absolute right-6 top-4 z-20"
+          style={{
+            left: "calc(var(--maintenance-sidebar-offset, 6rem) + 0rem)",
+          }}
         >
           <div className="pointer-events-auto">
             <NavbarAdmin />
@@ -132,8 +134,10 @@ export default function MaintenanceHomeOverlayUI({
 
         {/* Floating Categories - Right Top (below navbar) */}
         <div
-          className="absolute right-6 top-24 z-10 flex gap-2 scrollbar-hide px-10 py-1.5 -mx-1"
-          style={{ left: "calc(var(--maintenance-sidebar-offset, 6rem) + 1rem)" }}
+          className="absolute right-6 top-20 z-10 flex gap-2 scrollbar-hide px-7 py-3 -mx-1"
+          style={{
+            left: "calc(var(--maintenance-sidebar-offset, 6rem) + 1rem)",
+          }}
         >
           {/* Nút "Tất cả" */}
           <button

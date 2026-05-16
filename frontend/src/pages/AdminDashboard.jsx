@@ -3,8 +3,14 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Building2, TrafficCone, TreePine, Zap, Layers } from "lucide-react";
 import IncidentPopupContent from "../components/IncidentPopupContent";
+import ReportDetailQLKV from "../components/ReportDetail-QLKV";
 import MapView from "../components/Map/MapView";
-import { incidentMarkerIcons, createCustomMarkerIcon } from "../lib/mapIcons";
+import {
+  incidentMarkerIcons,
+  createCustomMarkerIcon,
+  resolveIncidentMarkerIconKey,
+  resolveIncidentTypeFilterKey,
+} from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
 import incidentApi from "../services/api/incidentApi";
 import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
@@ -15,12 +21,7 @@ const DANANG_CENTER = [16.0471, 108.2068];
 const ADMIN_REPORTS_CACHE_KEY = "admin-map-reports-cache-v1";
 const ADMIN_GEOCODE_CACHE_KEY = "admin-map-geocode-cache-v1";
 
-const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
-  giaothong: "traffic",
-  dien: "electric",
-  cayxanh: "tree",
-  ctcc: "building",
-});
+const resolveTypeFilterKey = (value) => resolveIncidentTypeFilterKey(value);
 
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
@@ -64,18 +65,6 @@ const extractPositionFromReport = (report) => {
   }
 
   return [latFromLocation, lngFromLocation];
-};
-
-const mapReportTypeToIncidentType = (reportType) => {
-  const normalizedType = String(reportType || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-  return REPORT_TYPE_TO_INCIDENT_TYPE[normalizedType] || null;
 };
 
 const parseReportDate = (timeValue, createdAtValue) => {
@@ -194,12 +183,9 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const type = mapReportTypeToIncidentType(
-        report?.type || report?.reportType || report?.category,
-      );
-      if (!type) {
-        return null;
-      }
+      const type = String(
+        report?.type || report?.reportType || report?.category || "Khác",
+      ).trim();
 
       let position = extractPositionFromReport(report);
 
@@ -233,6 +219,7 @@ const normalizeReportsForMap = async (rawReports) => {
 
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
+        category: type,
         type,
         position,
         title: report?.title || "Báo cáo sự cố",
@@ -251,6 +238,25 @@ const normalizeReportsForMap = async (rawReports) => {
 
   saveGeocodeCache(geocodeCache);
   return normalizedReports.filter(Boolean);
+};
+
+const buildTypeMarkerIcon = (typeObj) => {
+  if (!typeObj) {
+    return null;
+  }
+
+  let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
+  const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
+  if (IconComp) {
+    svgString = renderToString(
+      <IconComp className="map-marker__icon" color="currentColor" />,
+    );
+  }
+
+  return createCustomMarkerIcon({
+    backgroundColor: typeObj.color || "#f97316",
+    svgIcon: svgString,
+  });
 };
 
 function MapController({ mapRef }) {
@@ -308,6 +314,35 @@ export default function AdminDashboard() {
   const mapRef = useRef(null);
   const hasAutoFittedRef = useRef(false);
   const [incidentTypes, setIncidentTypes] = useState([]);
+  const [selectedReportDetail, setSelectedReportDetail] = useState(null);
+  const markerIconsByType = useMemo(() => {
+    const iconMap = { ...incidentMarkerIcons };
+
+    incidentTypes.forEach((typeObj) => {
+      const typeName = String(typeObj?.name || "").trim();
+      if (!typeName) {
+        return;
+      }
+
+      const customIcon = buildTypeMarkerIcon(typeObj);
+      if (!customIcon) {
+        return;
+      }
+
+      iconMap[typeName] = customIcon;
+
+      const markerKey = resolveIncidentMarkerIconKey({
+        typeName,
+        iconKey: typeObj?.iconKey,
+      });
+
+      if (markerKey) {
+        iconMap[markerKey] = customIcon;
+      }
+    });
+
+    return iconMap;
+  }, [incidentTypes]);
 
   useEffect(() => {
     let isMounted = true;
@@ -382,25 +417,19 @@ export default function AdminDashboard() {
     hasAutoFittedRef.current = true;
   }, [reports]);
 
-  const normalizedSelectedCategory = useMemo(() => {
-    if (selectedCategory === "all") {
-      return "all";
-    }
-
-    if (selectedCategory === "public") {
-      return "building";
-    }
-
-    const mappedType = mapReportTypeToIncidentType(selectedCategory);
-    return mappedType || selectedCategory;
-  }, [selectedCategory]);
+  const selectedCategoryKey = useMemo(
+    () => resolveTypeFilterKey(selectedCategory),
+    [selectedCategory],
+  );
 
   const visiblePoints = useMemo(() => {
-    if (normalizedSelectedCategory === "all") {
+    if (selectedCategoryKey === "all") {
       return reports;
     }
-    return reports.filter((point) => point.type === normalizedSelectedCategory);
-  }, [normalizedSelectedCategory, reports]);
+    return reports.filter(
+      (point) => resolveTypeFilterKey(point.type) === selectedCategoryKey,
+    );
+  }, [selectedCategoryKey, reports]);
 
   return (
     <div className="relative h-screen w-full">
@@ -418,18 +447,34 @@ export default function AdminDashboard() {
 
         <MapView
           reports={visiblePoints}
-          renderPopupContent={(incident) => (
-            <IncidentPopupContent incident={incident} />
+          markerIcons={markerIconsByType}
+          renderPopupContent={(report) => (
+            <IncidentPopupContent
+              incident={report}
+              incidentTypes={incidentTypes}
+              onDetail={(item) => setSelectedReportDetail(item)}
+            />
           )}
         />
       </MapContainer>
+
+      <ReportDetailQLKV
+        data={selectedReportDetail}
+        close={() => setSelectedReportDetail(null)}
+        onUpdateStatus={() => {
+          setSelectedReportDetail(null);
+        }}
+        onSendProcess={() => {
+          setSelectedReportDetail(null);
+        }}
+      />
 
       {/* ✅ Floating Categories - Soft UI Version */}
       <div
         className="pointer-events-none absolute right-6 top-24 z-20"
         style={{ left: "calc(var(--admin-sidebar-offset, 6rem) + 1rem)" }}
       >
-        <div className="pointer-events-auto flex flex-wrap gap-3 scrollbar-hide sm:flex-nowrap">
+        <div className="pointer-events-auto flex flex-wrap gap-3 scrollbar-hide sm:flex-nowrap py-1 px-6">
           {[
             {
               id: "all",

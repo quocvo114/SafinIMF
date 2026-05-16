@@ -6,7 +6,10 @@ import {
   CLUSTER_TIME_WINDOW_H,
   UNCLUSTER_ZOOM_LEVEL,
 } from "../../constants/mapConfig";
-import { incidentMarkerIcons } from "../../lib/mapIcons";
+import {
+  incidentMarkerIcons,
+  resolveIncidentMarkerIconKey,
+} from "../../lib/mapIcons";
 import ClusterMarker from "./ClusterMarker";
 import ClusterPopup from "./ClusterPopup";
 import "../../styles/clusterMarker.css";
@@ -133,7 +136,12 @@ export default function MapView({
     <>
       {clusters.map((cluster) => {
         const [report] = cluster.reports;
-        const markerIcon = markerIcons[cluster.type];
+        const resolvedMarkerKey = markerIcons[cluster.type]
+          ? cluster.type
+          : resolveIncidentMarkerIconKey({ typeName: cluster.type });
+        const markerIcon = resolvedMarkerKey
+          ? markerIcons[resolvedMarkerKey]
+          : null;
         const isClusterResolved = cluster.reports.every(
           (item) => item?.status === "Đã Giải Quyết",
         );

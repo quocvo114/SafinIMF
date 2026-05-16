@@ -10,11 +10,22 @@ export default function ImageViewer({
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const validImages = (images || []).filter(Boolean);
 
   useEffect(() => {
-    setCurrentIndex(initialIndex);
+    const nextIndex = Math.min(
+      Math.max(initialIndex, 0),
+      Math.max(validImages.length - 1, 0),
+    );
+    setCurrentIndex(nextIndex);
     setZoom(1);
-  }, [initialIndex, isOpen]);
+    setPosition({ x: 0, y: 0 });
+    setIsDragging(false);
+  }, [initialIndex, isOpen, validImages.length]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -25,11 +36,10 @@ export default function ImageViewer({
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, onClose]); // Added dependency array
+  }, [isOpen, onClose]); 
 
-  if (!isOpen || typeof document === "undefined" || !images || images.length === 0) return null;
+  if (!isOpen || typeof document === "undefined" || validImages.length === 0) return null;
 
-  const validImages = images.filter(Boolean);
   if (validImages.length === 0) return null;
 
   const currentImage = validImages[currentIndex] || validImages[0];
@@ -38,15 +48,44 @@ export default function ImageViewer({
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
     setZoom(1);
+    setPosition({ x: 0, y: 0 });
   };
 
   const handleNext = () => {
     setCurrentIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
     setZoom(1);
+    setPosition({ x: 0, y: 0 });
   };
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.5, 4));
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.5, 0.5));
+  const handleZoomOut = () => {
+    setZoom((z) => {
+      const newZoom = Math.max(z - 0.5, 1);
+      if (newZoom === 1) setPosition({ x: 0, y: 0 });
+      return newZoom;
+    });
+  };
+
+  const handlePointerDown = (e) => {
+    if (zoom <= 1) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    if (e.currentTarget?.setPointerCapture) {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging || zoom <= 1) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  };
+
+  const handlePointerUp = () => {
+    setIsDragging(false);
+  };
 
   return createPortal(
     <div
@@ -66,7 +105,7 @@ export default function ImageViewer({
 
       {/* Image counter */}
       {canNavigate && (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm">
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm z-10 pointer-events-none">
           {currentIndex + 1} / {validImages.length}
         </div>
       )}
@@ -76,19 +115,31 @@ export default function ImageViewer({
         <>
           <button
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               handlePrev();
             }}
-            className="absolute left-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            type="button"
+            className="absolute left-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors pointer-events-auto"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
           <button
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               handleNext();
             }}
-            className="absolute right-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            type="button"
+            className="absolute right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors pointer-events-auto"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
@@ -96,12 +147,12 @@ export default function ImageViewer({
       )}
 
       {/* Zoom controls */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 backdrop-blur-sm">
+      <div 
+        className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 backdrop-blur-sm z-10"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleZoomOut();
-          }}
+          onClick={handleZoomOut}
           className="flex h-8 w-8 items-center justify-center rounded-full text-white hover:bg-white/20 transition-colors"
         >
           <ZoomOut className="h-4 w-4" />
@@ -110,18 +161,15 @@ export default function ImageViewer({
           {Math.round(zoom * 100)}%
         </span>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleZoomIn();
-          }}
+          onClick={handleZoomIn}
           className="flex h-8 w-8 items-center justify-center rounded-full text-white hover:bg-white/20 transition-colors"
         >
           <ZoomIn className="h-4 w-4" />
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             setZoom(1);
+            setPosition({ x: 0, y: 0 });
           }}
           className="ml-1 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white hover:bg-white/30 transition-colors"
         >
@@ -131,15 +179,39 @@ export default function ImageViewer({
 
       {/* Image */}
       <div
-        className="flex items-center justify-center w-full h-full p-16"
+        className="flex items-center justify-center w-full h-full p-6 md:p-12 select-none"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
       >
-        <img
-          src={currentImage}
-          alt={`Ảnh ${currentIndex + 1}`}
-          className="max-w-full max-h-full object-contain transition-transform duration-200"
-          style={{ transform: `scale(${zoom})` }}
-        />
+        <div className="max-w-[90vw] max-h-[85vh] w-full flex items-center justify-center">
+          <div
+            className="flex items-center justify-center"
+            style={{
+              transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+              transition: isDragging ? "none" : "transform 0.2s ease-out",
+              cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
+              willChange: "transform",
+            }}
+          >
+            <img
+              src={currentImage}
+              alt={`Ảnh ${currentIndex + 1}`}
+              draggable="false"
+              className="w-full h-full object-contain"
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: "center center",
+                transition: isDragging ? "none" : "transform 0.2s ease-out",
+                willChange: "transform",
+                maxWidth: "100%",
+                maxHeight: "100%",
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>,
     document.body

@@ -57,6 +57,65 @@ const TYPE_TO_SVG = Object.freeze({
   building: BUILDING_SVG,
 });
 
+const normalizeIncidentTypeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+const INCIDENT_TYPE_TO_MARKER_KEY = [
+  ["traffic", "traffic"],
+  ["giao thong van tai", "traffic"],
+  ["giao thong", "traffic"],
+  ["electric", "electric"],
+  ["dien", "electric"],
+  ["tree", "tree"],
+  ["cay xanh", "tree"],
+  ["building", "building"],
+  ["ctcc", "building"],
+  ["cong trinh cong cong", "building"],
+  ["public", "building"],
+];
+
+const INCIDENT_ICON_TO_MARKER_KEY = Object.freeze({
+  car: "traffic",
+  electric: "electric",
+  tree: "tree",
+  public: "building",
+});
+
+export const resolveIncidentMarkerIconKey = ({ typeName, iconKey } = {}) => {
+  const normalizedIconKey = String(iconKey || "")
+    .trim()
+    .toLowerCase();
+  if (normalizedIconKey && INCIDENT_ICON_TO_MARKER_KEY[normalizedIconKey]) {
+    return INCIDENT_ICON_TO_MARKER_KEY[normalizedIconKey];
+  }
+
+  const normalizedTypeName = normalizeIncidentTypeText(typeName);
+  for (const [needle, markerKey] of INCIDENT_TYPE_TO_MARKER_KEY) {
+    if (normalizedTypeName.includes(needle)) {
+      return markerKey;
+    }
+  }
+
+  return null;
+};
+
+export const resolveIncidentTypeFilterKey = (value) => {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  return (
+    resolveIncidentMarkerIconKey({ typeName: value }) ||
+    normalizeIncidentTypeText(value)
+  );
+};
+
 export const createCustomMarkerIcon = ({
   backgroundColor,
   svgIcon,
@@ -109,9 +168,15 @@ export const incidentMarkerSvgs = Object.freeze(TYPE_TO_SVG);
 
 const formatClusterBadge = (count) => (count > 9 ? "9+" : String(count));
 
-export const createClusterMarkerIcon = ({ type, count, isResolved = false }) => {
-  const backgroundColor = TYPE_TO_COLOR[type] || "#64748b";
-  const svgIcon = TYPE_TO_SVG[type] || SEARCH_SVG;
+export const createClusterMarkerIcon = ({
+  type,
+  count,
+  isResolved = false,
+}) => {
+  const resolvedTypeKey =
+    resolveIncidentMarkerIconKey({ typeName: type }) || type;
+  const backgroundColor = TYPE_TO_COLOR[resolvedTypeKey] || "#64748b";
+  const svgIcon = TYPE_TO_SVG[resolvedTypeKey] || SEARCH_SVG;
   const colorClass = isResolved
     ? "map-marker--resolved"
     : getColorClass(backgroundColor);

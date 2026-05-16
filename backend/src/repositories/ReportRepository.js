@@ -120,7 +120,7 @@ class ReportRepository {
     return queries[0] || { id: String(id) };
   }
 
-  buildFilterQuery({ search, type, status, district }) {
+  buildFilterQuery({ search, type, status, district, assignedTeamId }) {
     const query = {};
 
     if (type && type !== "all") {
@@ -129,6 +129,10 @@ class ReportRepository {
 
     if (status && status !== "all") {
       query.status = status;
+    }
+
+    if (assignedTeamId) {
+      query.assignedTeamId = String(assignedTeamId);
     }
 
     if (district && district !== "all") {
@@ -161,13 +165,18 @@ class ReportRepository {
     search,
     type,
     status,
+    assignedTeamId,
     page = 1,
     limit = 10,
-    assignedTeamId,
     excludeClusterFollowers = false,
   }) {
     try {
-      const query = this.buildFilterQuery({ search, type, status });
+      const query = this.buildFilterQuery({
+        search,
+        type,
+        status,
+        assignedTeamId,
+      });
 
       const normalizedTeamId = assignedTeamId
         ? String(assignedTeamId).trim()

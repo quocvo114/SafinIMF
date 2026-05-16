@@ -4,6 +4,7 @@ const cloudinary = require("../config/cloudinary");
 const AiValidationLog = require("../models/AiValidationLog");
 const clusterSyncService = require("../services/clusterSync.service");
 const User = require("../services/user/user.model");
+const NotificationController = require("./notificationController");
 
 const CLOUDINARY_REQUIRED_ENV = [
   "CLOUDINARY_CLOUD_NAME",
@@ -62,7 +63,12 @@ async function resolveAssignedTeamIdFromUser(userId) {
   return team?.team_id || team?.id || null;
 }
 
-const RECEPTION_STATUS_OPTIONS = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
+const RECEPTION_STATUS_OPTIONS = [
+  "Đang Chờ",
+  "Đang Xử Lý",
+  "Đã hoàn tất",
+  "Đã Giải Quyết",
+];
 
 function inferDistrict(location = "") {
   const normalizedLocation = String(location)
@@ -413,7 +419,7 @@ class ReportController {
         excludeClusterFollowers,
       } = req.query;
 
-      let assignedTeamId = assignedTeamIdQuery;
+      let assignedTeamId = assignedTeamIdQuery || "";
 
       if (assignedTo === "me") {
         const userId = req.user?.user_id || req.user?.id;
@@ -446,9 +452,9 @@ class ReportController {
         search,
         type,
         status,
+        assignedTeamId,
         page,
         limit,
-        assignedTeamId,
         excludeClusterFollowers: excludeFollowers,
       });
 
@@ -468,28 +474,33 @@ class ReportController {
   async getAllReports(req, res) {
     try {
       if (req.query?.view === "map") {
-        const reports = await Report.find(
-          {},
-          {
-            _id: 1,
-            id: 1,
-            report_id: 1,
-            title: 1,
-            type: 1,
-            location: 1,
-            lat: 1,
-            lng: 1,
-            status: 1,
-            description: 1,
-            image: 1,
-            images: 1,
-            time: 1,
-            userId: 1,
-            user_id: 1,
-            createdAt: 1,
-            updatedAt: 1,
-          },
-        )
+        const mapQuery = {};
+        if (req.query?.status && req.query.status !== "all") {
+          mapQuery.status = req.query.status;
+        }
+        if (req.query?.assignedTeamId) {
+          mapQuery.assignedTeamId = String(req.query.assignedTeamId);
+        }
+
+        const reports = await Report.find(mapQuery, {
+          _id: 1,
+          id: 1,
+          report_id: 1,
+          title: 1,
+          type: 1,
+          location: 1,
+          lat: 1,
+          lng: 1,
+          status: 1,
+          description: 1,
+          image: 1,
+          images: 1,
+          time: 1,
+          userId: 1,
+          user_id: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        })
           .sort({ createdAt: -1 })
           .lean();
 
@@ -517,32 +528,33 @@ class ReportController {
 
   async getMapReports(req, res) {
     try {
-      const reports = await Report.find(
-        {},
-        {
-          _id: 1,
-          id: 1,
-          report_id: 1,
-          title: 1,
-          type: 1,
-          location: 1,
-          lat: 1,
-          lng: 1,
-          status: 1,
-          description: 1,
-          image: 1,
-          images: 1,
-          time: 1,
-          assignedTeamId: 1,
-          assignedTeamName: 1,
-          handlingTeamId: 1,
-          handlingTeamName: 1,
-          userId: 1,
-          user_id: 1,
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      )
+      const mapQuery = {};
+      if (req.query?.status && req.query.status !== "all") {
+        mapQuery.status = req.query.status;
+      }
+      if (req.query?.assignedTeamId) {
+        mapQuery.assignedTeamId = String(req.query.assignedTeamId);
+      }
+
+      const reports = await Report.find(mapQuery, {
+        _id: 1,
+        id: 1,
+        report_id: 1,
+        title: 1,
+        type: 1,
+        location: 1,
+        lat: 1,
+        lng: 1,
+        status: 1,
+        description: 1,
+        image: 1,
+        images: 1,
+        time: 1,
+        userId: 1,
+        user_id: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      })
         .sort({ createdAt: -1 })
         .lean();
 
@@ -902,6 +914,23 @@ class ReportController {
         message: "Tạo báo cáo thành công",
         data: newReport,
       });
+
+      // Notify Admins
+      try {
+        const admins = await User.find({ role: "admin" }, { _id: 1 });
+        for (const admin of admins) {
+          await NotificationController.createNotification({
+            userId: admin._id,
+            title: "Báo cáo mới",
+            message: `Người dân đã gửi báo cáo mới: ${title}`,
+            type: "report",
+            level: "normal",
+            relatedId: newReport.id || newReport.report_id,
+          });
+        }
+      } catch (notiError) {
+        console.error("⚠️ Failed to notify admins:", notiError.message);
+      }
     } catch (error) {
       console.error("❌ Error in createReport:", error);
       res.status(500).json({
@@ -945,6 +974,45 @@ class ReportController {
         });
       }
 
+      // Kiểm tra quyền: citizen chỉ có thể update báo cáo của chính họ từ "Đã hoàn tất" -> "Đã Giải Quyết"
+      const userRole = req.user?.role || "user";
+      const userId = req.user?.id || req.user?._id;
+      const reportUserId = String(existingReport.userId);
+
+      if (
+        userRole !== "admin" &&
+        userRole !== "manager" &&
+        userRole !== "maintenance"
+      ) {
+        // Citizen/user can only update their own report
+        if (String(userId) !== reportUserId) {
+          return res.status(403).json({
+            success: false,
+            message: "Bạn chỉ có thể cập nhật báo cáo của chính mình",
+          });
+        }
+        // Citizen can only set status to "Đã Giải Quyết" when report is already "Đã hoàn tất"
+        if (status === "Đã Giải Quyết") {
+          if (existingReport.status !== "Đã hoàn tất") {
+            return res.status(409).json({
+              success: false,
+              message:
+                "Báo cáo chưa được QLKV xác nhận hoàn tất. Vui lòng chờ QLKV cập nhật trạng thái 'Đã hoàn tất' trước",
+            });
+          }
+        } else if (status !== existingReport.status) {
+          // Citizen cannot change to other statuses
+          return res.status(403).json({
+            success: false,
+            message: "Bạn chỉ có thể đánh dấu báo cáo là 'Đã Giải Quyết'",
+          });
+        }
+      }
+
+      const wasResolved = existingReport.status === "Đã Giải Quyết";
+      const resolvedTeamId =
+        existingReport.assignedTeamId || existingReport.handlingTeamId;
+
       // Ngăn phân công khi đã giải quyết
       if (existingReport.status === "Đã Giải Quyết") {
         return res.status(409).json({
@@ -955,7 +1023,22 @@ class ReportController {
         });
       }
 
-      // PB14: Kiểm tra ảnh khắc phục khi cập nhật thành "Đã Giải Quyết"
+      // PB14: Kiểm tra quy trình chuyển trạng thái đặc biệt
+      // - Khi QLKV cập nhật thành "Đã hoàn tất", cần có ảnh khắc phục đã upload bởi đội xử lý
+      // - Khi công dân cập nhật thành "Đã Giải Quyết", báo cáo phải đang ở trạng thái "Đã hoàn tất"
+      if (status === "Đã hoàn tất") {
+        if (!existingReport.afterImg) {
+          console.log(
+            `❌ [UPDATE_STATUS] Cannot mark as Đã hoàn tất - no after image for report ${id}`,
+          );
+          return res.status(400).json({
+            success: false,
+            message:
+              "Báo cáo chưa có ảnh khắc phục từ đội xử lý. Vui lòng chờ đội xử lý upload ảnh",
+          });
+        }
+      }
+
       if (status === "Đã Giải Quyết") {
         if (!existingReport.afterImg) {
           console.log(
@@ -965,6 +1048,17 @@ class ReportController {
             success: false,
             message:
               "Báo cáo chưa có ảnh khắc phục từ đội xử lý. Vui lòng chờ đội xử lý upload ảnh",
+          });
+        }
+
+        if (existingReport.status !== "Đã hoàn tất") {
+          console.log(
+            `❌ [UPDATE_STATUS] Cannot set Đã Giải Quyết unless report is Đã hoàn tất (report ${id})`,
+          );
+          return res.status(409).json({
+            success: false,
+            message:
+              "Báo cáo chưa được xác nhận là hoàn tất bởi QLKV. Vui lòng chờ QLKV cập nhật trạng thái 'Đã hoàn tất' trước khi đánh dấu 'Đã Giải Quyết'",
           });
         }
       }
@@ -994,26 +1088,30 @@ class ReportController {
       console.log(
         `✅ [UPDATE_STATUS] Successfully updated report ${id} to status: ${status}`,
       );
-
-      if (status === "Đã Giải Quyết" && !updated.clusterSourceId) {
-        const teamIdForCount =
-          updated.assignedTeamId || updated.handlingTeamId || "";
-
-        if (teamIdForCount) {
+      if (
+        status === "Đã Giải Quyết" &&
+        !wasResolved &&
+        resolvedTeamId &&
+        !updated.clusterSourceId
+      ) {
+        try {
           const team =
-            await MaintenanceTeamRepository.findByTeamId(teamIdForCount);
-
+            await MaintenanceTeamRepository.findByTeamId(resolvedTeamId);
           if (team) {
             const currentCases = Math.max(
               parseInt(team.currentCases, 10) || 0,
               0,
             );
-
             await MaintenanceTeamRepository.updateCaseCountByTeamId(
-              teamIdForCount,
+              resolvedTeamId,
               Math.max(currentCases - 1, 0),
             );
           }
+        } catch (countError) {
+          console.error(
+            "⚠️ Failed to decrement maintenance team cases:",
+            countError.message,
+          );
         }
       }
 
@@ -1036,11 +1134,63 @@ class ReportController {
         }
       }
 
+      // When QLKV marks report as "Đã hoàn tất", ensure teamResolved and decrement team cases only once
+      if (
+        status === "Đã hoàn tất" &&
+        existingReport.status !== "Đã hoàn tất" &&
+        resolvedTeamId &&
+        !updated.clusterSourceId
+      ) {
+        try {
+          // Only decrement if the team hasn't already been marked resolved by the team itself
+          if (!existingReport.teamResolved) {
+            const team =
+              await MaintenanceTeamRepository.findByTeamId(resolvedTeamId);
+            if (team) {
+              const currentCases = Math.max(
+                parseInt(team.currentCases, 10) || 0,
+                0,
+              );
+              await MaintenanceTeamRepository.updateCaseCountByTeamId(
+                resolvedTeamId,
+                Math.max(currentCases - 1, 0),
+              );
+            }
+          }
+
+          // Mark report.teamResolved true to reflect that resolution/completion is confirmed
+          if (!existingReport.teamResolved) {
+            await Report.findOneAndUpdate(
+              { _id: updated._id },
+              { teamResolved: true },
+            );
+          }
+        } catch (countError) {
+          console.error(
+            "⚠️ Failed to decrement maintenance team cases for Đã hoàn tất:",
+            countError.message,
+          );
+        }
+      }
       res.status(200).json({
         success: true,
         message: "Cập nhật trạng thái thành công",
         data: toReceptionItem(updated),
       });
+
+      // Notify Citizen
+      try {
+        await NotificationController.createNotification({
+          userId: updated.userId,
+          title: "Cập nhật trạng thái báo cáo",
+          message: `Báo cáo "${updated.title}" của bạn đã được cập nhật thành: ${status}`,
+          type: "report",
+          level: status === "Đã Giải Quyết" ? "low" : "normal",
+          relatedId: updated.id || updated.report_id,
+        });
+      } catch (notiError) {
+        console.error("⚠️ Failed to notify citizen:", notiError.message);
+      }
     } catch (error) {
       console.error(`❌ [UPDATE_STATUS] Error:`, error.message);
       console.error("❌ updateReportStatus error:", error.message);
@@ -1077,6 +1227,22 @@ class ReportController {
         return res.status(404).json({
           success: false,
           message: "Không tìm thấy báo cáo",
+        });
+      }
+
+      if (report.status === "Đã Giải Quyết") {
+        return res.status(409).json({
+          success: false,
+          code: "REPORT_RESOLVED",
+          message: "Báo cáo đã giải quyết, không thể phân công",
+        });
+      }
+
+      if (report.assignedTeamId) {
+        return res.status(409).json({
+          success: false,
+          code: "REPORT_ALREADY_ASSIGNED",
+          message: "Báo cáo đã được phân công, không thể phân công lại",
         });
       }
 
@@ -1132,11 +1298,35 @@ class ReportController {
           }
         }
 
-        return res.status(200).json({
+        res.status(200).json({
           success: true,
           message: "Phân công đội xử lý thành công",
           data: toReceptionItem(updated),
         });
+
+        // Notify Maintenance Team Leader
+        try {
+          const leader = await User.findOne(
+            { full_name: team.leader, role: "maintenance" },
+            { _id: 1 },
+          );
+          if (leader) {
+            await NotificationController.createNotification({
+              userId: leader._id,
+              title: "Nhiệm vụ mới",
+              message: `Bạn đã được phân công xử lý báo cáo: ${updated.title}`,
+              type: "report",
+              level: "critical",
+              relatedId: updated.id || updated.report_id,
+            });
+          }
+        } catch (notiError) {
+          console.error(
+            "⚠️ Failed to notify maintenance team:",
+            notiError.message,
+          );
+        }
+        return;
       } catch (error) {
         if (shouldAdjustCaseCount && previousCases !== null) {
           await MaintenanceTeamRepository.updateCaseCountByTeamId(
@@ -1201,6 +1391,9 @@ class ReportController {
         });
       }
 
+      const wasResolved = report.status === "Đã Giải Quyết";
+      const resolvedTeamId = report.assignedTeamId || report.handlingTeamId;
+
       // Upload ảnh sau khắc phục lên Cloudinary
       let afterImgUrl = resolvedAfterImg;
       if (hasCloudinaryConfig() && isImageDataUrl(resolvedAfterImg)) {
@@ -1217,15 +1410,16 @@ class ReportController {
         }
       }
 
-      // Cập nhật báo cáo
+      // Cập nhật báo cáo: set status to 'Đã Giải Quyết' immediately when team uploads progress
       const updated = await Report.findOneAndUpdate(
         { $or: queryConditions },
         {
           afterImg: afterImgUrl,
-          status: "Đã Giải Quyết",
           ...(progressNote !== undefined
             ? { progressNote: progressNote.trim() }
             : {}),
+          status: "Đã Giải Quyết",
+          teamResolved: true,
         },
         { new: true },
       );
@@ -1236,7 +1430,6 @@ class ReportController {
           message: "Không thể cập nhật báo cáo. Có lỗi xảy ra.",
         });
       }
-
       if (!updated.clusterSourceId) {
         try {
           await clusterSyncService.syncStatusToResolved(updated.id);
@@ -1248,37 +1441,60 @@ class ReportController {
         }
       }
 
-      if (
-        report.status !== "Đã Giải Quyết" &&
-        !updated.clusterSourceId &&
-        updated.assignedTeamId
-      ) {
-        const team = await MaintenanceTeamRepository.findByTeamId(
-          updated.assignedTeamId,
-        );
-
-        if (team) {
-          const currentCases = Math.max(
-            parseInt(team.currentCases, 10) || 0,
-            0,
-          );
-
-          await MaintenanceTeamRepository.updateCaseCountByTeamId(
-            updated.assignedTeamId,
-            Math.max(currentCases - 1, 0),
-          );
+      // Nếu đội chưa đánh dấu teamResolved trước khi update (report.teamResolved === false),
+      // thì giảm currentCases một lần (we already set teamResolved: true in the update above)
+      try {
+        if (
+          !updated.clusterSourceId &&
+          !report.teamResolved &&
+          resolvedTeamId
+        ) {
+          const team =
+            await MaintenanceTeamRepository.findByTeamId(resolvedTeamId);
+          if (team) {
+            const currentCases = Math.max(
+              parseInt(team.currentCases, 10) || 0,
+              0,
+            );
+            await MaintenanceTeamRepository.updateCaseCountByTeamId(
+              resolvedTeamId,
+              Math.max(currentCases - 1, 0),
+            );
+          }
         }
+      } catch (countErr) {
+        console.error(
+          "⚠️ Failed to decrement maintenance team cases on progress:",
+          countErr.message,
+        );
       }
 
       console.log(
-        `✅ Progress updated: Report ${id} → Đã Giải Quyết (afterImg uploaded)`,
+        `✅ Progress updated: Report ${id} - after image saved; teamResolved updated if applicable`,
       );
 
       res.status(200).json({
         success: true,
         message: "Cập nhật tiến độ thành công",
-        data: updated,
+        data: await Report.findOne({ $or: queryConditions }),
       });
+
+      // Notify Admins
+      try {
+        const admins = await User.find({ role: "admin" }, { _id: 1 });
+        for (const admin of admins) {
+          await NotificationController.createNotification({
+            userId: admin._id,
+            title: "Tiến độ xử lý mới",
+            message: `Đội xử lý đã cập nhật tiến độ cho báo cáo: ${updated.title}`,
+            type: "report",
+            level: "normal",
+            relatedId: updated.id || updated.report_id,
+          });
+        }
+      } catch (notiError) {
+        console.error("⚠️ Failed to notify admins:", notiError.message);
+      }
     } catch (error) {
       console.error("❌ Update progress error:", error.message);
       res.status(500).json({

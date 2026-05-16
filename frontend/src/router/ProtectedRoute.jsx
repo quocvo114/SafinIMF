@@ -17,9 +17,9 @@ export default function ProtectedRoute({ children, requiredRole }) {
     );
   }
 
-  // Nếu chưa đăng nhập -> redirect về SignIn
+  // Nếu chưa đăng nhập -> redirect về Dashboard public
   if (!user) {
-    return <Navigate to="/signin" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // requiredRole có thể là string hoặc mảng roles

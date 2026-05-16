@@ -9,6 +9,8 @@ import UserSidebar from "../components/UserSidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
 import { reportApi } from "../services/api/reportApi";
 import { useAuth } from "../context/AuthContext";
+import incidentApi from "../services/api/incidentApi";
+
 const TYPE_COLOR = {
   "Giao Thông": "bg-orange-400",
   Điện: "bg-yellow-400",
@@ -35,6 +37,21 @@ export default function MyReports() {
   const [selected, setSelected] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
+  useEffect(() => {
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+  }, []);
 
   //! Lấy dữ liệu từ API
   useEffect(() => {
@@ -166,7 +183,7 @@ export default function MyReports() {
 
         {/* FILTERS & SORT */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setTypeFilter("all")}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
@@ -177,46 +194,19 @@ export default function MyReports() {
             >
               Tất cả
             </button>
-            <button
-              onClick={() => setTypeFilter("Giao Thông")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                typeFilter === "Giao Thông"
-                  ? "bg-orange-500 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Giao thông
-            </button>
-            <button
-              onClick={() => setTypeFilter("Điện")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                typeFilter === "Điện"
-                  ? "bg-yellow-500 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Điện
-            </button>
-            <button
-              onClick={() => setTypeFilter("Cây Xanh")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                typeFilter === "Cây Xanh"
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Cây xanh
-            </button>
-            <button
-              onClick={() => setTypeFilter("CTCC")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                typeFilter === "CTCC"
-                  ? "bg-purple-500 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Công trình công cộng
-            </button>
+            {incidentTypes.map((type) => (
+              <button
+                key={type._id || type.name}
+                onClick={() => setTypeFilter(type.name)}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: typeFilter === type.name ? (type.color || "#3b82f6") : "#e5e7eb",
+                  color: typeFilter === type.name ? "#ffffff" : "#374151"
+                }}
+              >
+                {type.name}
+              </button>
+            ))}
           </div>
 
           <select
@@ -260,13 +250,29 @@ export default function MyReports() {
                     <td className="p-3 font-semibold">{item.id}</td>
                     <td className="p-3">{item.title}</td>
                     <td className="p-3">
-                      <span
-                        className={`text-white px-3 py-1 rounded-full text-xs ${
-                          TYPE_COLOR[item.type]
-                        }`}
-                      >
-                        {item.type}
-                      </span>
+                      {(() => {
+                        const typeStr = String(item.type || "").toLowerCase().trim();
+                        const typeObj = incidentTypes.find(t => String(t.name).toLowerCase() === typeStr);
+                        if (typeObj && typeObj.color) {
+                          return (
+                            <span
+                              className="text-white px-3 py-1 rounded-full text-xs"
+                              style={{ backgroundColor: typeObj.color }}
+                            >
+                              {item.type}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span
+                            className={`text-white px-3 py-1 rounded-full text-xs ${
+                              TYPE_COLOR[item.type] || "bg-gray-400"
+                            }`}
+                          >
+                            {item.type}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="p-3">
                       {formatLocationDisplay(item.location)}

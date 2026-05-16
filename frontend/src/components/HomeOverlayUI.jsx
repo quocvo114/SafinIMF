@@ -8,6 +8,7 @@ import {
   Camera,
   LayoutGrid,
   X,
+  AlertCircle,
 } from "lucide-react";
 import ReportForm from "./Report";
 import UserSidebar from "./UserSidebar";
@@ -17,6 +18,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import incidentApi from "../services/api/incidentApi";
 import { INCIDENT_ICON_MAP } from "./IncidentTypePopup";
+import { Button } from "./ui/button";
 
 const DEFAULT_CATEGORIES = [
   {
@@ -74,8 +76,7 @@ export default function HomeOverlayUI({
   const [stream, setStream] = useState(null);
   const [localToast, setLocalToast] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null);
+  const [showAuthConfirm, setShowAuthConfirm] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -86,7 +87,7 @@ export default function HomeOverlayUI({
       try {
         const res = await incidentApi.getIncidentTypes();
         if (res?.success && Array.isArray(res.data)) {
-          const apiCategories = res.data.map(type => ({
+          const apiCategories = res.data.map((type) => ({
             id: type.name, // Use name as ID for filtering since reports save 'type' as name
             name: type.name,
             iconKey: type.iconKey || "public",
@@ -94,7 +95,9 @@ export default function HomeOverlayUI({
             textColor: "#ffffff",
             activeBgColor: type.color || "#f97316",
           }));
-          setCategories(apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES);
+          setCategories(
+            apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES,
+          );
         }
       } catch (err) {
         console.error("Failed to fetch incident types", err);
@@ -103,64 +106,25 @@ export default function HomeOverlayUI({
     fetchCategories();
   }, []);
 
-  const canCreateReport = () => {
+  const requireAuth = () => {
     const isAuthenticated = Boolean(user || localStorage.getItem("token"));
     if (isAuthenticated) {
       return true;
     }
 
-    toast.error("Vui lòng đăng nhập để sử dụng chức năng này");
-    setTimeout(() => {
-      navigate("/signin");
-    }, 500);
+    setShowAuthConfirm(true);
     return false;
   };
 
-  const handleAuthConfirm = (action) => {
-    setConfirmAction(action);
-    setShowConfirmDialog(true);
-  };
-
-  const proceedWithAuth = () => {
-    if (confirmAction === "signin") {
-      navigate("/signin");
-    } else if (confirmAction === "signup") {
-      navigate("/register");
-    } else if (confirmAction === "camera") {
-      setShowConfirmDialog(false);
-      setConfirmAction(null);
-      openCamera();
-      return;
-    } else if (confirmAction === "report") {
-      setShowConfirmDialog(false);
-      setConfirmAction(null);
-      setIsReportOpen(true);
-      return;
-    }
-    setShowConfirmDialog(false);
-    setConfirmAction(null);
-  };
-
-  const cancelAuth = () => {
-    setShowConfirmDialog(false);
-    setConfirmAction(null);
-  };
-
   const handleCameraClick = () => {
-    const isAuthenticated = Boolean(user || localStorage.getItem("token"));
-    if (isAuthenticated) {
+    if (requireAuth()) {
       openCamera();
-    } else {
-      handleAuthConfirm("camera");
     }
   };
 
   const handlePlusClick = () => {
-    const isAuthenticated = Boolean(user || localStorage.getItem("token"));
-    if (isAuthenticated) {
+    if (requireAuth()) {
       setIsReportOpen((prev) => !prev);
-    } else {
-      handleAuthConfirm("report");
     }
   };
 
@@ -177,7 +141,7 @@ export default function HomeOverlayUI({
 
   // Mở camera
   const openCamera = async () => {
-    if (!canCreateReport()) {
+    if (!requireAuth()) {
       return;
     }
 
@@ -243,17 +207,17 @@ export default function HomeOverlayUI({
 
         {/* Floating Categories - Right Top */}
         <div
-          className="absolute top-6 right-6 z-10 flex gap-2 scrollbar-hide px-3 py-1.5 -mx-1"
+          className="absolute top-3 right-6 flex gap-2 scrollbar-hide px-1 py-1.5 -mx-1"
           style={{ left: "calc(var(--user-sidebar-offset, 6rem) + 1rem)" }}
         >
           {/* Nút "Tất cả" */}
           <button
-            onClick={() => setSelectedCategory("all")}
-            className={`
-      relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
-      transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
-      ${selectedCategory === "all" ? "z-10" : "opacity-70 hover:opacity-100"}
-    `}
+            onClick={() => {
+              setSelectedCategory("all");
+            }}
+            className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+              selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
+            }`}
             style={{
               backgroundColor:
                 selectedCategory === "all" ? "#2563EB" : "#2563EB55",
@@ -282,16 +246,18 @@ export default function HomeOverlayUI({
           {/* Các nút category */}
           {categories.map((c) => {
             const iconComponent = INCIDENT_ICON_MAP[c.iconKey];
-            const Icon = React.isValidElement(iconComponent) ? null : iconComponent;
+            const Icon = React.isValidElement(iconComponent)
+              ? null
+              : iconComponent;
             return (
               <button
                 key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
-                className={`
-          relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
-          transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
-          ${selectedCategory === c.id ? "z-10" : "opacity-70 hover:opacity-100"}
-        `}
+                onClick={() => {
+                  setSelectedCategory(c.id);
+                }}
+                className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                  selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
+                }`}
                 style={{
                   backgroundColor:
                     selectedCategory === c.id ? c.bgColor : `${c.bgColor}55`,
@@ -328,13 +294,13 @@ export default function HomeOverlayUI({
         {showAuthButtons && !user ? (
           <div className="absolute top-4 right-4 z-10 flex gap-3">
             <button
-              onClick={() => handleAuthConfirm("signin")}
+              onClick={() => navigate("/signin")}
               className="flex items-center gap-2 px-6 h-12 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 bg-white text-blue-600 hover:shadow-lg shadow-lg border-2 border-blue-600 hover:bg-blue-50"
             >
               Sign In
             </button>
             <button
-              onClick={() => handleAuthConfirm("signup")}
+              onClick={() => navigate("/register")}
               className="flex items-center gap-2 px-6 h-12 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 bg-blue-600 text-white hover:shadow-lg shadow-lg hover:bg-blue-700"
             >
               Sign Up
@@ -343,7 +309,7 @@ export default function HomeOverlayUI({
         ) : null}
 
         {/* Floating Buttons - Bottom Right (always show) */}
-        <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-3 pointer-events-auto">
+        <div className="absolute bottom-6 right-6 flex flex-col gap-3 pointer-events-auto">
           {/* Camera Button */}
           <button
             className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center bg-black text-white hover:bg-gray-800 transition-all"
@@ -414,41 +380,39 @@ export default function HomeOverlayUI({
         </div>
       )}
 
-      {/* CONFIRMATION DIALOG */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10001] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
-              {confirmAction === "signin" 
-                ? "Đăng Nhập" 
-                : confirmAction === "signup" 
-                ? "Tạo Tài Khoản" 
-                : confirmAction === "camera" 
-                ? "Chụp Ảnh" 
-                : "Tạo Báo Cáo"}
-            </h2>
-            <p className="text-gray-600 mb-6">
-              {confirmAction === "signin" 
-                ? "Bạn có muốn đăng nhập không?" 
-                : confirmAction === "signup" 
-                ? "Bạn có muốn tạo tài khoản mới không?"
-                : confirmAction === "camera"
-                ? "Vui lòng đăng nhập để sử dụng chức năng chụp ảnh"
-                : "Vui lòng đăng nhập để tạo báo cáo mới"}
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={cancelAuth}
-                className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
+      {/* Auth Confirmation Dialog */}
+      {showAuthConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+            <div className="flex flex-col items-center gap-4 px-6 py-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                <AlertCircle className="h-7 w-7" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Xác nhận đăng nhập
+              </h3>
+              <p className="text-center text-sm text-gray-600">
+                Bạn cần đăng nhập để thực hiện hành động này
+              </p>
+            </div>
+
+            <div className="flex gap-3 border-t border-gray-200 px-6 py-4 sm:flex-row">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={() => setShowAuthConfirm(false)}
               >
                 Hủy
-              </button>
-              <button
-                onClick={proceedWithAuth}
-                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+              </Button>
+              <Button
+                className="flex-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => {
+                  setShowAuthConfirm(false);
+                  navigate("/signin");
+                }}
               >
-                Tiếp Tục
-              </button>
+                Đăng nhập
+              </Button>
             </div>
           </div>
         </div>

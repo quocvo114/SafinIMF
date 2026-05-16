@@ -20,6 +20,7 @@ import { useAuth } from "../context/AuthContext";
 import { useIsMobile } from "../hooks/use-mobile";
 import Toast from "./Toast";
 import Info_Management from "../pages/Info_Management";
+import { notificationApi } from "../services/api/notificationApi";
 import {
   Sidebar,
   SidebarContent,
@@ -36,45 +37,6 @@ import { Card, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-const MOCK_NOTIFICATIONS = [
-  {
-    id: "NTF-1001",
-    title: "Báo cáo #RPT-2201 đang được xử lý",
-    message:
-      "Đội bảo trì đã tiếp nhận phản ánh của bạn và đang kiểm tra khu vực.",
-    level: "normal",
-    type: "report",
-    isRead: false,
-    createdAt: "10 phút trước",
-  },
-  {
-    id: "NTF-1002",
-    title: "Cảnh báo khẩn tại khu vực Quận 1",
-    message: "Nhiều điểm hư hại mặt đường được ghi nhận sau mưa lớn.",
-    level: "critical",
-    type: "warning",
-    isRead: false,
-    createdAt: "38 phút trước",
-  },
-  {
-    id: "NTF-1003",
-    title: "Báo cáo #RPT-2168 đã hoàn tất",
-    message: "Yêu cầu của bạn đã được xử lý. Cảm ơn bạn đã cộng tác.",
-    level: "low",
-    type: "system",
-    isRead: true,
-    createdAt: "Hôm qua",
-  },
-  {
-    id: "NTF-1004",
-    title: "Thông báo bảo trì hệ thống",
-    message: "Hệ thống sẽ tối ưu hiệu năng từ 23:00 đến 23:20 tối nay.",
-    level: "normal",
-    type: "system",
-    isRead: true,
-    createdAt: "2 ngày trước",
-  },
-];
 
 const MaintenanceUserSidebar = () => {
   const navigate = useNavigate();
@@ -82,7 +44,8 @@ const MaintenanceUserSidebar = () => {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showNotificationsPopup, setShowNotificationsPopup] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [toast, setToast] = useState(null);
@@ -110,6 +73,29 @@ const MaintenanceUserSidebar = () => {
       root.style.removeProperty("--maintenance-sidebar-gap");
     };
   }, [sidebarWidth, contentOffset, sidebarGap]);
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    setLoadingNotifications(true);
+    try {
+      const response = await notificationApi.getNotifications();
+      if (response.success) {
+        setNotifications(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   const unreadCount = notifications.filter((item) => !item.isRead).length;
   const portalTarget = typeof document !== "undefined" ? document.body : null;
@@ -146,7 +132,7 @@ const MaintenanceUserSidebar = () => {
     setToast({ message: "Đăng xuất thành công!", type: "success" });
     setTimeout(() => {
       logout();
-      navigate("/signin");
+      navigate("/");
     }, 1500);
   };
 
@@ -161,14 +147,28 @@ const MaintenanceUserSidebar = () => {
     navigate(item.path);
   };
 
-  const markNotificationRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
-    );
+  const markNotificationRead = async (id) => {
+    try {
+      const response = await notificationApi.markAsRead(id);
+      if (response.success) {
+        setNotifications((prev) =>
+          prev.map((item) => (item._id === id ? { ...item, isRead: true } : item)),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
   };
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+  const markAllRead = async () => {
+    try {
+      const response = await notificationApi.markAllAsRead();
+      if (response.success) {
+        setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+      }
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
   };
 
   const getNotificationIcon = (type) => {
@@ -506,13 +506,25 @@ const MaintenanceUserSidebar = () => {
 
               <ScrollArea className="h-[430px]">
                 <div className="space-y-3 p-3">
+                  {loadingNotifications && notifications.length === 0 && (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      Đang tải thông báo...
+                    </div>
+                  )}
+                  {!loadingNotifications && notifications.length === 0 && (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      Không có thông báo mới.
+                    </div>
+                  )}
                   {notifications.map((item) => {
                     const NoticeIcon = getNotificationIcon(item.type);
+                    const notificationId = item._id || item.id;
+                    const timeLabel = item.timeAgo || (item.createdAt ? new Date(item.createdAt).toLocaleDateString("vi-VN") : "Vừa xong");
 
                     return (
                       <Card
                         size="sm"
-                        key={item.id}
+                        key={notificationId}
                         className={`border bg-white py-0 ring-0 transition-all duration-200 hover:-translate-y-px hover:shadow-md ${
                           item.isRead
                             ? "border-gray-200 shadow-[0_2px_10px_rgba(15,23,42,0.05)]"
@@ -555,7 +567,7 @@ const MaintenanceUserSidebar = () => {
                                   </Badge>
                                   <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
                                     <Clock3 className="h-3 w-3" />
-                                    {item.createdAt}
+                                    {timeLabel}
                                   </span>
                                 </div>
 
@@ -566,7 +578,7 @@ const MaintenanceUserSidebar = () => {
                                     variant="link"
                                     className="h-auto px-0 text-[11px] text-slate-700 hover:text-slate-900"
                                     onClick={() =>
-                                      markNotificationRead(item.id)
+                                      markNotificationRead(notificationId)
                                     }
                                   >
                                     Đã đọc

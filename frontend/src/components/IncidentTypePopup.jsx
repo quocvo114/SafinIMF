@@ -3,7 +3,7 @@ import {
   AlertCircle,
   BookOpen,
   Building2,
-  Car,
+  Truck,
   CloudSun,
   Folder,
   MapPin,
@@ -28,7 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 export const INCIDENT_ICON_OPTIONS = [
-  { key: "car", label: "Giao thông", icon: Car },
+  { key: "car", label: "Giao thông", icon: Truck },
   { key: "electric", label: "Điện", icon: Zap },
   { key: "tree", label: "Cây xanh", icon: TreePine },
   { key: "public", label: "Công cộng", icon: Building2 },

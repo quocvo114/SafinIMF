@@ -1,22 +1,21 @@
-
 const mongoose = require("mongoose");
 
 const ReportSchema = new mongoose.Schema(
   {
-     id: {
-       type: String,
-       required: true,
-       unique: true,
-       index: true, // Add index for faster lookup
-     },
-     report_id: {
-       // For numeric, sequential ID if applicable, allow it to be optional
-       type: Number,
-       unique: true,
-       sparse: true, // Allow multiple documents to have null or missing report_id, or enforce uniqueness only on non-null values
-       default: null,
-       index: true,
-     },
+    id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true, // Add index for faster lookup
+    },
+    report_id: {
+      // For numeric, sequential ID if applicable, allow it to be optional
+      type: Number,
+      unique: true,
+      sparse: true, // Allow multiple documents to have null or missing report_id, or enforce uniqueness only on non-null values
+      default: null,
+      index: true,
+    },
     userId: {
       type: String,
       required: true,
@@ -71,7 +70,7 @@ const ReportSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"],
+      enum: ["Đang Chờ", "Đang Xử Lý", "Đã hoàn tất", "Đã Giải Quyết"],
       default: "Đang Chờ",
       index: true, // Add index for faster status filtering
     },
@@ -134,6 +133,12 @@ const ReportSchema = new mongoose.Schema(
     clusterSyncNote: {
       type: String,
       default: null,
+    },
+    // Indicates the maintenance team has uploaded final progress (team considers report resolved)
+    teamResolved: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
 
     handlingTeamId: {

@@ -7,6 +7,7 @@ const geocodeRoutes = require("./routes/geocodeRoutes");
 const incidentTypeRoutes = require("./routes/incidentTypeRoutes");
 const maintenanceTeamRoutes = require("./routes/maintenanceTeamRoutes");
 const statisticsRoutes = require("./routes/statisticsRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 function createApp() {
   const app = express();
@@ -35,6 +36,7 @@ function createApp() {
   app.use("/api/incident-types", incidentTypeRoutes);
   app.use("/api/maintenance-teams", maintenanceTeamRoutes);
   app.use("/api/statistics", statisticsRoutes);
+  app.use("/api/notifications", notificationRoutes);
 
   return app;
 }

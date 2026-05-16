@@ -314,6 +314,15 @@ const AssignMaintenanceTeam = ({
   isSubmitting,
   errorMessage,
 }) => {
+  // Listen for team updates and refresh
+  useEffect(() => {
+    const handleTeamsChanged = () => {
+      // When teams:changed event fires, parent component will re-fetch teams
+      // This component will receive updated teams prop automatically
+    };
+    window.addEventListener("teams:changed", handleTeamsChanged);
+    return () => window.removeEventListener("teams:changed", handleTeamsChanged);
+  }, []);
   const filteredTeams = useMemo(() => {
     if (!Array.isArray(teams)) return [];
     return teams.filter((team) => isTeamMatchingReportType(team, reportType));

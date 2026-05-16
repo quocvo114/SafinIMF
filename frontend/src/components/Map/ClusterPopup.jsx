@@ -71,7 +71,8 @@ const formatTimestamp = (report) => {
 };
 
 export default function ClusterPopup({ type, reports }) {
-  const typeLabel = TYPE_LABELS[type] || "Sự cố";
+  const normalizedType = String(type || "").trim();
+  const typeLabel = TYPE_LABELS[type] || normalizedType || "Sự cố";
 
   const sortedReports = useMemo(() => {
     return [...reports].sort((a, b) => {

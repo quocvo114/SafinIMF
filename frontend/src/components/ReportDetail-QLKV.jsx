@@ -39,39 +39,12 @@ function normalizeTypeKey(type) {
     .replace(/đ/g, "d");
 }
 
-function resolveImage(data, index) {
-  const imageCandidate =
-    data && Array.isArray(data.images) ? data.images[index] : "";
-
-  if (typeof imageCandidate === "string") {
-    const normalizedCandidate = imageCandidate.trim().toLowerCase();
-    if (
-      normalizedCandidate &&
-      normalizedCandidate !== "null" &&
-      normalizedCandidate !== "undefined"
-    ) {
-      return imageCandidate;
-    }
-  } else if (imageCandidate) {
-    return imageCandidate;
-  }
-
-  if (data && index === 0 && data.image) {
-    if (typeof data.image === "string") {
-      const normalizedSingleImage = data.image.trim().toLowerCase();
-      if (
-        normalizedSingleImage &&
-        normalizedSingleImage !== "null" &&
-        normalizedSingleImage !== "undefined"
-      ) {
-        return data.image;
-      }
-    } else {
-      return data.image;
-    }
-  }
-
-  return "";
+function isValidImage(value) {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim().toLowerCase();
+  return Boolean(
+    normalized && normalized !== "null" && normalized !== "undefined",
+  );
 }
 
 function getStatusValueClass(status) {
@@ -86,6 +59,10 @@ function getStatusValueClass(status) {
   }
 
   if (normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly") {
+    return "text-[#74C200]";
+  }
+
+  if (normalizedStatus === "da hoan tat") {
     return "text-[#74C200]";
   }
 
@@ -128,6 +105,10 @@ function getStatusIconTone(status) {
   }
 
   if (normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly") {
+    return "status-resolved";
+  }
+
+  if (normalizedStatus === "da hoan tat") {
     return "status-resolved";
   }
 
@@ -322,8 +303,30 @@ export default function ReportDetailQLKV({
   const [clusterPeers, setClusterPeers] = useState([]);
   const [clusterPeersLoading, setClusterPeersLoading] = useState(false);
 
-  const beforeImage = resolveImage(data, 0);
-  const afterImage = data?.afterImg || resolveImage(data, 1);
+  const incidentImages = Array.isArray(data?.images)
+    ? data.images.filter((img) => isValidImage(img))
+    : [];
+
+  const beforeImage =
+    incidentImages[0] ||
+    (isValidImage(data?.image) ? data.image : "") ||
+    (isValidImage(data?.imageUrl) ? data.imageUrl : "") ||
+    "";
+
+  const afterImage =
+    (isValidImage(data?.afterImg) ? data.afterImg : "") ||
+    (isValidImage(data?.after_img) ? data.after_img : "") ||
+    (isValidImage(data?.afterImage) ? data.afterImage : "") ||
+    "";
+
+  const normalizedBeforeImage =
+    typeof beforeImage === "string" ? beforeImage.trim() : "";
+  const normalizedAfterImage =
+    typeof afterImage === "string" ? afterImage.trim() : "";
+  const effectiveAfterImage =
+    normalizedBeforeImage && normalizedAfterImage === normalizedBeforeImage
+      ? ""
+      : afterImage;
 
   useEffect(() => {
     const fetchIncidentTypes = async () => {
@@ -340,8 +343,14 @@ export default function ReportDetailQLKV({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) {
+      setImageViewer({ open: false, index: 0 });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     setAfterImageFailed(false);
-  }, [afterImage]);
+  }, [effectiveAfterImage]);
 
   useEffect(() => {
     let isActive = true;
@@ -397,7 +406,33 @@ export default function ReportDetailQLKV({
 
   if (!isOpen || !data) return null;
 
-  const allImages = [beforeImage, afterImage].filter(Boolean);
+  const viewerIncidentImages =
+    incidentImages.length > 0
+      ? incidentImages
+      : beforeImage
+        ? [beforeImage]
+        : [];
+
+  const showAfterImage = Boolean(effectiveAfterImage) && !afterImageFailed;
+
+  const hasAfterInIncidentImages = showAfterImage
+    ? viewerIncidentImages.some(
+        (img) =>
+          typeof img === "string" &&
+          img.trim() === String(effectiveAfterImage).trim(),
+      )
+    : false;
+
+  const allImages =
+    showAfterImage && !hasAfterInIncidentImages
+      ? [...viewerIncidentImages, effectiveAfterImage]
+      : [...viewerIncidentImages];
+
+  const afterImageIndex = showAfterImage
+    ? allImages.findIndex(
+        (img) => String(img).trim() === String(effectiveAfterImage).trim(),
+      )
+    : -1;
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
@@ -429,7 +464,6 @@ export default function ReportDetailQLKV({
 
   const displayLocation = formatLocationDisplay(data.location);
 
-  const showAfterImage = Boolean(afterImage) && !afterImageFailed;
   const statusValueClass = getStatusValueClass(data.status);
   const statusIconTone = getStatusIconTone(data.status);
   const issueTitle = data.issueTitle || data.title || "Chưa có tiêu đề";
@@ -445,6 +479,21 @@ export default function ReportDetailQLKV({
   const assignedTeamNote = clusterSourceId
     ? `Phụ trách qua báo cáo #${clusterSourceId}`
     : "";
+  const normalizedStatus = normalizeTypeKey(data.status);
+  const isResolved =
+    normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly";
+  const hasAssignedTeam = Boolean(
+    data?.assignedTeamId ||
+    data?.assignedTeamName ||
+    data?.team ||
+    data?.handlerTeam,
+  );
+  const isAssignBlocked = isResolved || hasAssignedTeam;
+  const assignLabel = isResolved
+    ? "Đã giải quyết"
+    : hasAssignedTeam
+      ? "Đã phân công"
+      : "Gửi xử lý";
 
   return (
     <>
@@ -564,7 +613,6 @@ export default function ReportDetailQLKV({
                     </div>
                   </div>
                 )}
-
               {/* Info Grid 2x2 compact */}
               <div className="grid grid-cols-2 gap-2">
                 <InfoBlock
@@ -658,11 +706,13 @@ export default function ReportDetailQLKV({
                   <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
                     {showAfterImage ? (
                       <img
-                        src={afterImage}
+                        src={effectiveAfterImage}
                         alt="Ảnh khắc phục"
                         className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                         onClick={() =>
-                          openImageViewer(allImages.indexOf(afterImage))
+                          openImageViewer(
+                            afterImageIndex >= 0 ? afterImageIndex : 0,
+                          )
                         }
                         onError={() => setAfterImageFailed(true)}
                       />
@@ -687,10 +737,11 @@ export default function ReportDetailQLKV({
               Cập nhật trạng thái
             </Button>
             <Button
-              className="h-10 w-full rounded-[10px] bg-[#2f64da] px-7 text-sm font-semibold text-white hover:bg-[#2555c7] sm:h-11 sm:w-auto sm:text-base"
+              className="h-10 w-full rounded-[10px] bg-[#2f64da] px-7 text-sm font-semibold text-white hover:bg-[#2555c7] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:text-base"
               onClick={() => onSendProcess?.(data)}
+              disabled={isAssignBlocked}
             >
-              Gửi xử lý
+              {assignLabel}
               <Send className="ml-2 h-4 w-4" />
             </Button>
           </DialogFooter>

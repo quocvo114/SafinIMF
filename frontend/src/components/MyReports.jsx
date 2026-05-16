@@ -213,7 +213,7 @@ export default function MyReports() {
     if (!userId) {
       setReports([]);
       setLoading(false);
-      setError("Vui lòng đăng nhập để xem báo cáo.");
+      // No error message for guests, just show empty state
       return;
     }
 
@@ -516,7 +516,7 @@ export default function MyReports() {
                             Trạng thái
                           </TableHead>
                           <TableHead className="px-4 py-3 font-semibold">
-                            % AI
+                            Độ tin cậy
                           </TableHead>
                           <TableHead className="px-4 py-3 font-semibold">
                             Thời gian

@@ -6,27 +6,26 @@ import {
   LogOut,
   Settings,
   User,
-  BookOpen,
-  Folder,
-  Zap,
-  AlertCircle,
-  Trees,
-  Building2,
   CloudSun,
   Navigation,
+  Users,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import Toast from "./Toast";
 import { Button } from "@/components/ui/button";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
+import { ShieldCheckeredIcon } from "@phosphor-icons/react/dist/ssr";
+import { UsersThreeIcon } from "@phosphor-icons/react";
 
-const CATEGORIES = [
-  { id: "all", label: "Tất Cả", icon: "📋", color: "blue" },
-  { id: "traffic", label: "Giao Thông", icon: "🚗", color: "orange" },
-  { id: "electricity", label: "Điện", icon: "⚡", color: "yellow" },
-  { id: "water", label: "IU", icon: "💧", color: "red" },
-  { id: "green", label: "Cây Xanh", icon: "🌳", color: "green" },
-  { id: "public", label: "Công Trình Công Cộng", icon: "🏗️", color: "purple" },
-];
+const normalizeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -144,7 +143,7 @@ export default function Navbar() {
     setOpenUser(false);
     setTimeout(() => {
       logout();
-      navigate("/signin");
+      navigate("/");
     }, 1500);
   };
 
@@ -372,8 +371,10 @@ export default function Navbar() {
 }
 
 export function NavbarAdmin() {
+  const { user } = useAuth();
   const [temperature, setTemperature] = useState(25);
   const [openNoti, setOpenNoti] = useState(false);
+  const [teamName, setTeamName] = useState("");
 
   const notiRef = useRef(null);
 
@@ -444,6 +445,36 @@ export function NavbarAdmin() {
     }
   }, []);
 
+  useEffect(() => {
+    const fetchTeam = async () => {
+      if (user?.role !== "maintenance") return;
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          page: 1,
+          limit: 200,
+          status: "active",
+        });
+        const teams = Array.isArray(response?.data) ? response.data : [];
+        const leaderName = user?.full_name || user?.name || "";
+        const leaderPhone = user?.phone || "";
+        const normalizedLeader = normalizeText(leaderName);
+        const normalizedPhone = normalizeText(leaderPhone);
+        const matched = teams.find((team) => {
+          const leader = normalizeText(team?.leader || "");
+          if (!leader) return false;
+          if (normalizedLeader && leader === normalizedLeader) return true;
+          return normalizedPhone && leader.includes(normalizedPhone);
+        });
+        if (matched) {
+          setTeamName(matched.name);
+        }
+      } catch (error) {
+        console.error("Failed to fetch team name", error);
+      }
+    };
+    fetchTeam();
+  }, [user]);
+
   const [noti, setNoti] = useState([
     {
       id: "1",
@@ -488,6 +519,37 @@ export function NavbarAdmin() {
                    px-3 py-2.5 sm:px-5 flex items-center justify-end gap-2 sm:gap-4"
           style={{ minHeight: "60px" }}
         >
+          {user?.role === "maintenance" && teamName && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#f0fffc] border border-[#7cf9fa] rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#56dbe8] text-white">
+                <UsersThreeIcon weight="fill" className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="text-[9.5px] font-semibold text-[#6de2da] tracking-tight">
+                  Đội xử lý
+                </span>
+                <span className="text-[14px] font-semibold text-[#55cad1]">
+                  {teamName}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {user?.role === "admin" && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#fff4f5] border border-[#ffd0d2] rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff6e6e] text-white">
+                <ShieldCheckeredIcon weight="fill" className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="text-[8px] font-semibold text-[#ff7878] tracking-tight">
+                  Hệ thống
+                </span>
+                <span className="text-[14px] font-semibold text-[#ff6e6e]">
+                  Quản lý khu vực
+                </span>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 sm:gap-4">
             <Button
               type="button"
