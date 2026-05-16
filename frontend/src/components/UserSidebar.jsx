@@ -151,7 +151,15 @@ const UserSidebar = () => {
     }, 1500);
   };
 
+  const requireAuth = () => {
+    if (isAuthenticated) return true;
+    navigate("/signin");
+    return false;
+  };
+
   const handleMainMenuClick = (item) => {
+    if (!requireAuth()) return;
+
     if (item.id === "notifications") {
       setShowAvatarMenu(false);
       setShowNotificationsPopup((prev) => !prev);
@@ -380,7 +388,9 @@ const UserSidebar = () => {
         </Sidebar>
 
         <button
-          onClick={() => setIsCollapsed((prev) => !prev)}
+          onClick={() => {
+            if (requireAuth()) setIsCollapsed((prev) => !prev);
+          }}
           className="absolute -right-9 top-16 p-1.5 bg-white border border-gray-200 rounded-lg shadow-md hover:bg-gray-50 transition-colors z-50"
         >
           {isCollapsed ? (

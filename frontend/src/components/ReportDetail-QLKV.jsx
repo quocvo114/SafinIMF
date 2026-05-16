@@ -27,6 +27,8 @@ import {
 import ImageViewer from "./ImageViewer";
 import LocationMapInline from "./LocationMapInline";
 
+import incidentApi from "../services/api/incidentApi";
+
 function normalizeTypeKey(type) {
   return String(type || "")
     .trim()
@@ -34,28 +36,6 @@ function normalizeTypeKey(type) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d");
-}
-
-function getTypeBadgeClass(type) {
-  const normalizedType = normalizeTypeKey(type);
-
-  if (normalizedType === "giao thong") {
-    return "bg-[#F97316] text-white hover:bg-[#F97316]";
-  }
-
-  if (normalizedType === "dien") {
-    return "bg-[#FDCA00] text-white hover:bg-[#FDCA00]";
-  }
-
-  if (normalizedType === "cay xanh") {
-    return "bg-[#74C365] text-white hover:bg-[#74C365]";
-  }
-
-  if (normalizedType === "ctcc" || normalizedType === "cong trinh cong cong") {
-    return "bg-[#B78FF2] text-white hover:bg-[#B78FF2]";
-  }
-
-  return "bg-orange-500 text-white hover:bg-orange-500";
 }
 
 function resolveImage(data, index) {
@@ -189,16 +169,16 @@ function InfoBlock({
   return (
     <div className={`flex items-center gap-2.5 ${className}`} onClick={onClick}>
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${getIconToneClass(iconTone)}`}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${getIconToneClass(iconTone)}`}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
           {label}
         </p>
         <p
-          className={`mt-0.5 break-words text-[14px] font-semibold leading-tight text-zinc-900 truncate ${valueClassName}`}
+          className={`mt-0.5 break-words text-[13px] font-semibold leading-tight text-zinc-900 truncate ${valueClassName}`}
         >
           {normalizedValue}
         </p>
@@ -230,37 +210,88 @@ function ConfidenceScoreWidget({ score, details }) {
 
   const levelConfig = (() => {
     if (!hasScore)
-      return { color: "text-zinc-400", bg: "bg-zinc-100", border: "border-zinc-200", label: "Chưa đánh giá" };
+      return {
+        color: "text-zinc-400",
+        bg: "bg-zinc-100",
+        border: "border-zinc-200",
+        label: "Chưa đánh giá",
+      };
     if (score >= 90)
-      return { color: "text-[#15803d]", bg: "bg-[#dcfce7]", border: "border-[#86efac]", label: "Rất tin cậy" };
+      return {
+        color: "text-[#15803d]",
+        bg: "bg-[#dcfce7]",
+        border: "border-[#86efac]",
+        label: "Rất tin cậy",
+      };
     if (score >= 80)
-      return { color: "text-[#166534]", bg: "bg-[#f0fdf4]", border: "border-[#bbf7d0]", label: "Tin cậy cao" };
+      return {
+        color: "text-[#166534]",
+        bg: "bg-[#f0fdf4]",
+        border: "border-[#bbf7d0]",
+        label: "Tin cậy cao",
+      };
     if (score >= 70)
-      return { color: "text-[#854d0e]", bg: "bg-[#fefce8]", border: "border-[#fef08a]", label: "Tin cậy TB" };
+      return {
+        color: "text-[#854d0e]",
+        bg: "bg-[#fefce8]",
+        border: "border-[#fef08a]",
+        label: "Tin cậy TB",
+      };
     if (score >= 50)
-      return { color: "text-[#9a3412]", bg: "bg-[#fff7ed]", border: "border-[#fdba74]", label: "Tin cậy thấp" };
-    return { color: "text-[#991b1b]", bg: "bg-[#fef2f2]", border: "border-[#fca5a5]", label: "Không đủ tin cậy" };
+      return {
+        color: "text-[#9a3412]",
+        bg: "bg-[#fff7ed]",
+        border: "border-[#fdba74]",
+        label: "Tin cậy thấp",
+      };
+    return {
+      color: "text-[#991b1b]",
+      bg: "bg-[#fef2f2]",
+      border: "border-[#fca5a5]",
+      label: "Không đủ tin cậy",
+    };
   })();
 
-  const ScoreIcon = !hasScore ? Shield : score >= 80 ? ShieldCheck : score >= 50 ? Shield : ShieldAlert;
+  const ScoreIcon = !hasScore
+    ? Shield
+    : score >= 80
+      ? ShieldCheck
+      : score >= 50
+        ? Shield
+        : ShieldAlert;
 
   return (
-    <div className={`flex items-center gap-3 rounded-xl border ${levelConfig.border} ${levelConfig.bg} px-3.5 py-2.5`}>
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${levelConfig.bg} ${levelConfig.color}`}>
-        <ScoreIcon className="h-5 w-5" />
+    <div
+      className={`flex items-center gap-2.5 rounded-xl border ${levelConfig.border} ${levelConfig.bg} px-3 py-2 h-full`}
+    >
+      <div
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${levelConfig.bg} ${levelConfig.color}`}
+      >
+        <ScoreIcon className="h-4 w-4" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-bold uppercase tracking-wider text-zinc-500`}>Độ tin cậy AI</span>
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider text-zinc-500`}
+          >
+            Điểm tin cậy báo cáo
+          </span>
           {hasScore && (
-            <span className={`text-base font-black ${levelConfig.color}`}>{score}%</span>
+            <span className={`text-sm font-black ${levelConfig.color}`}>
+              {score}%
+            </span>
           )}
         </div>
-        <span className={`text-sm font-semibold ${levelConfig.color}`}>{levelConfig.label}</span>
+        <span className={`text-xs font-semibold ${levelConfig.color}`}>
+          {levelConfig.label}
+        </span>
       </div>
       {hasScore && (
-        <div className="w-20 h-2 rounded-full bg-zinc-200 overflow-hidden shrink-0">
-          <div className={`h-full rounded-full ${levelConfig.color.replace("text-", "bg-")}`} style={{ width: `${score}%` }} />
+        <div className="w-16 h-1.5 rounded-full bg-zinc-200 overflow-hidden shrink-0">
+          <div
+            className={`h-full rounded-full ${levelConfig.color.replace("text-", "bg-")}`}
+            style={{ width: `${score}%` }}
+          />
         </div>
       )}
     </div>
@@ -273,14 +304,34 @@ export default function ReportDetailQLKV({
   onUpdateStatus,
   onSendProcess,
 }) {
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [incidentTypes, setIncidentTypes] = useState([]);
   const isOpen = Boolean(data);
-
-  if (!isOpen) return null;
-
-  const beforeImage = resolveImage(data, 0);
-  const afterImage = data.afterImg || resolveImage(data, 1);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
+
+  const beforeImage = resolveImage(data, 0);
+  const afterImage = data?.afterImg || resolveImage(data, 1);
+
+  useEffect(() => {
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    if (isOpen) fetchIncidentTypes();
+  }, [isOpen]);
+
+  useEffect(() => {
+    setAfterImageFailed(false);
+  }, [afterImage]);
+
+  if (!isOpen || !data) return null;
 
   const allImages = [beforeImage, afterImage].filter(Boolean);
 
@@ -297,197 +348,241 @@ export default function ReportDetailQLKV({
   const reportLat =
     parseCoord(data?.lat ?? data?.reportLatitude, -90, 90) ??
     (() => {
-      const m = String(data?.location || "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+      const m = String(data?.location || "").match(
+        /(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/,
+      );
       return m ? parseCoord(m[1], -90, 90) : null;
     })();
 
   const reportLng =
     parseCoord(data?.lng ?? data?.reportLongitude, -180, 180) ??
     (() => {
-      const m = String(data?.location || "").match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+      const m = String(data?.location || "").match(
+        /(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/,
+      );
       return m ? parseCoord(m[2], -180, 180) : null;
     })();
 
   const displayLocation = formatLocationDisplay(data.location);
-
-  useEffect(() => {
-    setAfterImageFailed(false);
-  }, [afterImage]);
 
   const showAfterImage = Boolean(afterImage) && !afterImageFailed;
   const statusValueClass = getStatusValueClass(data.status);
   const statusIconTone = getStatusIconTone(data.status);
   const issueTitle = data.issueTitle || data.title || "Chưa có tiêu đề";
   const teamName = data.team || data.handlerTeam || "Chưa phân công";
+  const normalizedStatus = normalizeTypeKey(data.status);
+  const isResolved =
+    normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly";
+  const hasAssignedTeam = Boolean(
+    data?.assignedTeamId ||
+    data?.assignedTeamName ||
+    data?.team ||
+    data?.handlerTeam,
+  );
+  const isAssignBlocked = isResolved || hasAssignedTeam;
+  const assignLabel = isResolved
+    ? "Đã giải quyết"
+    : hasAssignedTeam
+      ? "Đã phân công"
+      : "Gửi xử lý";
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && close?.()}>
         <DialogContent
           showCloseButton={false}
-          className="z-[70] flex max-h-[98vh] w-[calc(100vw-1.5rem)] max-w-[660px] flex-col gap-0 overflow-hidden rounded-[24px] border border-[#e5e7eb] bg-[#f3f4f6] p-0 shadow-2xl sm:w-[calc(100vw-3rem)] sm:!max-w-[660px]"
+          className="z-[70] flex h-[88vh] max-h-[850px] w-[calc(100vw-1.5rem)] max-w-[660px] flex-col gap-0 overflow-hidden rounded-[24px] border border-[#e5e7eb] bg-[#f3f4f6] p-0 shadow-2xl sm:w-[calc(100vw-3rem)] sm:!max-w-[660px]"
         >
-        <DialogHeader className="flex items-center justify-between flex-row px-6 pt-5 pb-3 border-b border-[#d8dde5] shrink-0">
-          <DialogTitle className="text-xl font-bold leading-tight text-zinc-900">
-            Chi tiết báo cáo
-          </DialogTitle>
-          <DialogClose asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 rounded-full bg-[#ebebeb] text-zinc-500 hover:bg-zinc-200"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogClose>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-          <div className="flex flex-col gap-3.5">
-            {/* Type + Title */}
-            <div>
-              <Badge
-                className={`w-fit rounded-full px-3 py-1 text-[11px] font-semibold leading-none ${getTypeBadgeClass(data.type)}`}
+          <DialogHeader className="flex items-center justify-between flex-row px-6 pt-5 pb-3 border-b border-[#d8dde5] shrink-0">
+            <DialogTitle className="text-xl font-bold leading-tight text-zinc-900">
+              Chi tiết báo cáo
+            </DialogTitle>
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 rounded-full bg-[#ebebeb] text-zinc-500 hover:bg-zinc-200"
               >
-                {data.type || "Khác"}
-              </Badge>
-              <h3 className="mt-2 text-xl font-bold leading-snug text-[#3D3D3D]">
-                {issueTitle}
-              </h3>
-            </div>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+          </DialogHeader>
 
-            {/* Description */}
-            {data.description && data.description.trim() && (
-              <div className="rounded-xl bg-white p-3 border border-gray-200">
-                <p className="text-sm italic leading-relaxed text-zinc-600">
-                  {data.description}
-                </p>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3.5">
+            <div className="flex flex-col gap-2.5 h-full">
+              {/* Type + Title */}
+              <div>
+                {(() => {
+                  const typeObj = incidentTypes.find(
+                    (t) => t.name === data.type,
+                  );
+                  const badgeStyle =
+                    typeObj && typeObj.color
+                      ? { backgroundColor: typeObj.color, color: "#fff" }
+                      : { backgroundColor: "#f97316", color: "#fff" };
+
+                  return (
+                    <Badge
+                      variant="secondary"
+                      className="w-fit rounded-full px-3 py-1 text-[11px] font-semibold leading-none"
+                      style={badgeStyle}
+                    >
+                      {data.type || "Khác"}
+                    </Badge>
+                  );
+                })()}
+                <h3 className="mt-1.5 text-lg font-bold leading-snug text-[#3D3D3D]">
+                  {issueTitle}
+                </h3>
               </div>
-            )}
 
-            {/* Info Grid 2x2 compact */}
-            <div className="grid grid-cols-2 gap-3">
-              <InfoBlock
-                icon={Hash}
-                label="Mã BC"
-                value={data.id}
-                valueClassName="text-[#2563EB]"
-              />
-              <LocationMapInline
-                lat={reportLat}
-                lng={reportLng}
-                address={displayLocation}
-                title={issueTitle}
-              >
+              {/* Description */}
+              {data.description && data.description.trim() && (
+                <div className="rounded-xl bg-white p-3 border border-gray-200">
+                  <p className="text-sm italic leading-relaxed text-zinc-600">
+                    {data.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Info Grid 2x2 compact */}
+              <div className="grid grid-cols-2 gap-2">
                 <InfoBlock
-                  icon={MapPin}
-                  label="Vị trí"
-                  value={displayLocation}
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  icon={Hash}
+                  label="Mã BC"
+                  value={data.id}
+                  valueClassName="text-[#2563EB]"
                 />
-              </LocationMapInline>
-              <InfoBlock icon={Clock3} label="Thời gian" value={data.time} />
-              <InfoBlock
-                icon={CircleDot}
-                label="Trạng thái"
-                value={data.status || "Đang chờ"}
-                valueClassName={statusValueClass}
-                iconTone={statusIconTone}
-              />
-              <InfoBlock
-                icon={Users}
-                label="Đội phụ trách"
-                value={teamName}
-                className="col-span-2"
-              />
-            </div>
-
-            {/* Confidence Score */}
-            <ConfidenceScoreWidget
-              score={data.confidenceScore}
-              details={data.scoringDetails}
-            />
+                <LocationMapInline
+                  lat={reportLat}
+                  lng={reportLng}
+                  address={displayLocation}
+                  title={issueTitle}
+                >
+                  <InfoBlock
+                    icon={MapPin}
+                    label="Vị trí"
+                    value={displayLocation}
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                  />
+                </LocationMapInline>
+                <InfoBlock icon={Clock3} label="Thời gian" value={data.time} />
+                <InfoBlock
+                  icon={CircleDot}
+                  label="Trạng thái"
+                  value={data.status || "Đang chờ"}
+                  valueClassName={statusValueClass}
+                  iconTone={statusIconTone}
+                />
+                <div className="col-span-2 grid grid-cols-2 gap-2 mt-1">
+                  <InfoBlock
+                    icon={Users}
+                    label="Đội phụ trách"
+                    value={teamName}
+                    className="h-full"
+                  />
+                  <div className="h-full">
+                    <ConfidenceScoreWidget
+                      score={data.confidenceScore}
+                      details={data.scoringDetails}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Progress Note */}
-            {data.progressNote && (
-              <div className="rounded-xl bg-white p-3 border border-gray-200">
-                <p className="text-sm italic leading-relaxed text-zinc-600">
-                  <span className="font-semibold text-zinc-800">Ghi chú của đội xử lý: </span>
-                  {data.progressNote}
-                </p>
-              </div>
-            )}
-            
-            {/* Photos - fixed height row */}
-            <div className="grid grid-cols-2 gap-3" style={{ height: "150px" }}>
-              <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden">
-                <div className="flex items-center gap-1.5 mb-1.5 px-0.5 shrink-0">
-                  <Camera className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-zinc-900">Ảnh Sự Cố</span>
+              {data.progressNote && (
+                <div className="rounded-xl bg-white p-3 border border-gray-200">
+                  <p className="text-sm italic leading-relaxed text-zinc-600">
+                    <span className="font-semibold text-zinc-800">
+                      Ghi chú của đội xử lý:{" "}
+                    </span>
+                    {data.progressNote}
+                  </p>
                 </div>
-                <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
-                  {beforeImage ? (
-                    <img
-                      src={beforeImage}
-                      alt="Ảnh sự cố"
-                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => openImageViewer(0)}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">Chưa có ảnh</div>
-                  )}
-                </div>
-              </div>
+              )}
 
-              <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden">
-                <div className="flex items-center gap-1.5 mb-1.5 px-0.5 shrink-0">
-                  <Camera className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-600">Ảnh Khắc Phục</span>
+              {/* Photos - flexible height row */}
+              <div className="grid grid-cols-2 gap-2 flex-1 min-h-[200px]">
+                <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden h-full">
+                  <div className="flex items-center gap-1.5 mb-1.5 px-0.5 shrink-0">
+                    <Camera className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-semibold text-zinc-900">
+                      Ảnh Sự Cố
+                    </span>
+                  </div>
+                  <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
+                    {beforeImage ? (
+                      <img
+                        src={beforeImage}
+                        alt="Ảnh sự cố"
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageViewer(0)}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">
+                        Chưa có ảnh
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
-                  {showAfterImage ? (
-                    <img
-                      src={afterImage}
-                      alt="Ảnh khắc phục"
-                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => openImageViewer(allImages.indexOf(afterImage))}
-                      onError={() => setAfterImageFailed(true)}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">Chưa có ảnh</div>
-                  )}
+
+                <div className="flex flex-col bg-[#ececef] rounded-xl p-2.5 overflow-hidden h-full">
+                  <div className="flex items-center gap-1.5 mb-1.5 px-0.5 shrink-0">
+                    <Camera className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-600">
+                      Ảnh Khắc Phục
+                    </span>
+                  </div>
+                  <div className="flex-1 rounded-lg overflow-hidden bg-[#dcdcdf] min-h-0">
+                    {showAfterImage ? (
+                      <img
+                        src={afterImage}
+                        alt="Ảnh khắc phục"
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() =>
+                          openImageViewer(allImages.indexOf(afterImage))
+                        }
+                        onError={() => setAfterImageFailed(true)}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">
+                        Chưa có ảnh
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <DialogFooter className="!mx-0 !mb-0 !border-t border-[#d8dde5] shrink-0 items-center justify-end gap-2.5 px-6 py-4 sm:flex-row">
-          <Button
-            variant="outline"
-            className="h-10 w-full rounded-[10px] border-[#b8bcc5] bg-[#f7f7f8] px-5 text-sm font-semibold text-[#2f64da] hover:bg-[#eceef2] sm:h-11 sm:w-auto sm:text-base"
-            onClick={() => onUpdateStatus?.(data)}
-          >
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Cập nhật trạng thái
-          </Button>
-          <Button
-            className="h-10 w-full rounded-[10px] bg-[#2f64da] px-7 text-sm font-semibold text-white hover:bg-[#2555c7] sm:h-11 sm:w-auto sm:text-base"
-            onClick={() => onSendProcess?.(data)}
-          >
-            Gửi xử lý
-            <Send className="ml-2 h-4 w-4" />
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="!mx-0 !mb-0 !border-t border-[#d8dde5] shrink-0 items-center justify-end gap-2.5 px-6 py-4 sm:flex-row">
+            <Button
+              variant="outline"
+              className="h-10 w-full rounded-[10px] border-[#b8bcc5] bg-[#f7f7f8] px-5 text-sm font-semibold text-[#2f64da] hover:bg-[#eceef2] sm:h-11 sm:w-auto sm:text-base"
+              onClick={() => onUpdateStatus?.(data)}
+            >
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Cập nhật trạng thái
+            </Button>
+            <Button
+              className="h-10 w-full rounded-[10px] bg-[#2f64da] px-7 text-sm font-semibold text-white hover:bg-[#2555c7] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:text-base"
+              onClick={() => onSendProcess?.(data)}
+              disabled={isAssignBlocked}
+            >
+              {assignLabel}
+              <Send className="ml-2 h-4 w-4" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-    <ImageViewer
-      images={allImages}
-      initialIndex={imageViewer.index}
-      isOpen={imageViewer.open}
-      onClose={() => setImageViewer({ open: false, index: 0 })}
-    />
+      <ImageViewer
+        images={allImages}
+        initialIndex={imageViewer.index}
+        isOpen={imageViewer.open}
+        onClose={() => setImageViewer({ open: false, index: 0 })}
+      />
     </>
   );
 }

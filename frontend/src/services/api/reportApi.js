@@ -35,10 +35,10 @@ export const reportApi = {
   },
 
   // Lấy dữ liệu nhẹ cho marker bản đồ
-  getMapReports: async () => {
+  getMapReports: async (params = {}) => {
     try {
       const response = await axiosClient.get("/reports", {
-        params: { view: "map" },
+        params: { view: "map", ...params },
       });
       return response.data;
     } catch (error) {

@@ -216,6 +216,7 @@ async function login(req, res) {
         full_name: freshUser.full_name,
         phone: freshUser.phone,
         role: freshUser.role,
+        is_first_login: freshUser.is_first_login || false,
       },
     });
   } catch (err) {
@@ -344,6 +345,7 @@ async function googleLogin(req, res) {
         phone: freshUser.phone,
         role: freshUser.role,
         email_verified: freshUser.email_verified,
+        is_first_login: freshUser.is_first_login || false,
       },
     });
   } catch (err) {

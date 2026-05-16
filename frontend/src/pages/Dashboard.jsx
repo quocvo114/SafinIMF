@@ -6,6 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   ChevronLeft,
@@ -23,22 +24,12 @@ import "../styles/map.css";
 import {
   currentLocationMarkerIcon,
   incidentMarkerIcons,
+  createCustomMarkerIcon,
   searchLocationMarkerIcon,
 } from "../lib/mapIcons";
-
-const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
-  giaothong: "traffic",
-  dien: "electric",
-  cayxanh: "tree",
-  ctcc: "building",
-});
-
-const INCIDENT_TYPE_LABELS = Object.freeze({
-  traffic: "Giao thông",
-  electric: "Điện",
-  tree: "Cây xanh",
-  building: "Công trình công cộng",
-});
+import { renderToString } from "react-dom/server";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import incidentApi from "../services/api/incidentApi";
 
 const STATUS_CLASS_NAME = Object.freeze({
   "Đang Chờ": "incident-popup__status incident-popup__status--pending",
@@ -49,6 +40,15 @@ const STATUS_CLASS_NAME = Object.freeze({
 const DANANG_CENTER = [16.0471, 108.2068];
 const DASHBOARD_REPORTS_CACHE_KEY = "dashboard-map-reports-cache-v1";
 const DASHBOARD_GEOCODE_CACHE_KEY = "dashboard-map-geocode-cache-v1";
+
+const normalizeTypeKey = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
@@ -64,8 +64,16 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
+  const latFromField = parseCoordinate(
+    report?.lat ?? report?.reportLatitude,
+    -90,
+    90,
+  );
+  const lngFromField = parseCoordinate(
+    report?.lng ?? report?.reportLongitude,
+    -180,
+    180,
+  );
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }
@@ -85,18 +93,6 @@ const extractPositionFromReport = (report) => {
   }
 
   return [latFromLocation, lngFromLocation];
-};
-
-const mapReportTypeToIncidentType = (reportType) => {
-  const normalizedType = String(reportType || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-  return REPORT_TYPE_TO_INCIDENT_TYPE[normalizedType] || null;
 };
 
 const parseReportDate = (timeValue, createdAtValue) => {
@@ -132,7 +128,8 @@ const getReporterName = (report) => {
 };
 
 const getStatusClassName = (status) =>
-  STATUS_CLASS_NAME[status] || "incident-popup__status incident-popup__status--pending";
+  STATUS_CLASS_NAME[status] ||
+  "incident-popup__status incident-popup__status--pending";
 
 function IncidentPopupContent({ incident }) {
   const images = useMemo(() => {
@@ -158,13 +155,26 @@ function IncidentPopupContent({ incident }) {
   const currentImage = images[activeImageIndex] || "";
   const canNavigateImages = images.length > 1;
 
-  const handlePrevImage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const requireAuth = () => {
+    if (user) return true;
+    navigate("/signin");
+    return false;
+  };
+
+  const handlePrevImage = (e) => {
+    e.stopPropagation();
+    if (!requireAuth()) return;
     setActiveImageIndex((prevIndex) =>
       prevIndex === 0 ? images.length - 1 : prevIndex - 1,
     );
   };
 
-  const handleNextImage = () => {
+  const handleNextImage = (e) => {
+    e.stopPropagation();
+    if (!requireAuth()) return;
     setActiveImageIndex((prevIndex) =>
       prevIndex === images.length - 1 ? 0 : prevIndex + 1,
     );
@@ -260,7 +270,10 @@ const loadGeocodeCache = () => {
 
 const saveGeocodeCache = (cacheValue) => {
   try {
-    localStorage.setItem(DASHBOARD_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
+    localStorage.setItem(
+      DASHBOARD_GEOCODE_CACHE_KEY,
+      JSON.stringify(cacheValue),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -306,17 +319,16 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const incidentType = mapReportTypeToIncidentType(
-        report?.type || report?.reportType || report?.category,
-      );
-      if (!incidentType) {
-        return null;
-      }
+      const incidentType = String(
+        report?.type || report?.reportType || report?.category || "Khác",
+      ).trim();
 
       let position = extractPositionFromReport(report);
 
       if (!position) {
-        const locationKey = String(report?.location || "").trim().toLowerCase();
+        const locationKey = String(report?.location || "")
+          .trim()
+          .toLowerCase();
 
         if (locationKey && Array.isArray(geocodeCache[locationKey])) {
           const [lat, lng] = geocodeCache[locationKey];
@@ -344,6 +356,7 @@ const normalizeReportsForMap = async (rawReports) => {
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
         type: incidentType,
+        category: incidentType,
         position,
         title: report?.title || "Báo cáo sự cố",
         location: report?.location || "",
@@ -426,7 +439,10 @@ function LocationMarker() {
   }, []);
 
   return position === null ? null : (
-    <Marker position={[position.lat, position.lng]} icon={currentLocationMarkerIcon}>
+    <Marker
+      position={[position.lat, position.lng]}
+      icon={currentLocationMarkerIcon}
+    >
       <Popup>📍 Bạn đang ở đây!</Popup>
     </Marker>
   );
@@ -445,6 +461,26 @@ const Dashboard = () => {
   const userAvatar = user?.avatar || null;
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
 
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (isMounted && response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     hasCachedReportsRef.current = reports.length > 0;
@@ -466,7 +502,6 @@ const Dashboard = () => {
       } catch (error) {
         // ✅ Cleanup: Report fetching error handling silenced
         if (isMounted && !hasCachedReportsRef.current) {
-          
           toast.error("Không thể tải dữ liệu sự cố từ hệ thống");
         }
       }
@@ -479,13 +514,7 @@ const Dashboard = () => {
     };
   }, []);
 
-  const normalizedSelectedCategory = useMemo(() => {
-    if (selectedCategory === "public") {
-      return "building";
-    }
-
-    return selectedCategory;
-  }, [selectedCategory]);
+  const normalizedSelectedCategory = normalizeTypeKey(selectedCategory);
 
   const filteredIncidents = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
@@ -493,7 +522,8 @@ const Dashboard = () => {
     }
 
     return reports.filter(
-      (incident) => incident.type === normalizedSelectedCategory,
+      (incident) =>
+        normalizeTypeKey(incident.type) === normalizedSelectedCategory,
     );
   }, [normalizedSelectedCategory, reports]);
 
@@ -555,17 +585,57 @@ const Dashboard = () => {
 
             <LocationMarker />
 
-            {filteredIncidents.map((incident) => (
-              <Marker
-                key={incident.id}
-                position={incident.position}
-                icon={incidentMarkerIcons[incident.type]}
-              >
-                <Popup className="incident-popup" maxWidth={420} minWidth={280}>
-                  <IncidentPopupContent incident={incident} />
-                </Popup>
-              </Marker>
-            ))}
+            {filteredIncidents.map((incident) => {
+              const typeObj = incidentTypes.find(
+                (t) =>
+                  normalizeTypeKey(t.name) === normalizeTypeKey(incident.type),
+              );
+              let mapIcon = incidentMarkerIcons[incident.type];
+
+              if (!mapIcon) {
+                let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
+                if (typeObj) {
+                  const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
+                  if (IconComp) {
+                    svgString = renderToString(
+                      <IconComp
+                        className="map-marker__icon"
+                        color="currentColor"
+                      />,
+                    );
+                  }
+                }
+
+                mapIcon = createCustomMarkerIcon({
+                  backgroundColor: typeObj?.color || "#f97316", // default orange
+                  svgIcon: svgString,
+                });
+              }
+
+              return (
+                <Marker
+                  key={incident.id}
+                  position={incident.position}
+                  icon={mapIcon}
+                  eventHandlers={{
+                    click: (e) => {
+                      if (!user) {
+                        e.originalEvent.preventDefault();
+                        navigate("/signin");
+                      }
+                    },
+                  }}
+                >
+                  <Popup
+                    className="incident-popup"
+                    maxWidth={420}
+                    minWidth={280}
+                  >
+                    <IncidentPopupContent incident={incident} />
+                  </Popup>
+                </Marker>
+              );
+            })}
 
             {searchMarker && (
               <Marker

@@ -14,19 +14,22 @@ import {
   Building2,
   CloudSun,
   Navigation,
+  Users,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import Toast from "./Toast";
 import { Button } from "@/components/ui/button";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 
-// const Avatar = ({ src, alt }) => (
-//   <img
-//     src={src}
-//     alt={alt}
-//     className="h-8 w-8 rounded-full object-cover ring-1 ring-black/5"
-//     onError={(e) => (e.currentTarget.style.display = "none")}
-//   />
-// );
+const normalizeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const CATEGORIES = [
   { id: "all", label: "Tất Cả", icon: "📋", color: "blue" },
@@ -381,8 +384,10 @@ export default function Navbar() {
 }
 
 export function NavbarAdmin() {
+  const { user } = useAuth();
   const [temperature, setTemperature] = useState(25);
   const [openNoti, setOpenNoti] = useState(false);
+  const [teamName, setTeamName] = useState("");
 
   const notiRef = useRef(null);
 
@@ -453,6 +458,36 @@ export function NavbarAdmin() {
     }
   }, []);
 
+  useEffect(() => {
+    const fetchTeam = async () => {
+      if (user?.role !== "maintenance") return;
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          page: 1,
+          limit: 200,
+          status: "active",
+        });
+        const teams = Array.isArray(response?.data) ? response.data : [];
+        const leaderName = user?.full_name || user?.name || "";
+        const leaderPhone = user?.phone || "";
+        const normalizedLeader = normalizeText(leaderName);
+        const normalizedPhone = normalizeText(leaderPhone);
+        const matched = teams.find((team) => {
+          const leader = normalizeText(team?.leader || "");
+          if (!leader) return false;
+          if (normalizedLeader && leader === normalizedLeader) return true;
+          return normalizedPhone && leader.includes(normalizedPhone);
+        });
+        if (matched) {
+          setTeamName(matched.name);
+        }
+      } catch (error) {
+        console.error("Failed to fetch team name", error);
+      }
+    };
+    fetchTeam();
+  }, [user]);
+
   const [noti, setNoti] = useState([
     {
       id: "1",
@@ -497,17 +532,40 @@ export function NavbarAdmin() {
                    px-3 py-2.5 sm:px-5 flex items-center justify-end gap-2 sm:gap-4"
           style={{ minHeight: "60px" }}
         >
+          {user?.role === "maintenance" && teamName && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white">
+                <Users className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="text-[10px] font-semibold text-blue-500 uppercase tracking-tight">Đội xử lý</span>
+                <span className="text-sm font-bold text-blue-800">{teamName}</span>
+              </div>
+            </div>
+          )}
+
+          {user?.role === "admin" && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-100 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-600 text-white">
+                <ShieldAlert className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="text-[10px] font-semibold text-purple-500 uppercase tracking-tight">Hệ thống</span>
+                <span className="text-sm font-bold text-purple-800">Quản trị viên</span>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 sm:gap-4">
             <Button
               type="button"
               variant="outline"
-              className="h-10 min-w-0 flex-1 justify-center rounded-full border-gray-200 bg-[#eaeaea] px-3 text-sm text-gray-700 hover:bg-[#eaeaea] sm:flex-none sm:px-5"
+              className="h-10 min-w-0 flex-1 justify-center rounded-full !border-gray-300 bg-[#eaeaea] px-3 text-sm text-gray-700 hover:bg-[#eaeaea] sm:flex-none sm:px-5"
             >
-              <CloudSun className="h-4 w-4 text-gray-500" />
-              <span className="whitespace-nowrap font-medium text-gray-700">
+              <CloudSun className="h-4 w-4 text-gray-600" />
+              <span className="whitespace-nowrap font-medium text-gray-600">
                 {temperature}°C
               </span>
-              <span className="hidden text-gray-400 sm:inline">|</span>
+              <span className="hidden text-gray-300 sm:inline">|</span>
               <span className="hidden whitespace-nowrap font-medium text-gray-600 sm:inline">
                 {formatDate(currentDate)}
               </span>
@@ -516,90 +574,90 @@ export function NavbarAdmin() {
             <Button
               type="button"
               variant="outline"
-              className="h-10 min-w-0 flex-1 justify-center rounded-full border-gray-200 bg-[#eaeaea] px-3 text-sm text-gray-800 hover:bg-[#eaeaea] sm:flex-none sm:px-5"
+              className="h-10 min-w-0 flex-1 gap-2 justify-center rounded-full !border-gray-300 bg-[#eaeaea] px-3 text-sm hover:bg-[#eaeaea] sm:flex-none sm:px-5"
             >
-              <Navigation className="h-4 w-4 text-gray-700" />
-              <span className="truncate font-semibold">{displayCity}</span>
+              <Navigation className="h-4 w-4 text-gray-600" />
+              <span className="truncate text-gray-600">{displayCity}</span>
             </Button>
           </div>
 
           <div className="relative" ref={notiRef}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setOpenNoti((v) => !v)}
-                className="relative h-10 w-10 rounded-full border border-gray-300 bg-[#f3f3f3] shadow-sm hover:bg-gray-100"
-              >
-                <Bell className="mx-auto h-6 w-6 text-gray-800" />
-                {noti.some((n) => n.unread) && (
-                  <span className="absolute top-1.5 right-1.5 inline-block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#f3f3f3]" />
-                )}
-              </Button>
-
-              {openNoti && (
-                <div
-                  className="absolute right-0 mt-2 w-80 rounded-2xl border border-gray-200 
-                           bg-white/95 backdrop-blur shadow-lg p-2 z-50"
-                >
-                  <div className="flex items-center justify-between px-2 py-1">
-                    <p className="text-sm font-semibold text-gray-800">
-                      Thông báo
-                    </p>
-                    <button
-                      onClick={markAllRead}
-                      className="text-xs rounded-full px-2 py-1 hover:bg-gray-100 text-gray-600"
-                    >
-                      Đánh dấu đã đọc
-                    </button>
-                  </div>
-
-                  <div className="max-h-80 overflow-auto pr-1">
-                    {noti.length === 0 ? (
-                      <p className="text-xs text-gray-500 px-3 py-6 text-center">
-                        Không có thông báo
-                      </p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {noti.map((n) => (
-                          <li
-                            key={n.id}
-                            className={`flex gap-3 rounded-xl px-3 py-2 hover:bg-gray-50 ${
-                              n.unread ? "bg-gray-50" : ""
-                            }`}
-                          >
-                            <div className="pt-1">
-                              <span
-                                className={`inline-block h-2 w-2 rounded-full ${
-                                  n.severity === "critical"
-                                    ? "bg-red-500"
-                                    : n.severity === "warning"
-                                      ? "bg-amber-500"
-                                      : "bg-blue-500"
-                                }`}
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate text-gray-800">
-                                {n.title}
-                              </p>
-                              {n.message && (
-                                <p className="text-xs text-gray-600 overflow-hidden text-ellipsis">
-                                  {n.message}
-                                </p>
-                              )}
-                              <p className="text-[10px] text-gray-400 mt-1">
-                                {new Date(n.createdAt).toLocaleString()}
-                              </p>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setOpenNoti((v) => !v)}
+              className="relative h-10 w-10 rounded-full border !border-gray-300 bg-[#f3f3f3] shadow-sm transition-colors duration-200 hover:!bg-gray-200"
+            >
+              <Bell className="mx-auto h-6 w-6 text-gray-800" />
+              {noti.some((n) => n.unread) && (
+                <span className="absolute top-1.5 right-1.5 inline-block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#f3f3f3]" />
               )}
-            </div>
+            </Button>
+
+            {openNoti && (
+              <div
+                className="absolute right-0 mt-2 w-80 rounded-2xl border border-gray-200 
+                           bg-white/95 backdrop-blur shadow-lg p-2 z-50"
+              >
+                <div className="flex items-center justify-between px-2 py-1">
+                  <p className="text-sm font-semibold text-gray-800">
+                    Thông báo
+                  </p>
+                  <button
+                    onClick={markAllRead}
+                    className="text-xs rounded-full px-2 py-1 hover:bg-gray-100 text-gray-600"
+                  >
+                    Đánh dấu đã đọc
+                  </button>
+                </div>
+
+                <div className="max-h-80 overflow-auto pr-1">
+                  {noti.length === 0 ? (
+                    <p className="text-xs text-gray-500 px-3 py-6 text-center">
+                      Không có thông báo
+                    </p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {noti.map((n) => (
+                        <li
+                          key={n.id}
+                          className={`flex gap-3 rounded-xl px-3 py-2 hover:bg-gray-50 ${
+                            n.unread ? "bg-gray-50" : ""
+                          }`}
+                        >
+                          <div className="pt-1">
+                            <span
+                              className={`inline-block h-2 w-2 rounded-full ${
+                                n.severity === "critical"
+                                  ? "bg-red-500"
+                                  : n.severity === "warning"
+                                    ? "bg-amber-500"
+                                    : "bg-blue-500"
+                              }`}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate text-gray-800">
+                              {n.title}
+                            </p>
+                            {n.message && (
+                              <p className="text-xs text-gray-600 overflow-hidden text-ellipsis">
+                                {n.message}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              {new Date(n.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
     </>

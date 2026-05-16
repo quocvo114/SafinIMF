@@ -4,24 +4,40 @@ import "leaflet/dist/leaflet.css";
 import MaintenanceHomeOverlayUI from "../components/MaintenanceHomeOverlayUI";
 import IncidentPopupContent from "../components/IncidentPopupContent";
 import { useAuth } from "../context/AuthContext";
-import { incidentMarkerIcons, searchLocationMarkerIcon } from "../lib/mapIcons";
+import {
+  incidentMarkerIcons,
+  createCustomMarkerIcon,
+  searchLocationMarkerIcon,
+} from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import { renderToString } from "react-dom/server";
 import "../styles/map.css";
+
+const normalizeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const normalizeTypeKey = normalizeText;
 
 const DANANG_CENTER = [16.0471, 108.2068];
 const MAINTENANCE_REPORTS_CACHE_KEY = "maintenance-map-reports-cache-v1";
 const MAINTENANCE_GEOCODE_CACHE_KEY = "maintenance-map-geocode-cache-v1";
 
-const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
-  giaothong: "traffic",
-  dien: "electric",
-  cayxanh: "tree",
-  ctcc: "building",
-});
-
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
-  if (!Number.isFinite(numericValue) || numericValue < min || numericValue > max) {
+  if (
+    !Number.isFinite(numericValue) ||
+    numericValue < min ||
+    numericValue > max
+  ) {
     return null;
   }
 
@@ -29,8 +45,16 @@ const parseCoordinate = (value, min, max) => {
 };
 
 const extractPositionFromReport = (report) => {
-  const latFromField = parseCoordinate(report?.lat ?? report?.reportLatitude, -90, 90);
-  const lngFromField = parseCoordinate(report?.lng ?? report?.reportLongitude, -180, 180);
+  const latFromField = parseCoordinate(
+    report?.lat ?? report?.reportLatitude,
+    -90,
+    90,
+  );
+  const lngFromField = parseCoordinate(
+    report?.lng ?? report?.reportLongitude,
+    -180,
+    180,
+  );
   if (latFromField !== null && lngFromField !== null) {
     return [latFromField, lngFromField];
   }
@@ -49,18 +73,6 @@ const extractPositionFromReport = (report) => {
   }
 
   return [latFromLocation, lngFromLocation];
-};
-
-const mapReportTypeToIncidentType = (reportType) => {
-  const normalizedType = String(reportType || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-  return REPORT_TYPE_TO_INCIDENT_TYPE[normalizedType] || null;
 };
 
 const parseReportDate = (timeValue, createdAtValue) => {
@@ -112,7 +124,10 @@ const loadCachedReports = () => {
 
 const saveCachedReports = (reports) => {
   try {
-    localStorage.setItem(MAINTENANCE_REPORTS_CACHE_KEY, JSON.stringify(reports));
+    localStorage.setItem(
+      MAINTENANCE_REPORTS_CACHE_KEY,
+      JSON.stringify(reports),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -135,7 +150,10 @@ const loadGeocodeCache = () => {
 
 const saveGeocodeCache = (cacheValue) => {
   try {
-    localStorage.setItem(MAINTENANCE_GEOCODE_CACHE_KEY, JSON.stringify(cacheValue));
+    localStorage.setItem(
+      MAINTENANCE_GEOCODE_CACHE_KEY,
+      JSON.stringify(cacheValue),
+    );
   } catch (error) {
     // ✅ Cleanup: Cache writing error handling silenced
   }
@@ -181,17 +199,16 @@ const normalizeReportsForMap = async (rawReports) => {
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
-      const type = mapReportTypeToIncidentType(
-        report?.type || report?.reportType || report?.category,
-      );
-      if (!type) {
-        return null;
-      }
+      const type = String(
+        report?.type || report?.reportType || report?.category || "Khác",
+      ).trim();
 
       let position = extractPositionFromReport(report);
 
       if (!position) {
-        const locationKey = String(report?.location || "").trim().toLowerCase();
+        const locationKey = String(report?.location || "")
+          .trim()
+          .toLowerCase();
 
         if (locationKey && Array.isArray(geocodeCache[locationKey])) {
           const [lat, lng] = geocodeCache[locationKey];
@@ -219,6 +236,7 @@ const normalizeReportsForMap = async (rawReports) => {
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
         type,
+        category: type,
         position,
         title: report?.title || "Báo cáo sự cố",
         location: report?.location || "",
@@ -228,6 +246,11 @@ const normalizeReportsForMap = async (rawReports) => {
         images: Array.isArray(report?.images) ? report.images : [],
         displayDate: parseReportDate(report?.time, report?.createdAt),
         reporterName: getReporterName(report),
+        assignedTeamId: report?.assignedTeamId || report?.handlingTeamId || "",
+        assignedTeamName:
+          report?.assignedTeamName || report?.handlingTeamName || "",
+        handlingTeamId: report?.handlingTeamId || "",
+        handlingTeamName: report?.handlingTeamName || "",
       };
     }),
   );
@@ -254,31 +277,168 @@ const MaintenanceDashboard = () => {
   const mapRef = useRef(null);
   const hasAutoFittedRef = useRef(false);
   const [searchMarker, setSearchMarker] = useState(null);
-  const [reports, setReports] = useState(() => loadCachedReports());
+  const [reports, setReports] = useState(() =>
+    loadCachedReports(MAINTENANCE_REPORTS_CACHE_KEY),
+  );
 
   const { user } = useAuth();
+  const [teamId, setTeamId] = useState("");
+  const [teamLoading, setTeamLoading] = useState(false);
 
   const currentUser = user || JSON.parse(localStorage.getItem("user") || "{}");
+
+  const isMaintenanceUser = currentUser?.role === "maintenance";
+  const [assignedTeamId, setAssignedTeamId] = useState(null);
+  const [assignedTeamName, setAssignedTeamName] = useState(null);
 
   const userName = currentUser.full_name || currentUser.name || "Người dùng";
 
   const userAvatar = currentUser.avatar || null;
 
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
   useEffect(() => {
     let isMounted = true;
+    const fetchTeam = async () => {
+      if (!user) return;
+      setTeamLoading(true);
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          page: 1,
+          limit: 200,
+          status: "active",
+        });
+        const teams = Array.isArray(response?.data) ? response.data : [];
+        const leaderName = user?.full_name || user?.name || "";
+        const leaderPhone = user?.phone || "";
+        const normalizedLeader = normalizeText(leaderName);
+        const normalizedPhone = normalizeText(leaderPhone);
+        const matched = teams.find((team) => {
+          const leader = normalizeText(team?.leader || "");
+          if (!leader) return false;
+          if (normalizedLeader && leader === normalizedLeader) return true;
+          return normalizedPhone && leader.includes(normalizedPhone);
+        });
+
+        if (isMounted) {
+          setTeamId(matched?.team_id || matched?.id || "");
+        }
+      } catch (teamError) {
+        if (isMounted) setTeamId("");
+      } finally {
+        if (isMounted) setTeamLoading(false);
+      }
+    };
+
+    fetchTeam();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (isMounted && response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!isMaintenanceUser) {
+      setAssignedTeamId(null);
+      setAssignedTeamName(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const leaderName = userName || "";
+    if (!leaderName.trim()) {
+      setAssignedTeamId(null);
+      setAssignedTeamName(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const fetchAssignedTeam = async () => {
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          search: leaderName,
+          area: "all",
+          status: "all",
+          page: 1,
+          limit: 20,
+        });
+
+        const items = Array.isArray(response?.data) ? response.data : [];
+        const normalizedLeader = normalizeText(leaderName);
+        const matched =
+          items.find(
+            (team) => normalizeText(team?.leader) === normalizedLeader,
+          ) || items[0];
+
+        if (isMounted) {
+          setAssignedTeamId(matched?.team_id || matched?.id || null);
+          setAssignedTeamName(matched?.name || null);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setAssignedTeamId(null);
+          setAssignedTeamName(null);
+        }
+      }
+    };
+
+    fetchAssignedTeam();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isMaintenanceUser, userName]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const cacheKey =
+      isMaintenanceUser && assignedTeamId
+        ? `${MAINTENANCE_REPORTS_CACHE_KEY}-${assignedTeamId}`
+        : MAINTENANCE_REPORTS_CACHE_KEY;
 
     const fetchReports = async () => {
       try {
         let rawReports = [];
 
+        if (user?.role === "maintenance" && !teamId && !teamLoading) {
+          if (isMounted) {
+            setReports([]);
+          }
+          return;
+        }
+
         try {
-          const mapResponse = await reportApi.getMapReports();
+          const mapResponse = await reportApi.getMapReports({
+            ...(teamId ? { assignedTeamId: teamId } : {}),
+            status: "Đang Xử Lý",
+          });
           rawReports = Array.isArray(mapResponse?.data) ? mapResponse.data : [];
         } catch (mapError) {
           // ✅ Cleanup: Map data fallback warning removed
         }
 
-        if (rawReports.length === 0) {
+        if (rawReports.length === 0 && !teamId) {
           const fallbackResponse = await reportApi.getAllReports();
           rawReports = Array.isArray(fallbackResponse?.data)
             ? fallbackResponse.data
@@ -289,7 +449,7 @@ const MaintenanceDashboard = () => {
 
         if (isMounted) {
           setReports(normalizedReports);
-          saveCachedReports(normalizedReports);
+          saveCachedReports(cacheKey, normalizedReports);
         }
       } catch (error) {
         // ✅ Cleanup: Report loading error handling silenced
@@ -301,34 +461,59 @@ const MaintenanceDashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [assignedTeamId, isMaintenanceUser]);
+
+  const visibleReports = useMemo(() => {
+    if (!isMaintenanceUser) return reports;
+    if (!assignedTeamId && !assignedTeamName) return [];
+
+    return reports.filter((report) => {
+      const reportTeamId =
+        report?.assignedTeamId || report?.handlingTeamId || "";
+      if (assignedTeamId && reportTeamId) {
+        return reportTeamId === assignedTeamId;
+      }
+
+      const reportTeamName =
+        report?.assignedTeamName || report?.handlingTeamName || "";
+      if (assignedTeamName && reportTeamName) {
+        return reportTeamName === assignedTeamName;
+      }
+
+      return false;
+    });
+  }, [assignedTeamId, assignedTeamName, isMaintenanceUser, reports]);
 
   useEffect(() => {
-    if (!mapRef.current || hasAutoFittedRef.current || reports.length === 0) {
+    if (
+      !mapRef.current ||
+      hasAutoFittedRef.current ||
+      visibleReports.length === 0
+    ) {
       return;
     }
 
-    mapRef.current.fitBounds(reports.map((report) => report.position), {
-      padding: [42, 42],
-      maxZoom: 15,
-    });
+    mapRef.current.fitBounds(
+      reports.map((report) => report.position),
+      {
+        padding: [42, 42],
+        maxZoom: 15,
+      },
+    );
     hasAutoFittedRef.current = true;
-  }, [reports]);
+  }, [visibleReports]);
 
-  const normalizedSelectedCategory = useMemo(() => {
-    if (selectedCategory === "public") {
-      return "building";
-    }
-
-    return selectedCategory;
-  }, [selectedCategory]);
+  const normalizedSelectedCategory = normalizeTypeKey(selectedCategory);
 
   const filteredIncidents = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
-      return reports;
+      return visibleReports;
     }
 
-    return reports.filter((incident) => incident.type === normalizedSelectedCategory);
+    return reports.filter(
+      (incident) =>
+        normalizeTypeKey(incident.type) === normalizedSelectedCategory,
+    );
   }, [normalizedSelectedCategory, reports]);
 
   const handleSearchLocation = async (query) => {
@@ -393,26 +578,54 @@ const MaintenanceDashboard = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {filteredIncidents.map((incident) => (
-              <Marker
-                key={incident.id}
-                position={incident.position}
-                icon={incidentMarkerIcons[incident.type]}
-                eventHandlers={{
-                  click: (event) => event.target.openPopup(),
-                }}
-              >
-                <Popup
-                  className="incident-popup"
-                  maxWidth={420}
-                  minWidth={280}
-                  autoPan={true}
-                  keepInView={true}
+            {filteredIncidents.map((incident) => {
+              const typeObj = incidentTypes.find(
+                (t) =>
+                  normalizeTypeKey(t.name) === normalizeTypeKey(incident.type),
+              );
+              let mapIcon = incidentMarkerIcons[incident.type];
+
+              if (!mapIcon) {
+                let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
+                if (typeObj) {
+                  const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
+                  if (IconComp) {
+                    svgString = renderToString(
+                      <IconComp
+                        className="map-marker__icon"
+                        color="currentColor"
+                      />,
+                    );
+                  }
+                }
+
+                mapIcon = createCustomMarkerIcon({
+                  backgroundColor: typeObj?.color || "#f97316",
+                  svgIcon: svgString,
+                });
+              }
+
+              return (
+                <Marker
+                  key={incident.id}
+                  position={incident.position}
+                  icon={mapIcon}
+                  eventHandlers={{
+                    click: (event) => event.target.openPopup(),
+                  }}
                 >
-                  <IncidentPopupContent incident={incident} />
-                </Popup>
-              </Marker>
-            ))}
+                  <Popup
+                    className="incident-popup"
+                    maxWidth={420}
+                    minWidth={280}
+                    autoPan={true}
+                    keepInView={true}
+                  >
+                    <IncidentPopupContent incident={incident} />
+                  </Popup>
+                </Marker>
+              );
+            })}
 
             {searchMarker && (
               <Marker

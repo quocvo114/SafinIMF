@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
 import userApi from "../services/api/userApi";
+import { areaApi } from "../services/api/areaApi";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
@@ -29,14 +30,13 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const AREA_OPTIONS = [
-  { value: "all", label: "Tất cả khu vực" },
-  { value: "Sơn Trà", label: "Sơn Trà" },
-  { value: "Liên Chiểu", label: "Liên Chiểu" },
-  { value: "Hải Châu", label: "Hải Châu" },
-  { value: "Hòa Xuân", label: "Hòa Xuân" },
-  { value: "Khuê Trung", label: "Khuê Trung" },
-];
+const removeAccents = (str) => {
+  if (!str) return "";
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+};
 
 const STATUS_OPTIONS = [
   { value: "all", label: "Tất cả trạng thái" },
@@ -145,8 +145,60 @@ const getNextTeamSequence = (teams, specialty) => {
   return maxSeq + 1;
 };
 
+const generateUniqueTeamIdentity = (teams, specialty) => {
+  const sourceTeams = Array.isArray(teams) ? teams : [];
+  const prefix = SPECIALTY_PREFIX[specialty] || "TK";
+  const normalizeValue = (value) => String(value || "").toLowerCase().trim();
+  const hasTeamId = (value) =>
+    sourceTeams.some(
+      (team) => normalizeValue(team.id) === normalizeValue(value),
+    );
+  const hasTeamName = (value) =>
+    sourceTeams.some(
+      (team) => normalizeValue(team.name) === normalizeValue(value),
+    );
+
+  let seq = getNextTeamSequence(sourceTeams, specialty);
+  let seqStr = String(seq).padStart(3, "0");
+  let generatedId = `${prefix}${seqStr}`;
+  let generatedName = `Đội ${specialty} ${seqStr}`;
+
+  while (hasTeamId(generatedId) || hasTeamName(generatedName)) {
+    seq += 1;
+    seqStr = String(seq).padStart(3, "0");
+    generatedId = `${prefix}${seqStr}`;
+    generatedName = `Đội ${specialty} ${seqStr}`;
+  }
+
+  return { id: generatedId, name: generatedName };
+};
+
+const buildExistingTeamLookups = (teams) => {
+  const sourceTeams = Array.isArray(teams) ? teams : [];
+  const normalizeValue = (value) => String(value || "").toLowerCase().trim();
+  const ids = new Set(
+    sourceTeams.map((team) => normalizeValue(team?.id)).filter(Boolean),
+  );
+  const names = new Set(
+    sourceTeams.map((team) => normalizeValue(team?.name)).filter(Boolean),
+  );
+
+  return {
+    hasId: (value) => ids.has(normalizeValue(value)),
+    hasName: (value) => names.has(normalizeValue(value)),
+  };
+};
+
+const normalizeLeaderValue = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 const MaintenanceTeam_Table = () => {
   const [teams, setTeams] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -158,6 +210,9 @@ const MaintenanceTeam_Table = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
+  const [searchAreaQuery, setSearchAreaQuery] = useState("");
+  const [isFilterAreaOpen, setIsFilterAreaOpen] = useState(false);
+  const [areas, setAreas] = useState([]);
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -165,10 +220,28 @@ const MaintenanceTeam_Table = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const itemsPerPage = 10;
 
+  const assignedLeaderSet = useMemo(() => {
+    return new Set(
+      allTeams
+        .map((team) => normalizeLeaderValue(team?.leader))
+        .filter(Boolean),
+    );
+  }, [allTeams]);
+
+  const selectableLeaders = useMemo(() => {
+    const currentLeader = normalizeLeaderValue(editingTeam?.leader);
+    return availableLeaders.filter((user) => {
+      const leaderName = normalizeLeaderValue(user?.name);
+      if (!leaderName) return false;
+      if (currentLeader && leaderName === currentLeader) return true;
+      return !assignedLeaderSet.has(leaderName);
+    });
+  }, [availableLeaders, assignedLeaderSet, editingTeam]);
+
   const filteredLeaders = useMemo(() => {
     const keyword = leaderSearch.trim().toLowerCase();
-    if (!keyword) return availableLeaders;
-    return availableLeaders.filter((user) => {
+    if (!keyword) return selectableLeaders;
+    return selectableLeaders.filter((user) => {
       const name = String(user.name || "").toLowerCase();
       const phone = String(user.phone || "").toLowerCase();
       const id = String(user.id || user.user_id || "").toLowerCase();
@@ -178,9 +251,23 @@ const MaintenanceTeam_Table = () => {
         id.includes(keyword)
       );
     });
-  }, [availableLeaders, leaderSearch]);
+  }, [selectableLeaders, leaderSearch]);
 
   const [formData, setFormData] = useState(emptyForm);
+
+  useEffect(() => {
+    const fetchAreas = async () => {
+      try {
+        const response = await areaApi.getAllAreas();
+        if (response.data?.success) {
+          setAreas(response.data.data || []);
+        }
+      } catch (error) {
+        // do nothing
+      }
+    };
+    fetchAreas();
+  }, []);
 
   const fetchTeams = useCallback(async () => {
     try {
@@ -206,10 +293,29 @@ const MaintenanceTeam_Table = () => {
     }
   }, [search, areaFilter, statusFilter, currentPage]);
 
+  const fetchAllTeams = useCallback(async () => {
+    try {
+      const response = await maintenanceTeamApi.getTeams({
+        search: "",
+        area: "all",
+        status: "all",
+        page: 1,
+        limit: 1000,
+      });
+      setAllTeams((response?.data || []).map(normalizeTeam));
+    } catch (error) {
+      setAllTeams([]);
+    }
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(fetchTeams, 250);
     return () => clearTimeout(timer);
   }, [fetchTeams]);
+
+  useEffect(() => {
+    fetchAllTeams();
+  }, [fetchAllTeams]);
 
   useEffect(() => {
     // fetch management users and filter for maintenance-role and unassigned
@@ -276,16 +382,27 @@ const MaintenanceTeam_Table = () => {
         return;
       }
 
-      // generate team id and name based on specialty and existing teams
-      const prefix = SPECIALTY_PREFIX[formData.specialty] || "TK";
-      const seq = getNextTeamSequence(teams, formData.specialty);
-      const seqStr = String(seq).padStart(3, "0");
-      const generatedId = `${prefix}${seqStr}`;
-      const generatedName = `Đội ${formData.specialty} ${seqStr}`;
+      if (!formData.id || !formData.name) {
+        toast.error("Vui lòng chọn chuyên môn để tạo Team ID và Tên Đội");
+        return;
+      }
+
+      const sourceTeams = allTeams.length > 0 ? allTeams : teams;
+      const { hasId, hasName } = buildExistingTeamLookups(sourceTeams);
+
+      if (hasId(formData.id)) {
+        toast.error("Team ID đã tồn tại, vui lòng chọn ID khác");
+        return;
+      }
+
+      if (hasName(formData.name)) {
+        toast.error("Tên đội đã tồn tại, vui lòng chọn tên khác");
+        return;
+      }
 
       await maintenanceTeamApi.createTeam({
-        id: generatedId,
-        name: generatedName,
+        id: formData.id,
+        name: formData.name,
         specialty: formData.specialty,
         leader: formData.leader,
         memberCount: parseInt(formData.memberCount, 10) || 1,
@@ -295,6 +412,7 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       toast.success("Thêm đội xử lý thành công!");
       await fetchTeams();
+      await fetchAllTeams();
     } catch (error) {
       toast.error(error?.response?.data?.message || "Không thể thêm đội xử lý");
     }
@@ -322,6 +440,7 @@ const MaintenanceTeam_Table = () => {
       setFormData(emptyForm);
       toast.success("Cập nhật đội xử lý thành công!");
       await fetchTeams();
+      await fetchAllTeams();
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Không thể cập nhật đội xử lý",
@@ -329,16 +448,22 @@ const MaintenanceTeam_Table = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
     try {
       if (!teamToDelete) return;
       setTeamToDelete(null);
       await maintenanceTeamApi.deleteTeam(teamToDelete.id);
       toast.success("Đã xóa đội xử lý thành công!");
       await fetchTeams();
+      await fetchAllTeams();
     } catch (error) {
       toast.error(error?.response?.data?.message || "Không thể xóa đội xử lý");
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!teamToDelete) return;
+    await handleDelete();
   };
 
   const handleToggleLock = async (id, currentStatus) => {
@@ -386,32 +511,75 @@ const MaintenanceTeam_Table = () => {
         {/* Filters + Add button */}
         <div className="flex flex-wrap lg:flex-nowrap gap-2 lg:gap-3">
           {/* Khu vực */}
-          <Select
-            value={areaFilter}
-            onChange={(e) => {
-              setAreaFilter(e.target.value);
-              setCurrentPage(1);
+          <Popover 
+            open={isFilterAreaOpen} 
+            onOpenChange={(open) => {
+              setIsFilterAreaOpen(open);
+              if (!open) setSearchAreaQuery("");
             }}
           >
-            <SelectTrigger className="flex !h-11 min-w-[160px] shrink-0 items-center justify-between rounded-full border border-gray-200 bg-white px-4 py-0 text-sm font-normal text-gray-700 hover:bg-gray-50 focus:border-gray-300 focus:ring-0 focus:ring-offset-0 focus-visible:border-gray-300 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none outline-none transition-colors data-[state=open]:bg-white [&>span]:truncate [&>span]:text-left [&>span]:flex-1 [&>svg]:opacity-50">
-              <SelectValue placeholder="Tất cả khu vực" />
-            </SelectTrigger>
-            <SelectContent
-              position="popper"
-              sideOffset={5}
-              className="bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden"
+            <PopoverTrigger asChild>
+              <button className="flex !h-11 min-w-[160px] shrink-0 items-center justify-between rounded-full border border-gray-200 bg-white px-4 py-0 text-sm font-normal text-gray-700 hover:bg-gray-50 focus:border-gray-300 focus:ring-0 focus:ring-offset-0 focus-visible:border-gray-300 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none outline-none transition-colors data-[state=open]:bg-white">
+                <span className="truncate text-left flex-1">
+                  {areaFilter === "all"
+                    ? "Tất cả khu vực"
+                    : areas.find((a) => a.name === areaFilter)?.name ||
+                      "Tất cả khu vực"}
+                </span>
+                <ChevronDown className="opacity-50 shrink-0 ml-2 h-4 w-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[200px] p-2 bg-white border border-gray-200 shadow-xl rounded-xl z-50"
+              align="start"
+              side="bottom"
+              sideOffset={8}
             >
-              {AREA_OPTIONS.map((o) => (
-                <SelectItem
-                  key={o.value}
-                  value={o.value}
-                  className="cursor-pointer rounded-sm py-1.5 pl-8 pr-2 text-sm transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus-visible:outline-none focus-visible:ring-0 outline-none data-[state=checked]:bg-gray-100 data-[state=checked]:font-medium [&>span:first-child]:left-2 [&>span:first-child]:right-auto"
+              <Input
+                placeholder="Tìm phường/xã..."
+                value={searchAreaQuery}
+                onChange={(e) => setSearchAreaQuery(e.target.value)}
+                className="mb-2 h-9 text-sm rounded-md"
+              />
+              <div className="max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                <div
+                  className={`flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors ${areaFilter === "all" ? "bg-gray-100 font-medium" : ""}`}
+                  onClick={() => {
+                    setAreaFilter("all");
+                    setIsFilterAreaOpen(false);
+                    setCurrentPage(1);
+                  }}
                 >
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                  <Check
+                    className={`mr-2 h-4 w-4 ${areaFilter === "all" ? "opacity-100" : "opacity-0"}`}
+                  />
+                  Tất cả khu vực
+                </div>
+                {areas
+                  .filter((a) =>
+                    removeAccents(a.name).includes(
+                      removeAccents(searchAreaQuery)
+                    )
+                  )
+                  .map((area) => (
+                    <div
+                      key={area.area_id}
+                      className={`flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors ${areaFilter === area.name ? "bg-gray-100 font-medium" : ""}`}
+                      onClick={() => {
+                        setAreaFilter(area.name);
+                        setIsFilterAreaOpen(false);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${areaFilter === area.name ? "opacity-100" : "opacity-0"}`}
+                      />
+                      {area.name}
+                    </div>
+                  ))}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* Trạng thái */}
           <Select
@@ -444,7 +612,10 @@ const MaintenanceTeam_Table = () => {
           {/* Nút Thêm Đội */}
           <button
             type="button"
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setFormData(emptyForm);
+              setShowAddModal(true);
+            }}
             className="ml-auto inline-flex items-center justify-center gap-2 px-5 h-11 rounded-full text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white shadow-sm transition"
           >
             <Plus className="w-4 h-4" /> Thêm Đội
@@ -475,6 +646,18 @@ const MaintenanceTeam_Table = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Team ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.id}
+                    className={inputCls}
+                    placeholder="Team ID sẽ tự tạo khi chọn chuyên môn"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Chuyên Môn
                   </label>
                   <Popover
@@ -501,6 +684,7 @@ const MaintenanceTeam_Table = () => {
                     <PopoverContent
                       className="z-[10001] w-[--radix-popover-trigger-width] rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
                       align="start"
+                      side="bottom"
                       sideOffset={8}
                     >
                       <ScrollArea className="h-72 rounded-lg">
@@ -512,15 +696,18 @@ const MaintenanceTeam_Table = () => {
                                 key={s.value}
                                 type="button"
                                 onClick={() => {
-                                  const seq = getNextTeamSequence(
-                                    teams,
-                                    s.value,
-                                  );
-                                  const seqStr = String(seq).padStart(3, "0");
+                                  const sourceTeams =
+                                    allTeams.length > 0 ? allTeams : teams;
+                                  const { id, name } =
+                                    generateUniqueTeamIdentity(
+                                      sourceTeams,
+                                      s.value,
+                                    );
                                   setFormData({
                                     ...formData,
                                     specialty: s.value,
-                                    name: `Đội ${s.value} ${seqStr}`,
+                                    id,
+                                    name,
                                   });
                                   setSpecialtyPickerOpen(false);
                                 }}
@@ -548,12 +735,9 @@ const MaintenanceTeam_Table = () => {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
                     className={inputCls}
                     placeholder="Tên đội sẽ tự tạo khi chọn chuyên môn"
-                    readOnly={!!formData.specialty}
+                    readOnly
                   />
                 </div>
 
@@ -662,7 +846,10 @@ const MaintenanceTeam_Table = () => {
                   </label>
                   <Popover
                     open={areaPickerOpen}
-                    onOpenChange={setAreaPickerOpen}
+                    onOpenChange={(open) => {
+                      setAreaPickerOpen(open);
+                      if (!open) setSearchAreaQuery("");
+                    }}
                   >
                     <PopoverTrigger asChild>
                       <button
@@ -684,33 +871,42 @@ const MaintenanceTeam_Table = () => {
                     <PopoverContent
                       className="z-[10001] w-[--radix-popover-trigger-width] rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
                       align="start"
+                      side="bottom"
                       sideOffset={8}
                     >
-                      <ScrollArea className="h-56 rounded-lg">
-                        <div className="p-1">
-                          {AREA_SELECT_OPTIONS.map((a) => {
-                            const selected = formData.area === a;
+                      <Input
+                        placeholder="Tìm phường/xã..."
+                        value={searchAreaQuery}
+                        onChange={(e) => setSearchAreaQuery(e.target.value)}
+                        className="mb-2 h-9 text-sm rounded-md"
+                      />
+                      <div className="max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                        {areas
+                          .filter((a) =>
+                            removeAccents(a.name).includes(
+                              removeAccents(searchAreaQuery)
+                            )
+                          )
+                          .map((a) => {
+                            const selected = formData.area === a.name;
                             return (
-                              <button
-                                key={a}
-                                type="button"
+                              <div
+                                key={a.area_id}
+                                className={`flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors ${selected ? "bg-gray-100 font-medium" : ""}`}
                                 onClick={() => {
-                                  setFormData({ ...formData, area: a });
+                                  setFormData({ ...formData, area: a.name });
                                   setAreaPickerOpen(false);
+                                  setSearchAreaQuery("");
                                 }}
-                                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-blue-50"
                               >
-                                <span className="truncate text-gray-700">
-                                  {a}
-                                </span>
-                                {selected ? (
-                                  <Check className="h-4 w-4 text-blue-600" />
-                                ) : null}
-                              </button>
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`}
+                                />
+                                {a.name}
+                              </div>
                             );
                           })}
-                        </div>
-                      </ScrollArea>
+                      </div>
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -741,7 +937,6 @@ const MaintenanceTeam_Table = () => {
         )}
 
       {/* Edit Team Modal */}
-      {/* Edit Team Modal */}
       {showEditModal &&
         createPortal(
           <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -762,7 +957,52 @@ const MaintenanceTeam_Table = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chuyên Môn
+                  </label>
+                  <Popover
+                    open={specialtyPickerOpen}
+                    onOpenChange={setSpecialtyPickerOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                      >
+                        <span className={formData.specialty ? "truncate text-gray-900" : "text-gray-400"}>
+                          {formData.specialty || "-- Chọn chuyên môn --"}
+                        </span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="z-[10001] w-[--radix-popover-trigger-width] rounded-xl border border-gray-200 bg-white p-2 shadow-xl" align="start" sideOffset={8}>
+                      <ScrollArea className="h-72 rounded-lg">
+                        <div className="p-1">
+                          {SPECIALTY_OPTIONS.map((s) => {
+                            const selected = formData.specialty === s.value;
+                            return (
+                              <button
+                                key={s.value}
+                                type="button"
+                                onClick={() => {
+                                  setFormData({ ...formData, specialty: s.value });
+                                  setSpecialtyPickerOpen(false);
+                                }}
+                                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-blue-50"
+                              >
+                                <span className="truncate text-gray-700">{s.label}</span>
+                                {selected ? <Check className="h-4 w-4 text-blue-600" /> : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tên Đội
@@ -905,6 +1145,7 @@ const MaintenanceTeam_Table = () => {
                     <PopoverContent
                       className="z-[10001] w-[--radix-popover-trigger-width] rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
                       align="start"
+                      side="bottom"
                       sideOffset={8}
                     >
                       <ScrollArea className="h-56 rounded-lg">

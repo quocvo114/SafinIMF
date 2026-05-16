@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   X,
   Hash,
@@ -15,6 +15,7 @@ import {
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
 import { toast } from "sonner";
 import ImageViewer from "./ImageViewer";
 import LocationMapInline from "./LocationMapInline";
@@ -31,7 +32,22 @@ export default function MaintenanceReportDetail({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
+  const [incidentTypes, setIncidentTypes] = useState([]);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    if (isOpen) fetchIncidentTypes();
+  }, [isOpen]);
 
   if (!isOpen || !report) return null;
 
@@ -70,7 +86,9 @@ export default function MaintenanceReportDetail({
 
   const reportImageUrl = resolveImage(report, 0) || report?.imageUrl || "";
   const afterImageUrl = resolveImage(report, 1) || report?.afterImg || "";
-  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(Boolean);
+  const allImages = [reportImageUrl, afterImageUrl, selectedImage].filter(
+    Boolean,
+  );
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
@@ -263,9 +281,24 @@ export default function MaintenanceReportDetail({
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* Type + Title */}
             <div>
-              <Badge className="inline-flex items-center rounded-full bg-[#FF7F1F] hover:bg-[#FF7F1F] px-2.5 py-0.5 h-auto border-0 text-[10px] font-semibold text-white tracking-wide shadow-sm mb-1.5">
-                {report?.type || "Giao Thông"}
-              </Badge>
+              {(() => {
+                const typeObj = incidentTypes.find(
+                  (t) => t.name === report?.type,
+                );
+                const badgeStyle =
+                  typeObj && typeObj.color
+                    ? { backgroundColor: typeObj.color, color: "#fff" }
+                    : { backgroundColor: "#FF7F1F", color: "#fff" };
+
+                return (
+                  <Badge
+                    className="inline-flex items-center rounded-full px-2.5 py-0.5 h-auto border-0 text-[10px] font-semibold tracking-wide shadow-sm mb-1.5"
+                    style={badgeStyle}
+                  >
+                    {report?.type || "Loại sự cố"}
+                  </Badge>
+                );
+              })()}
               <h1 className="text-lg font-bold text-gray-900 leading-snug">
                 {report?.title || "Chi tiết sự cố"}
               </h1>
@@ -491,7 +524,7 @@ export default function MaintenanceReportDetail({
         images={allImages}
         initialIndex={imageViewer.index}
         isOpen={imageViewer.open}
-        onClose={() => setImageViewer({ open: false, index: 0 })}
+        onClose={() => setImageViewer({ open: false, index: 0, list: [] })}
       />
     </>
   );

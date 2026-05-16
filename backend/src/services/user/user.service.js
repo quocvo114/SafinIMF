@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const userRepository = require("./user.repository");
+const User = require("./user.model");
 
 const ROLE_DB_TO_UI = {
   citizen: "User",
@@ -25,6 +26,7 @@ function toManagementUser(user) {
     role: ROLE_DB_TO_UI[user.role] || "User",
     area: user.area || "",
     status: user.account_status || "active",
+    is_first_login: user.is_first_login || false,
     created_at: user.created_at,
   };
 }
@@ -86,6 +88,9 @@ class UserService {
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await userRepository.updatePassword(user_id, hashedPassword);
+    
+    // Đánh dấu đã đổi mật khẩu
+    await User.findOneAndUpdate({ user_id }, { is_first_login: false });
 
     return { success: true };
   }
@@ -156,6 +161,7 @@ class UserService {
       role: this.mapRoleForDb(role),
       area: area || "",
       account_status: status || "active",
+      is_first_login: true,
     };
 
     if (email && String(email).trim() !== "") {

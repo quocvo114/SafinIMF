@@ -1,5 +1,8 @@
 const MaintenanceTeam = require("../models/MaintenanceTeam");
 
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const buildExactMatchRegex = (value) => new RegExp(`^${escapeRegex(value)}$`, "i");
+
 class MaintenanceTeamRepository {
   async getList({ search, area, status, page = 1, limit = 10 }) {
     const query = {};
@@ -47,6 +50,18 @@ class MaintenanceTeamRepository {
 
   async findByTeamId(team_id) {
     return MaintenanceTeam.findOne({ team_id }).lean();
+  }
+
+  async findByName(name) {
+    const normalized = String(name || "").trim();
+    if (!normalized) return null;
+    return MaintenanceTeam.findOne({ name: buildExactMatchRegex(normalized) }).lean();
+  }
+
+  async findByLeader(leader) {
+    const normalized = String(leader || "").trim();
+    if (!normalized) return null;
+    return MaintenanceTeam.findOne({ leader: buildExactMatchRegex(normalized) }).lean();
   }
 
   async create(data) {

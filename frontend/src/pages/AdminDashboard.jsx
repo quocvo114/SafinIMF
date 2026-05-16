@@ -1,22 +1,27 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Building2, TrafficCone, TreePine, Zap } from "lucide-react";
+import { Building2, TrafficCone, TreePine, Zap, Layers } from "lucide-react";
 import IncidentPopupContent from "../components/IncidentPopupContent";
-import { incidentMarkerIcons } from "../lib/mapIcons";
+import { incidentMarkerIcons, createCustomMarkerIcon } from "../lib/mapIcons";
 import { reportApi } from "../services/api/reportApi";
+import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "../components/IncidentTypePopup";
+import { renderToString } from "react-dom/server";
 import "../styles/map.css";
 
 const DANANG_CENTER = [16.0471, 108.2068];
 const ADMIN_REPORTS_CACHE_KEY = "admin-map-reports-cache-v1";
 const ADMIN_GEOCODE_CACHE_KEY = "admin-map-geocode-cache-v1";
 
-const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
-  giaothong: "traffic",
-  dien: "electric",
-  cayxanh: "tree",
-  ctcc: "building",
-});
+const normalizeTypeKey = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
@@ -62,18 +67,6 @@ const extractPositionFromReport = (report) => {
   return [latFromLocation, lngFromLocation];
 };
 
-const mapReportTypeToIncidentType = (reportType) => {
-  const normalizedType = String(reportType || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-  return REPORT_TYPE_TO_INCIDENT_TYPE[normalizedType] || null;
-};
-
 const parseReportDate = (timeValue, createdAtValue) => {
   const matchedDate = String(timeValue || "").match(/\d{1,2}\/\d{1,2}\/\d{4}/);
   if (matchedDate) {
@@ -116,7 +109,6 @@ const loadCachedReports = () => {
     const parsedValue = JSON.parse(cachedValue);
     return Array.isArray(parsedValue) ? parsedValue : [];
   } catch (error) {
-    // ✅ Cleanup: Cache reading error handling silenced
     return [];
   }
 };
@@ -125,7 +117,7 @@ const saveCachedReports = (reports) => {
   try {
     localStorage.setItem(ADMIN_REPORTS_CACHE_KEY, JSON.stringify(reports));
   } catch (error) {
-    // ✅ Cleanup: Cache reading error handling silenced
+    // ✅ Cleanup: Cache writing error handling silenced
   }
 };
 
@@ -139,7 +131,6 @@ const loadGeocodeCache = () => {
     const parsedValue = JSON.parse(cachedValue);
     return parsedValue && typeof parsedValue === "object" ? parsedValue : {};
   } catch (error) {
-    // ✅ Cleanup: Cache reading error handling silenced
     return {};
   }
 };
@@ -232,6 +223,7 @@ const normalizeReportsForMap = async (rawReports) => {
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
         category,
+        type: category,
         position,
         title: report?.title || "Báo cáo sự cố",
         status: report?.status || "Đang Chờ",
@@ -259,36 +251,42 @@ function MapController({ mapRef }) {
   return null;
 }
 
+// ✅ CATEGORY_OPTIONS với màu sắc đồng bộ UI mềm mại
 const CATEGORY_OPTIONS = [
   {
     id: "all",
     label: "Tất Cả",
-    icon: "⌘",
-    color: "#2563eb",
+    icon: <Layers className="h-4 w-4" />,
+    color: "#2563EB",
+    borderColor: "#1d4ed8",
   },
   {
     id: "traffic",
     label: "Giao Thông",
     icon: <TrafficCone className="h-4 w-4" />,
-    color: "#f97316",
+    color: "#F97316",
+    borderColor: "#c2410c",
   },
   {
     id: "electric",
     label: "Điện",
     icon: <Zap className="h-4 w-4" />,
-    color: "#eab308",
+    color: "#FDCA00",
+    borderColor: "#AD8D0C",
   },
   {
     id: "tree",
     label: "Cây Xanh",
     icon: <TreePine className="h-4 w-4" />,
-    color: "#22c55e",
+    color: "#74C365",
+    borderColor: "#15803d",
   },
   {
     id: "public",
     label: "Công Trình Công Cộng",
     icon: <Building2 className="h-4 w-4" />,
-    color: "#a855f7",
+    color: "#B78FF2",
+    borderColor: "#7e22ce",
   },
 ];
 
@@ -297,6 +295,26 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState(() => loadCachedReports());
   const mapRef = useRef(null);
   const hasAutoFittedRef = useRef(false);
+  const [incidentTypes, setIncidentTypes] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchIncidentTypes = async () => {
+      try {
+        const response = await incidentApi.getIncidentTypes();
+        if (isMounted && response?.success && Array.isArray(response.data)) {
+          setIncidentTypes(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load incident types", error);
+      }
+    };
+    fetchIncidentTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -352,21 +370,15 @@ export default function AdminDashboard() {
     hasAutoFittedRef.current = true;
   }, [reports]);
 
-  const normalizedSelectedCategory = useMemo(() => {
-    if (selectedCategory === "public") {
-      return "building";
-    }
-
-    return selectedCategory;
-  }, [selectedCategory]);
+  const normalizedSelectedCategory = normalizeTypeKey(selectedCategory);
 
   const visiblePoints = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
       return reports;
     }
-
     return reports.filter(
-      (point) => point.category === normalizedSelectedCategory,
+      (point) =>
+        normalizeTypeKey(point.category) === normalizedSelectedCategory,
     );
   }, [normalizedSelectedCategory, reports]);
 
@@ -384,46 +396,107 @@ export default function AdminDashboard() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {visiblePoints.map((point) => (
-          <Marker
-            key={point.id}
-            position={point.position}
-            icon={incidentMarkerIcons[point.category]}
-            eventHandlers={{
-              click: (event) => event.target.openPopup(),
-            }}
-          >
-            <Popup
-              className="incident-popup"
-              maxWidth={420}
-              minWidth={280}
-              autoPan={true}
-              keepInView={true}
+        {visiblePoints.map((point) => {
+          const typeObj = incidentTypes.find(
+            (t) =>
+              normalizeTypeKey(t.name) === normalizeTypeKey(point.category),
+          );
+          let mapIcon = incidentMarkerIcons[point.category];
+
+          if (!mapIcon) {
+            let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
+            if (typeObj) {
+              const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
+              if (IconComp) {
+                svgString = renderToString(
+                  <IconComp
+                    className="map-marker__icon"
+                    color="currentColor"
+                  />,
+                );
+              }
+            }
+
+            mapIcon = createCustomMarkerIcon({
+              backgroundColor: typeObj?.color || "#f97316", // default orange
+              svgIcon: svgString,
+            });
+          }
+
+          return (
+            <Marker
+              key={point.id}
+              position={point.position}
+              icon={mapIcon}
+              eventHandlers={{
+                click: (event) => event.target.openPopup(),
+              }}
             >
+            <Popup>
               <IncidentPopupContent incident={point} />
             </Popup>
           </Marker>
-        ))}
+        );})}
       </MapContainer>
 
+      {/* ✅ Floating Categories - Soft UI Version */}
       <div
-        className="pointer-events-none absolute right-4 top-[5.4rem] z-20"
-        style={{ left: "var(--admin-sidebar-offset, 6rem)" }}
+        className="pointer-events-none absolute right-6 top-24 z-20"
+        style={{ left: "calc(var(--admin-sidebar-offset, 6rem) + 1rem)" }}
       >
         <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap">
-          {CATEGORY_OPTIONS.map((category) => (
+          {[
+            { id: "all", label: "Tất Cả", icon: "⌘", color: "#2563eb" },
+            ...incidentTypes.map((t) => {
+              const IconComp = INCIDENT_ICON_MAP[t.iconKey] || Building2;
+              return {
+                id: t.name,
+                label: t.name,
+                icon: <IconComp className="h-4 w-4" />,
+                color: t.color || "#f97316",
+              };
+            }),
+          ].map((category) => (
             <button
               key={category.id}
               type="button"
               onClick={() => setSelectedCategory(category.id)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-white shadow-md transition hover:brightness-95 sm:h-10 sm:px-4"
+              className={`
+                relative flex items-center gap-2 px-4 h-10 rounded-full text-xs font-medium
+                transition-all duration-300 ease-out whitespace-nowrap flex-shrink-0
+                ${selectedCategory === category.id ? "z-10" : "hover:opacity-100"}
+              `}
               style={{
-                backgroundColor: category.color,
-                opacity: selectedCategory === category.id ? 1 : 0.92,
+                backgroundColor:
+                  selectedCategory === category.id
+                    ? category.color
+                    : `${category.color}55`,
+                color: "#ffffff",
+                border:
+                  selectedCategory === category.id
+                    ? `2px solid ${category.borderColor || category.color}`
+                    : "2px solid transparent",
+                boxShadow:
+                  selectedCategory === category.id
+                    ? `0 4px 90px ${category.color}35, 0 0 0 9px ${category.color}12, inset 0 0px 9px rgba(255,255,255,0.5)`
+                    : "none",
+                transform:
+                  selectedCategory === category.id
+                    ? "scale(1.03) translateY(-1px)"
+                    : "scale(1)",
               }}
             >
               <span className="inline-flex items-center justify-center">
-                {category.icon}
+                {React.isValidElement(category.icon)
+                  ? React.cloneElement(category.icon, {
+                      size: 16,
+                      color: "#ffffff",
+                    })
+                  : (
+                    <span className="text-sm leading-none text-white">
+                      {String(category.icon ?? "")}
+                    </span>
+                  )}
               </span>
               <span>{category.label}</span>
             </button>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { formatLocationDisplay } from "../utils/formatLocation";
 import { Input } from "../components/ui/input";
@@ -21,6 +21,16 @@ import MaintenanceUserSidebar from "../components/MaintenanceUserSidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
 import MaintenanceReportDetail from "../components/MaintenanceReportDetail";
 import { reportApi } from "../services/api/reportApi";
+import { maintenanceTeamApi } from "../services/api/maintenanceTeamApi";
+import { useAuth } from "../context/AuthContext";
+
+const normalizeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .trim();
 
 export default function Assigned_report() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,18 +40,68 @@ export default function Assigned_report() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [teamId, setTeamId] = useState("");
+  const [teamLoading, setTeamLoading] = useState(false);
   const ITEMS_PER_PAGE = 4;
+  const { user } = useAuth();
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTeam = async () => {
+      if (!user) return;
+      setTeamLoading(true);
+      try {
+        const response = await maintenanceTeamApi.getTeams({
+          page: 1,
+          limit: 200,
+          status: "active",
+        });
+        const teams = Array.isArray(response?.data) ? response.data : [];
+        const leaderName = user?.full_name || user?.name || "";
+        const leaderPhone = user?.phone || "";
+        const normalizedLeader = normalizeText(leaderName);
+        const normalizedPhone = normalizeText(leaderPhone);
+
+        const matched = teams.find((team) => {
+          const leader = normalizeText(team?.leader || "");
+          if (!leader) return false;
+          if (normalizedLeader && leader === normalizedLeader) return true;
+          return normalizedPhone && leader.includes(normalizedPhone);
+        });
+
+        if (isMounted) {
+          setTeamId(matched?.team_id || matched?.id || "");
+        }
+      } catch (teamError) {
+        if (isMounted) setTeamId("");
+      } finally {
+        if (isMounted) setTeamLoading(false);
+      }
+    };
+
+    fetchTeam();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const fetchReports = async () => {
     try {
       setLoading(true);
       setError(null);
+      if (user?.role === "maintenance" && !teamId && !teamLoading) {
+        setReports([]);
+        setError("Không tìm thấy đội xử lý của bạn.");
+        return;
+      }
+
       const response = await reportApi.getManagementReports({
         status: "Đang Xử Lý",
         search: "",
         page: 1,
         limit: 100,
         view: "list",
+        ...(teamId ? { assignedTeamId: teamId } : {}),
       });
 
       if (response.success && Array.isArray(response.data)) {
@@ -60,7 +120,7 @@ export default function Assigned_report() {
 
   useEffect(() => {
     fetchReports();
-  }, [refreshKey]);
+  }, [refreshKey, teamId, teamLoading, user?.role]);
 
   const filteredReports = reports.filter((report) => {
     const query = searchQuery.trim().toLowerCase();
@@ -136,7 +196,7 @@ export default function Assigned_report() {
                 <div className="flex flex-col flex-1 min-h-0 pt-4 px-4 md:px-8">
                   {/* Table wrapper - scrollable internally */}
                   <div className="flex-1 overflow-y-auto min-h-0 pb-3">
-                    <Table className="w-full min-w-[700px]">
+                    <Table className="w-full min-w-[700px] [&_tr]:!border-b-0 [&_td]:!border-b-0 [&_th]:!border-b-0">
                       <TableHeader className="sticky top-0 bg-white z-10">
                         <TableRow className="border-b border-gray-200 hover:bg-transparent">
                           <TableHead className="w-[100px] px-3 py-3 text-[12px] font-semibold uppercase tracking-wider text-gray-600">
@@ -153,7 +213,7 @@ export default function Assigned_report() {
                           </TableHead>
                         </TableRow>
                       </TableHeader>
-                      <TableBody className="divide-y divide-gray-100">
+                      <TableBody>
                         {currentReports.map((report) => (
                           <TableRow
                             key={report?._id || report?.id || report?.report_id}
@@ -167,7 +227,7 @@ export default function Assigned_report() {
                                   ? `#${report.report_id}`
                                   : "---"}
                             </TableCell>
-                            <TableCell className="px-3 py-3 text-left text-sm text-gray-800 max-w-[250px] truncate">
+                            <TableCell className="px-3 py-3 text-center text-sm text-gray-800 max-w-[250px] truncate">
                               {report?.title || "---"}
                             </TableCell>
                             <TableCell className="px-3 py-3 text-left text-sm text-gray-600 max-w-[300px] truncate">
@@ -180,7 +240,7 @@ export default function Assigned_report() {
                         ))}
 
                         {currentReports.length === 0 && (
-                          <TableRow className="hover:bg-transparent">
+                          <TableRow className="!border-0 hover:bg-transparent">
                             <TableCell
                               colSpan={4}
                               className="px-4 py-12 text-center text-gray-400 text-sm"

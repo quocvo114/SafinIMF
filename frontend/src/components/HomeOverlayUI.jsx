@@ -10,45 +10,50 @@ import {
   X,
 } from "lucide-react";
 import ReportForm from "./Report";
-// Toast component imported but shadowed - using sonner toast directly
 import UserSidebar from "./UserSidebar";
 import { SidebarProvider } from "./ui/sidebar";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import incidentApi from "../services/api/incidentApi";
+import { INCIDENT_ICON_MAP } from "./IncidentTypePopup";
 
-const categories = [
+const DEFAULT_CATEGORIES = [
   {
     id: "traffic",
     name: "Giao Thông",
-    icon: <TrafficCone size={18} />,
+    iconKey: "car",
     bgColor: "#f97316",
     textColor: "#ffffff",
-    activeBgColor: "#f97316",
+    activeBgColor: "#F97316",
+    borderColor: "#c2410c",
   },
   {
     id: "electric",
     name: "Điện",
-    icon: <Zap size={18} />,
+    iconKey: "electric",
     bgColor: "#eab308",
     textColor: "#ffffff",
-    activeBgColor: "#eab308",
+    activeBgColor: "#FDCA00",
+    borderColor: "#AD8D0C",
   },
   {
     id: "tree",
     name: "Cây Xanh",
-    icon: <TreePine size={18} />,
+    iconKey: "tree",
     bgColor: "#22c55e",
     textColor: "#ffffff",
-    activeBgColor: "#22c55e",
+    activeBgColor: "#74C365",
+    borderColor: "#15803d",
   },
   {
     id: "public",
     name: "Công Trình",
-    icon: <Building2 size={18} />,
+    iconKey: "public",
     bgColor: "#a855f7",
     textColor: "#ffffff",
-    activeBgColor: "#a855f7",
+    activeBgColor: "#B78FF2",
+    borderColor: "#7e22ce",
   },
 ];
 
@@ -74,7 +79,31 @@ export default function HomeOverlayUI({
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  const canCreateReport = () => {
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await incidentApi.getIncidentTypes();
+        if (res?.success && Array.isArray(res.data)) {
+          const apiCategories = res.data.map(type => ({
+            id: type.name, // Use name as ID for filtering since reports save 'type' as name
+            name: type.name,
+            iconKey: type.iconKey || "public",
+            bgColor: type.color || "#f97316",
+            textColor: "#ffffff",
+            activeBgColor: type.color || "#f97316",
+          }));
+          setCategories(apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES);
+        }
+      } catch (err) {
+        console.error("Failed to fetch incident types", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const requireAuth = () => {
     const isAuthenticated = Boolean(user || localStorage.getItem("token"));
     if (isAuthenticated) {
       return true;
@@ -148,7 +177,7 @@ export default function HomeOverlayUI({
 
   // Mở camera
   const openCamera = async () => {
-    if (!canCreateReport()) {
+    if (!requireAuth()) {
       return;
     }
 
@@ -163,7 +192,6 @@ export default function HomeOverlayUI({
         if (videoRef.current) videoRef.current.srcObject = mediaStream;
       }, 100);
     } catch (error) {
-      // ✅ Cleanup: Camera access error handling silenced
       toast.error(
         "Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập.",
       );
@@ -206,57 +234,95 @@ export default function HomeOverlayUI({
           <div className="absolute inset-0 z-0 w-full h-full">{mapElement}</div>
         )}
 
-        {/* Floating Sidebar - Left Top (only show when authenticated) */}
-        {user && (
-          <div className="absolute left-3 top-4 z-10">
-            <SidebarProvider>
-              <UserSidebar />
-            </SidebarProvider>
-          </div>
-        )}
+        {/* Floating Sidebar - Left Top */}
+        <div className="absolute left-3 top-4 z-10">
+          <SidebarProvider>
+            <UserSidebar />
+          </SidebarProvider>
+        </div>
 
-        {/* Floating Categories - Right Top (only show when authenticated) */}
-        {user && (
-          <div
-            className="absolute top-4 right-4 z-10 flex gap-2 overflow-x-auto scrollbar-hide"
-            style={{ left: "var(--user-sidebar-offset, 6rem)" }}
+        {/* Floating Categories - Right Top */}
+        <div
+          className="absolute top-6 right-6 z-10 flex gap-2 scrollbar-hide px-3 py-1.5 -mx-1"
+          style={{ left: "calc(var(--user-sidebar-offset, 6rem) + 1rem)" }}
+        >
+          {/* Nút "Tất cả" */}
+          <button
+            onClick={() => {
+              if (requireAuth()) setSelectedCategory("all");
+            }}
+            className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+              selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
+            }`}
+            style={{
+              backgroundColor:
+                selectedCategory === "all" ? "#2563EB" : "#2563EB55",
+              color: selectedCategory === "all" ? "#ffffff" : "#ffffff",
+              border:
+                selectedCategory === "all"
+                  ? "2px solid #2563EB"
+                  : "2px solid transparent",
+              boxShadow:
+                selectedCategory === "all"
+                  ? "0 4px 90px #2563EB35, 0 0 0 9px #2563EB12, inset 0 0px 9px rgba(255,255,255,0.5)"
+                  : "none",
+              transform:
+                selectedCategory === "all"
+                  ? "scale(1.03) translateY(-1px)"
+                  : "scale(1)",
+            }}
           >
-            {/* Category buttons */}
-            <button
-              onClick={() => setSelectedCategory("all")}
-              className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                selectedCategory === "all" ? "shadow-md" : "hover:shadow-sm"
-              }`}
-              style={{
-                backgroundColor: "#2563EB",
-                color: "#ffffff",
-                border: "none",
-              }}
-            >
-              <span className="icon-wrap">
-                <LayoutGrid size={18} />
-              </span>
-              <span>Tất cả</span>
-            </button>
-            {categories.map((c) => (
+            <LayoutGrid
+              size={18}
+              color={selectedCategory === "all" ? "#ffffff" : "#ffffff"}
+            />
+            <span>Tất cả</span>
+          </button>
+
+          {/* Các nút category */}
+          {categories.map((c) => {
+            const iconComponent = INCIDENT_ICON_MAP[c.iconKey];
+            const Icon = React.isValidElement(iconComponent) ? null : iconComponent;
+            return (
               <button
                 key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
+                onClick={() => {
+                  if (requireAuth()) setSelectedCategory(c.id);
+                }}
                 className={`flex items-center gap-1.5 px-4 h-10 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                   selectedCategory === c.id ? "shadow-md" : "hover:shadow-sm"
                 }`}
                 style={{
-                  backgroundColor: c.bgColor,
-                  color: "#ffffff",
-                  border: "none",
+                  backgroundColor:
+                    selectedCategory === c.id ? c.bgColor : `${c.bgColor}55`,
+                  color: selectedCategory === c.id ? "#ffffff" : "#ffffff",
+                  border:
+                    selectedCategory === c.id
+                      ? `2px solid ${c.bgColor}`
+                      : "2px solid transparent",
+                  boxShadow:
+                    selectedCategory === c.id
+                      ? `0 4px 90px ${c.bgColor}35, 0 0 0 9px ${c.bgColor}12, inset 0 0px 9px rgba(255,255,255,0.5)`
+                      : "none",
+                  transform:
+                    selectedCategory === c.id
+                      ? "scale(1.03) translateY(-1px)"
+                      : "scale(1)",
                 }}
               >
-                <span className="icon-wrap">{c.icon}</span>
+                {Icon ? (
+                  <Icon
+                    size={18}
+                    color={selectedCategory === c.id ? "#ffffff" : "#ffffff"}
+                  />
+                ) : (
+                  <span className="w-4.5 h-4.5 bg-white rounded-sm" />
+                )}
                 <span>{c.name}</span>
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
 
         {/* Auth Buttons - Top Right Corner (only show when not authenticated) */}
         {showAuthButtons && !user ? (
@@ -290,7 +356,12 @@ export default function HomeOverlayUI({
           {/* Plus Button */}
           <button
             className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white shadow-lg transition-all hover:bg-gray-800 md:h-14 md:w-14"
-            onClick={handlePlusClick}
+            onClick={() => {
+              if (!requireAuth()) {
+                return;
+              }
+              setIsReportOpen((prev) => !prev);
+            }}
             title="Tạo báo cáo mới"
           >
             <Plus size={20} />
