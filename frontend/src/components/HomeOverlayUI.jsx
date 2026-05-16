@@ -262,13 +262,13 @@ export default function HomeOverlayUI({
         {showAuthButtons && !user ? (
           <div className="absolute top-4 right-4 z-10 flex gap-3">
             <button
-              onClick={() => handleAuthConfirm("signin")}
+              onClick={() => navigate("/signin")}
               className="flex items-center gap-2 px-6 h-12 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 bg-white text-blue-600 hover:shadow-lg shadow-lg border-2 border-blue-600 hover:bg-blue-50"
             >
               Sign In
             </button>
             <button
-              onClick={() => handleAuthConfirm("signup")}
+              onClick={() => navigate("/register")}
               className="flex items-center gap-2 px-6 h-12 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 bg-blue-600 text-white hover:shadow-lg shadow-lg hover:bg-blue-700"
             >
               Sign Up
