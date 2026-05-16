@@ -1,0 +1,71 @@
+.cluster-marker {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.cluster-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #e53935;
+  color: #ffffff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.cluster-marker--resolved {
+  opacity: 0.78;
+  filter: saturate(0.75);
+}
+
+.cluster-marker--resolved .cluster-badge {
+  background: #16a34a;
+  color: #eaffef;
+}
+
+.cluster-popup {
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.cluster-popup__header {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cluster-popup__divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 6px 0;
+}
+
+.cluster-popup__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cluster-popup__item {
+  display: flex;
+  gap: 6px;
+  line-height: 1.35;
+}
+
+.cluster-popup__bullet {
+  margin-top: 1px;
+}
+
+.cluster-popup__footer {
+  font-size: 12px;
+  color: #2563eb;
+  font-weight: 600;
+}

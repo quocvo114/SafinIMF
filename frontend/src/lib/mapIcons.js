@@ -43,6 +43,20 @@ const SEARCH_SVG = buildSvg(
   '<circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />',
 );
 
+const TYPE_TO_COLOR = Object.freeze({
+  traffic: "#f97316",
+  electric: "#fdca00",
+  tree: "#74c365",
+  building: "#b78ff2",
+});
+
+const TYPE_TO_SVG = Object.freeze({
+  traffic: TRAFFIC_SVG,
+  electric: ELECTRIC_SVG,
+  tree: TREE_SVG,
+  building: BUILDING_SVG,
+});
+
 export const createCustomMarkerIcon = ({
   backgroundColor,
   svgIcon,
@@ -90,6 +104,31 @@ export const searchLocationMarkerIcon = createCustomMarkerIcon({
   backgroundColor: "#0ea5e9",
   svgIcon: SEARCH_SVG,
 });
+
+export const incidentMarkerSvgs = Object.freeze(TYPE_TO_SVG);
+
+const formatClusterBadge = (count) => (count > 9 ? "9+" : String(count));
+
+export const createClusterMarkerIcon = ({ type, count, isResolved = false }) => {
+  const backgroundColor = TYPE_TO_COLOR[type] || "#64748b";
+  const svgIcon = TYPE_TO_SVG[type] || SEARCH_SVG;
+  const colorClass = isResolved
+    ? "map-marker--resolved"
+    : getColorClass(backgroundColor);
+  const resolvedClass = isResolved ? " cluster-marker--resolved" : "";
+  const badge =
+    count > 1
+      ? `<span class="cluster-badge">${formatClusterBadge(count)}</span>`
+      : "";
+
+  return L.divIcon({
+    className: "map-marker-wrapper cluster-marker-wrapper",
+    html: `<div class="map-marker cluster-marker ${colorClass}${resolvedClass}">${svgIcon}${badge}</div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -22],
+  });
+};
 
 export const incidentMarkerIcons = Object.freeze({
   traffic: trafficMarkerIcon,

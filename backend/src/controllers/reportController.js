@@ -2,6 +2,8 @@ const ReportRepository = require("../repositories/ReportRepository");
 const MaintenanceTeamRepository = require("../repositories/MaintenanceTeamRepository");
 const cloudinary = require("../config/cloudinary");
 const AiValidationLog = require("../models/AiValidationLog");
+const clusterSyncService = require("../services/clusterSync.service");
+const User = require("../services/user/user.model");
 
 const CLOUDINARY_REQUIRED_ENV = [
   "CLOUDINARY_CLOUD_NAME",
@@ -44,6 +46,20 @@ function normalizeText(value = "") {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+async function resolveAssignedTeamIdFromUser(userId) {
+  if (!userId) return null;
+
+  const numericUserId = Number(userId);
+  const lookupUserId = Number.isFinite(numericUserId) ? numericUserId : userId;
+
+  const user = await User.findOne({ user_id: lookupUserId }).lean();
+  const leaderName = String(user?.full_name || "").trim();
+  if (!leaderName) return null;
+
+  const team = await MaintenanceTeamRepository.findByLeader(leaderName);
+  return team?.team_id || team?.id || null;
 }
 
 const RECEPTION_STATUS_OPTIONS = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
@@ -213,6 +229,9 @@ function toReceptionItem(report) {
     // Progress fields
     afterImg: report.afterImg || "",
     progressNote: report.progressNote || "",
+    clusterSourceId: report.clusterSourceId || null,
+    clusterSyncedAt: report.clusterSyncedAt || null,
+    clusterSyncNote: report.clusterSyncNote || "",
     // AI fields for display
     aiPercent: report.aiPercent ?? null,
     aiVerified: report.aiVerified ?? false,
@@ -261,7 +280,6 @@ async function uploadImagesToCloudinary(images, userId) {
   return uploaded.filter(Boolean);
 }
 const Report = require("../models/Report");
-const User = require("../services/user/user.model");
 const IncidentTypeRepository = require("../repositories/IncidentTypeRepository");
 const { verifyAllImages } = require("../services/ai/aiVerification.service");
 const { extractExifFromImages } = require("../services/exif/exif.service");
@@ -393,6 +411,35 @@ class ReportController {
         assignedTeamId = "",
       } = req.query;
 
+      let assignedTeamId = assignedTeamIdQuery;
+
+      if (assignedTo === "me") {
+        const userId = req.user?.user_id || req.user?.id;
+        assignedTeamId = await resolveAssignedTeamIdFromUser(userId);
+
+        if (!assignedTeamId) {
+          const safePage = Math.max(parseInt(page, 10) || 1, 1);
+          const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
+
+          return res.status(200).json({
+            success: true,
+            data: [],
+            pagination: {
+              page: safePage,
+              limit: safeLimit,
+              total: 0,
+              totalPages: 1,
+            },
+          });
+        }
+      }
+
+      const hasTeamFilter = Boolean(assignedTeamId);
+      const excludeFollowers =
+        hasTeamFilter &&
+        (excludeClusterFollowers === undefined ||
+          String(excludeClusterFollowers).toLowerCase() !== "false");
+
       const result = await ReportRepository.getManagementList({
         search,
         type,
@@ -400,6 +447,8 @@ class ReportController {
         assignedTeamId,
         page,
         limit,
+        assignedTeamId,
+        excludeClusterFollowers: excludeFollowers,
       });
 
       res.status(200).json({
@@ -918,10 +967,13 @@ class ReportController {
       // PB14: Kiểm tra ảnh khắc phục khi cập nhật thành "Đã Giải Quyết"
       if (status === "Đã Giải Quyết") {
         if (!existingReport.afterImg) {
-          console.log(`❌ [UPDATE_STATUS] Cannot resolve - no after image found for report ${id}`);
+          console.log(
+            `❌ [UPDATE_STATUS] Cannot resolve - no after image found for report ${id}`,
+          );
           return res.status(400).json({
             success: false,
-            message: "Báo cáo chưa có ảnh khắc phục từ đội xử lý. Vui lòng chờ đội xử lý upload ảnh",
+            message:
+              "Báo cáo chưa có ảnh khắc phục từ đội xử lý. Vui lòng chờ đội xử lý upload ảnh",
           });
         }
       }
@@ -1037,12 +1089,15 @@ class ReportController {
       const isSameTeam = previousTeamId && previousTeamId === teamId;
       const nextTeamName = teamName || team.name;
 
-      const currentCases = Math.max(parseInt(team.currentCases, 10) || 0, 0);
-      const previousCases = currentCases;
+      const shouldAdjustCaseCount = !isSameTeam && !report.clusterSourceId;
+      let previousCases = null;
       let previousTeam = null;
       let previousTeamCases = null;
 
-      if (!isSameTeam) {
+      if (shouldAdjustCaseCount) {
+        const currentCases = Math.max(parseInt(team.currentCases, 10) || 0, 0);
+        previousCases = currentCases;
+
         if (previousTeamId) {
           previousTeam =
             await MaintenanceTeamRepository.findByTeamId(previousTeamId);
@@ -1071,13 +1126,24 @@ class ReportController {
         report.assignedTeamName = nextTeamName;
         const updated = await report.save();
 
+        if (!updated.clusterSourceId) {
+          try {
+            await clusterSyncService.syncStatusToInProgress(updated.id);
+          } catch (syncError) {
+            console.error(
+              "⚠️ Cluster sync (in progress) failed:",
+              syncError.message,
+            );
+          }
+        }
+
         return res.status(200).json({
           success: true,
           message: "Phân công đội xử lý thành công",
           data: toReceptionItem(updated),
         });
       } catch (error) {
-        if (!isSameTeam) {
+        if (shouldAdjustCaseCount && previousCases !== null) {
           await MaintenanceTeamRepository.updateCaseCountByTeamId(
             teamId,
             previousCases,
@@ -1176,6 +1242,39 @@ class ReportController {
         });
       }
 
+      if (!updated.clusterSourceId) {
+        try {
+          await clusterSyncService.syncStatusToResolved(updated.id);
+        } catch (syncError) {
+          console.error(
+            "⚠️ Cluster sync (resolved) failed:",
+            syncError.message,
+          );
+        }
+      }
+
+      if (
+        report.status !== "Đã Giải Quyết" &&
+        !updated.clusterSourceId &&
+        updated.assignedTeamId
+      ) {
+        const team = await MaintenanceTeamRepository.findByTeamId(
+          updated.assignedTeamId,
+        );
+
+        if (team) {
+          const currentCases = Math.max(
+            parseInt(team.currentCases, 10) || 0,
+            0,
+          );
+
+          await MaintenanceTeamRepository.updateCaseCountByTeamId(
+            updated.assignedTeamId,
+            Math.max(currentCases - 1, 0),
+          );
+        }
+      }
+
       console.log(
         `✅ Progress updated: Report ${id} - ảnh khắc phục được lưu (chưa cập nhật trạng thái)`,
       );
@@ -1209,6 +1308,61 @@ class ReportController {
       });
     } catch (error) {
       console.error("❌ Update progress error:", error.message);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async getClusterPeers(req, res) {
+    try {
+      const { id } = req.params;
+      const report = await ReportRepository.getById(id);
+
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy báo cáo",
+        });
+      }
+
+      const sourceId = report.clusterSourceId || report.id;
+      const sourceReport = report.clusterSourceId
+        ? await ReportRepository.getById(report.clusterSourceId)
+        : report;
+
+      const peers = await Report.find(
+        { clusterSourceId: sourceId },
+        {
+          _id: 1,
+          id: 1,
+          report_id: 1,
+          title: 1,
+          type: 1,
+          status: 1,
+          createdAt: 1,
+        },
+      )
+        .sort({ createdAt: 1 })
+        .lean();
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          sourceId,
+          source: sourceReport
+            ? {
+                id: sourceReport.id,
+                report_id: sourceReport.report_id,
+                title: sourceReport.title,
+                status: sourceReport.status,
+              }
+            : null,
+          peers,
+        },
+      });
+    } catch (error) {
       res.status(500).json({
         success: false,
         message: error.message,

@@ -28,6 +28,7 @@ import ImageViewer from "./ImageViewer";
 import LocationMapInline from "./LocationMapInline";
 
 import incidentApi from "../services/api/incidentApi";
+import { reportApi } from "../services/api/reportApi";
 
 function normalizeTypeKey(type) {
   return String(type || "")
@@ -163,8 +164,16 @@ function InfoBlock({
   iconTone = "blue",
   className = "",
   onClick,
+  meta,
 }) {
   const normalizedValue = value || "Chưa có dữ liệu";
+  const metaNode = meta ? (
+    typeof meta === "string" ? (
+      <p className="mt-0.5 text-[10px] font-medium text-zinc-500">{meta}</p>
+    ) : (
+      <div className="mt-0.5">{meta}</div>
+    )
+  ) : null;
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`} onClick={onClick}>
@@ -182,6 +191,7 @@ function InfoBlock({
         >
           {normalizedValue}
         </p>
+        {metaNode}
       </div>
     </div>
   );
@@ -309,6 +319,8 @@ export default function ReportDetailQLKV({
   const isOpen = Boolean(data);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
+  const [clusterPeers, setClusterPeers] = useState([]);
+  const [clusterPeersLoading, setClusterPeersLoading] = useState(false);
 
   const beforeImage = resolveImage(data, 0);
   const afterImage = data?.afterImg || resolveImage(data, 1);
@@ -330,6 +342,58 @@ export default function ReportDetailQLKV({
   useEffect(() => {
     setAfterImageFailed(false);
   }, [afterImage]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const fetchClusterPeers = async () => {
+      if (!isOpen || !data) {
+        if (isActive) {
+          setClusterPeers([]);
+          setClusterPeersLoading(false);
+        }
+        return;
+      }
+
+      if (data.clusterSourceId) {
+        if (isActive) {
+          setClusterPeers([]);
+          setClusterPeersLoading(false);
+        }
+        return;
+      }
+
+      const reportId = data?.id || data?.report_id || data?._id;
+      if (!reportId) {
+        return;
+      }
+
+      setClusterPeersLoading(true);
+      try {
+        const response = await reportApi.getClusterPeers(reportId);
+        const peers = Array.isArray(response?.data?.peers)
+          ? response.data.peers
+          : [];
+        if (isActive) {
+          setClusterPeers(peers);
+        }
+      } catch (error) {
+        if (isActive) {
+          setClusterPeers([]);
+        }
+      } finally {
+        if (isActive) {
+          setClusterPeersLoading(false);
+        }
+      }
+    };
+
+    fetchClusterPeers();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isOpen, data]);
 
   if (!isOpen || !data) return null;
 

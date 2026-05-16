@@ -177,6 +177,27 @@ class ReportRepository {
         assignedTeamId,
       });
 
+      const normalizedTeamId = assignedTeamId
+        ? String(assignedTeamId).trim()
+        : "";
+
+      if (normalizedTeamId) {
+        const teamFilter = {
+          $or: [
+            { assignedTeamId: normalizedTeamId },
+            { handlingTeamId: normalizedTeamId },
+          ],
+        };
+        query.$and = query.$and ? [...query.$and, teamFilter] : [teamFilter];
+      }
+
+      if (excludeClusterFollowers) {
+        const clusterFilter = { clusterSourceId: null };
+        query.$and = query.$and
+          ? [...query.$and, clusterFilter]
+          : [clusterFilter];
+      }
+
       const safePage = Math.max(parseInt(page, 10) || 1, 1);
       const safeLimit = Math.max(parseInt(limit, 10) || 10, 1);
       const skip = (safePage - 1) * safeLimit;

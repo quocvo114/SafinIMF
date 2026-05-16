@@ -177,6 +177,15 @@ export default function ReportDetail({ data, close }) {
               {getStatusLabel(displayData.status)}
             </Badge>
           </div>
+
+          {clusterSourceId && (
+            <div className="mt-2 rounded-[10px] border border-blue-100 bg-blue-50 px-3 py-2">
+              <p className="text-[11px] font-semibold text-blue-700">
+                Báo cáo này được tự động cập nhật theo báo cáo
+                {` #${clusterSourceId}`} (cùng cụm).
+              </p>
+            </div>
+          )}
         </DialogHeader>
 
         <Separator className="mt-2 bg-[#dbe8ff]" />
