@@ -67,6 +67,18 @@ const extractPositionFromReport = (report) => {
   return [latFromLocation, lngFromLocation];
 };
 
+const mapReportTypeToIncidentType = (reportType) => {
+  const normalizedType = String(reportType || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  return REPORT_TYPE_TO_INCIDENT_TYPE[normalizedType] || null;
+};
+
 const parseReportDate = (timeValue, createdAtValue) => {
   const matchedDate = String(timeValue || "").match(/\d{1,2}\/\d{1,2}\/\d{4}/);
   if (matchedDate) {

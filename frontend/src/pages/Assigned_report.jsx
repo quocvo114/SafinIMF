@@ -37,7 +37,7 @@ export default function Assigned_report() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState(null);
   const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [teamId, setTeamId] = useState("");
@@ -45,6 +45,8 @@ export default function Assigned_report() {
   const [teamLookupDone, setTeamLookupDone] = useState(false);
   const ITEMS_PER_PAGE = 4;
   const { user } = useAuth();
+
+  const visibleStatuses = new Set(["Đang Xử Lý", "Đang Chờ"]);
 
   useEffect(() => {
     let isMounted = true;
@@ -79,8 +81,10 @@ export default function Assigned_report() {
       } catch (teamError) {
         if (isMounted) setTeamId("");
       } finally {
-        if (isMounted) setTeamLoading(false);
-        if (isMounted) setTeamLookupDone(true);
+        if (isMounted) {
+          setTeamLoading(false);
+          setTeamLookupDone(true);
+        }
       }
     };
 
@@ -92,8 +96,10 @@ export default function Assigned_report() {
 
   const fetchReports = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
+      setReports([]);
       setError(null);
+      setCurrentPage(1);
       if (user?.role === "maintenance" && !teamLookupDone) {
         return;
       }
@@ -116,7 +122,7 @@ export default function Assigned_report() {
       if (response.success && Array.isArray(response.data)) {
         const activeReports = response.data.filter(
           (report) =>
-            report?.status !== "Đã Giải Quyết" && !report?.clusterSourceId,
+            visibleStatuses.has(report?.status) && !report?.clusterSourceId,
         );
         setReports(activeReports);
       } else {
@@ -127,11 +133,28 @@ export default function Assigned_report() {
       setError("Không thể tải danh sách báo cáo. Vui lòng thử lại.");
       setReports([]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!user) return;
+
+    if (user?.role !== "maintenance") {
+      return;
+    }
+
+    if (!teamLookupDone) {
+      return;
+    }
+
+    if (!teamId) {
+      setReports([]);
+      setError("Không tìm thấy đội xử lý của bạn.");
+      setIsLoading(false);
+      return;
+    }
+
     fetchReports();
   }, [refreshKey, teamId, teamLoading, teamLookupDone, user?.role]);
 
@@ -192,7 +215,7 @@ export default function Assigned_report() {
 
             {/* Table Container */}
             <div className="flex flex-col flex-1 min-h-0 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden p-2 sm:p-4">
-              {loading ? (
+              {isLoading ? (
                 <div className="flex-1 flex items-center justify-center py-20">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-500" />

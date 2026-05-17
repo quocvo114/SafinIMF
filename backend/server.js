@@ -14,9 +14,10 @@ const maintenanceTeamRoutes = require("./src/routes/maintenanceTeamRoutes");
 const areaRoutes = require("./src/routes/areaRoutes");
 const incidentTypeRoutes = require("./src/routes/incidentTypeRoutes");
 const statisticsRoutes = require("./src/routes/statisticsRoutes");
+const notificationRoutes = require("./src/routes/notificationRoutes");
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 5050;
+const PORT = process.env.BACKEND_PORT || 5000;
 const ENABLE_MONGO = process.env.ENABLE_MONGO !== "false";
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
@@ -51,6 +52,9 @@ app.use(
   }),
 );
 
+// Ensure preflight requests are handled for all routes
+// Note: explicit app.options('*', ...) removed due to path-to-regexp incompatibility
+
 // Middleware - Tăng limit cho JSON và URL encoded để nhận ảnh base64
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -71,6 +75,7 @@ app.use("/api/maintenance-teams", maintenanceTeamRoutes);
 app.use("/api/areas", areaRoutes);
 app.use("/api/incident-types", incidentTypeRoutes);
 app.use("/api/statistics", statisticsRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Start server
 app.listen(PORT, () => {

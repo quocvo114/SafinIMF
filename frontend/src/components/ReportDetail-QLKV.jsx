@@ -481,7 +481,7 @@ export default function ReportDetailQLKV({
     : "";
   const normalizedStatus = normalizeTypeKey(data.status);
   const isResolved =
-    normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly";
+    normalizedStatus === "da hoan tat" || normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly";
   const hasAssignedTeam = Boolean(
     data?.assignedTeamId ||
     data?.assignedTeamName ||
@@ -613,6 +613,7 @@ export default function ReportDetailQLKV({
                     </div>
                   </div>
                 )}
+
               {/* Info Grid 2x2 compact */}
               <div className="grid grid-cols-2 gap-2">
                 <InfoBlock

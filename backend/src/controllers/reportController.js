@@ -66,9 +66,13 @@ async function resolveAssignedTeamIdFromUser(userId) {
 const RECEPTION_STATUS_OPTIONS = [
   "Đang Chờ",
   "Đang Xử Lý",
-  "Đã hoàn tất",
   "Đã Giải Quyết",
+  "Đã Hoàn Tất",
 ];
+
+function sendNotification(userId, afterImg) {
+  console.log("Gửi ảnh kết quả cho dân", { userId, afterImg });
+}
 
 function inferDistrict(location = "") {
   const normalizedLocation = String(location)
@@ -414,8 +418,10 @@ class ReportController {
         status = "all",
         page = 1,
         limit = 10,
-        assignedTo,
-        assignedTeamId: assignedTeamIdQuery,
+        // `assignedTo` can be 'me' to indicate teams for the current user.
+        assignedTo = "",
+        // incoming assignedTeamId may be passed as a query param; alias it here
+        assignedTeamId: assignedTeamIdQuery = "",
         excludeClusterFollowers,
       } = req.query;
 
@@ -991,58 +997,44 @@ class ReportController {
             message: "Bạn chỉ có thể cập nhật báo cáo của chính mình",
           });
         }
-        // Citizen can only set status to "Đã Giải Quyết" when report is already "Đã hoàn tất"
-        if (status === "Đã Giải Quyết") {
-          if (existingReport.status !== "Đã hoàn tất") {
+        // Citizen can only set status to "Đã Hoàn Tất" when report is already "Đã Giải Quyết"
+        if (status === "Đã Hoàn Tất") {
+          if (existingReport.status !== "Đã Giải Quyết") {
             return res.status(409).json({
               success: false,
               message:
-                "Báo cáo chưa được QLKV xác nhận hoàn tất. Vui lòng chờ QLKV cập nhật trạng thái 'Đã hoàn tất' trước",
+                "Báo cáo chưa được đội xử lý khắc phục xong. Vui lòng chờ đội xử lý cập nhật trạng thái 'Đã Giải Quyết' trước",
             });
           }
         } else if (status !== existingReport.status) {
           // Citizen cannot change to other statuses
           return res.status(403).json({
             success: false,
-            message: "Bạn chỉ có thể đánh dấu báo cáo là 'Đã Giải Quyết'",
+            message: "Bạn chỉ có thể đánh dấu báo cáo là 'Đã Hoàn Tất'",
           });
         }
       }
 
       const wasResolved = existingReport.status === "Đã Giải Quyết";
+      const isCompleted = existingReport.status === "Đã Hoàn Tất";
       const resolvedTeamId =
         existingReport.assignedTeamId || existingReport.handlingTeamId;
 
-      // Ngăn phân công khi đã giải quyết
-      if (existingReport.status === "Đã Giải Quyết") {
+      // Ngăn chỉnh sửa khi đã hoàn tất nghiệm thu
+      if (isCompleted) {
         return res.status(409).json({
           success: false,
-          code: "REPORT_ALREADY_RESOLVED",
+          code: "REPORT_ALREADY_COMPLETED",
           message:
-            "Báo cáo này đã được giải quyết, không thể phân công hoặc thay đổi trạng thái",
+            "Báo cáo này đã hoàn tất, không thể thay đổi trạng thái",
         });
       }
 
-      // PB14: Kiểm tra quy trình chuyển trạng thái đặc biệt
-      // - Khi QLKV cập nhật thành "Đã hoàn tất", cần có ảnh khắc phục đã upload bởi đội xử lý
-      // - Khi công dân cập nhật thành "Đã Giải Quyết", báo cáo phải đang ở trạng thái "Đã hoàn tất"
-      if (status === "Đã hoàn tất") {
+      // PB14 + nghiệm thu: chỉ khi QLKV chuyển sang "Đã Hoàn Tất" mới bắt buộc có ảnh sau khắc phục
+      if (status === "Đã Hoàn Tất") {
         if (!existingReport.afterImg) {
           console.log(
-            `❌ [UPDATE_STATUS] Cannot mark as Đã hoàn tất - no after image for report ${id}`,
-          );
-          return res.status(400).json({
-            success: false,
-            message:
-              "Báo cáo chưa có ảnh khắc phục từ đội xử lý. Vui lòng chờ đội xử lý upload ảnh",
-          });
-        }
-      }
-
-      if (status === "Đã Giải Quyết") {
-        if (!existingReport.afterImg) {
-          console.log(
-            `❌ [UPDATE_STATUS] Cannot resolve - no after image found for report ${id}`,
+            `❌ [UPDATE_STATUS] Cannot complete - no after image found for report ${id}`,
           );
           return res.status(400).json({
             success: false,
@@ -1051,14 +1043,14 @@ class ReportController {
           });
         }
 
-        if (existingReport.status !== "Đã hoàn tất") {
+        if (existingReport.status !== "Đã Giải Quyết") {
           console.log(
-            `❌ [UPDATE_STATUS] Cannot set Đã Giải Quyết unless report is Đã hoàn tất (report ${id})`,
+            `❌ [UPDATE_STATUS] Cannot set Đã Hoàn Tất unless report is Đã Giải Quyết (report ${id})`,
           );
           return res.status(409).json({
             success: false,
             message:
-              "Báo cáo chưa được xác nhận là hoàn tất bởi QLKV. Vui lòng chờ QLKV cập nhật trạng thái 'Đã hoàn tất' trước khi đánh dấu 'Đã Giải Quyết'",
+              "Báo cáo chưa được đội xử lý khắc phục (Đã Giải Quyết). Vui lòng chờ đội xử lý khắc phục xong trước khi đánh dấu 'Đã Hoàn Tất'",
           });
         }
       }
@@ -1088,8 +1080,12 @@ class ReportController {
       console.log(
         `✅ [UPDATE_STATUS] Successfully updated report ${id} to status: ${status}`,
       );
+      if (status === "Đã Hoàn Tất") {
+        sendNotification(existingReport.userId, existingReport.afterImg);
+      }
+
       if (
-        status === "Đã Giải Quyết" &&
+        status === "Đã Hoàn Tất" &&
         !wasResolved &&
         resolvedTeamId &&
         !updated.clusterSourceId
@@ -1115,7 +1111,7 @@ class ReportController {
         }
       }
 
-      if (status === "Đã Giải Quyết" && !updated.clusterSourceId) {
+      if (status === "Đã Hoàn Tất" && !updated.clusterSourceId) {
         try {
           await clusterSyncService.syncStatusToResolved(updated.id);
         } catch (syncError) {
@@ -1134,10 +1130,10 @@ class ReportController {
         }
       }
 
-      // When QLKV marks report as "Đã hoàn tất", ensure teamResolved and decrement team cases only once
+      // When QLKV marks report as "Đã Hoàn Tất", ensure teamResolved and decrement team cases only once
       if (
-        status === "Đã hoàn tất" &&
-        existingReport.status !== "Đã hoàn tất" &&
+        status === "Đã Hoàn Tất" &&
+        existingReport.status !== "Đã Hoàn Tất" &&
         resolvedTeamId &&
         !updated.clusterSourceId
       ) {
@@ -1167,7 +1163,7 @@ class ReportController {
           }
         } catch (countError) {
           console.error(
-            "⚠️ Failed to decrement maintenance team cases for Đã hoàn tất:",
+            "⚠️ Failed to decrement maintenance team cases for Đã Hoàn Tất:",
             countError.message,
           );
         }
@@ -1414,6 +1410,7 @@ class ReportController {
       const updated = await Report.findOneAndUpdate(
         { $or: queryConditions },
         {
+          status: "Đã Giải Quyết",
           afterImg: afterImgUrl,
           ...(progressNote !== undefined
             ? { progressNote: progressNote.trim() }

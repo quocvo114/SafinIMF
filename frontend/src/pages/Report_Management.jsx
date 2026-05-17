@@ -106,6 +106,8 @@ const ReportManagement = () => {
         return "#f97316";
       case "Đã Giải Quyết":
         return "#06b6d4";
+        case "Đã Hoàn Tất":
+          return "#14b8a6"; // New color for "Đã Hoàn Tất"
       default:
         return "#6b7280";
     }
@@ -178,6 +180,7 @@ const ReportManagement = () => {
             <option value="Đang Chờ">Đang Chờ</option>
             <option value="Đang Xử Lý">Đang Xử Lý</option>
             <option value="Đã Giải Quyết">Đã Giải Quyết</option>
+            <option value="Đã Hoàn Tất">Đã Hoàn Tất</option>
           </select>
         </div>
       </div>

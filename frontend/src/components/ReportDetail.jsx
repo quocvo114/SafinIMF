@@ -156,8 +156,8 @@ export default function ReportDetail({ data, close }) {
 
   const [afterImageFailed, setAfterImageFailed] = useState(false);
   const [imageViewer, setImageViewer] = useState({ open: false, index: 0 });
-  const clusterSourceId = displayData?.clusterSourceId
-    ? String(displayData.clusterSourceId)
+  const clusterSourceId = displayData?.clusterSourceId || displayData?.cluster_source_id
+    ? String(displayData?.clusterSourceId || displayData?.cluster_source_id)
     : "";
   useEffect(() => {
     const fetchIncidentTypes = async () => {

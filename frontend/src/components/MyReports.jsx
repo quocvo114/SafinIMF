@@ -50,7 +50,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-const STATUS_OPTIONS = ["all", "Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
+const STATUS_OPTIONS = ["all", "Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết", "Đã Hoàn Tất"];
 const TYPE_LABELS = {
   all: "Tất cả",
   "Giao Thông": "Giao Thông",
@@ -94,12 +94,14 @@ const STATUS_BADGE = {
   "Đang Chờ": "bg-gray-100 text-gray-700",
   "Đang Xử Lý": "bg-amber-100 text-amber-700",
   "Đã Giải Quyết": "bg-lime-100 text-lime-700",
+  "Đã Hoàn Tất": "bg-teal-100 text-teal-700",
 };
 
 const STATUS_LABEL = {
   "Đang Chờ": "Đang Chờ",
   "Đang Xử Lý": "Đang Xử Lý",
   "Đã Giải Quyết": "Đã Giải Quyết",
+  "Đã Hoàn Tất": "Đã Hoàn Tất",
 };
 
 const CARD_STYLES = [
@@ -168,6 +170,7 @@ function normalizeReport(report) {
     description: report?.description || "",
     images: report?.images || [],
     image: report?.image || "",
+    team: report?.assignedTeamName || report?.team || report?.handlerTeam || "",
     aiPercent,
   };
 }
@@ -303,6 +306,9 @@ export default function MyReports() {
   const resolvedReports = reports.filter(
     (item) => item.status === "Đã Giải Quyết",
   ).length;
+  const completedReports = reports.filter(
+    (item) => item.status === "Đã Hoàn Tất",
+  ).length;
 
   const statCards = [
     {
@@ -323,6 +329,11 @@ export default function MyReports() {
     {
       label: "Đã Giải Quyết",
       value: resolvedReports,
+      icon: <ShieldCheck className="h-4 w-4" />,
+    },
+    {
+      label: "Đã Hoàn Tất",
+      value: completedReports,
       icon: <ShieldCheck className="h-4 w-4" />,
     },
   ];
@@ -470,6 +481,12 @@ export default function MyReports() {
                   className="rounded-lg py-2 text-sm outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[highlighted]:bg-gray-100 data-[highlighted]:text-gray-900"
                 >
                   Đã Giải Quyết
+                </SelectItem>
+                <SelectItem
+                  value="Đã Hoàn Tất"
+                  className="rounded-lg py-2 text-sm outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[highlighted]:bg-gray-100 data-[highlighted]:text-gray-900"
+                >
+                  Đã Hoàn Tất
                 </SelectItem>
               </SelectContent>
             </Select>

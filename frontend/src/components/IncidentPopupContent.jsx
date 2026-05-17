@@ -13,6 +13,7 @@ const STATUS_CLASS_NAME = Object.freeze({
   "Đang Chờ": "incident-popup__status incident-popup__status--pending",
   "Đang Xử Lý": "incident-popup__status incident-popup__status--processing",
   "Đã Giải Quyết": "incident-popup__status incident-popup__status--resolved",
+  "Đã Hoàn Tất": "incident-popup__status incident-popup__status--resolved",
 });
 
 const getStatusClassName = (status) =>

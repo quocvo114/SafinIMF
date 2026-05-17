@@ -143,7 +143,8 @@ export default function MapView({
           ? markerIcons[resolvedMarkerKey]
           : null;
         const isClusterResolved = cluster.reports.every(
-          (item) => item?.status === "Đã Giải Quyết",
+          (item) =>
+            item?.status === "Đã Giải Quyết" || item?.status === "Đã Hoàn Tất",
         );
 
         if (cluster.count > 1) {
