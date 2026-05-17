@@ -223,6 +223,33 @@ class UserService {
   }
 
   async deleteUserByAdmin(user_id) {
+    const targetUser = await userRepository.findById(user_id);
+    if (!targetUser) {
+      throw new Error("Người dùng không tồn tại");
+    }
+
+    if (targetUser.role === "maintenance") {
+      const MaintenanceTeam = require("../../models/MaintenanceTeam");
+      const Report = require("../../models/Report");
+      const team = await MaintenanceTeam.findOne({ leader: targetUser.full_name });
+
+      if (team) {
+        const activeReportCount = await Report.countDocuments({
+          $or: [
+            { assignedTeamId: String(team.team_id) },
+            { handlingTeamId: String(team.team_id) },
+          ],
+          status: "Đang Xử Lý",
+        });
+
+        const currentCases = Math.max(parseInt(team.currentCases, 10) || 0, 0);
+
+        if (currentCases > 0 || activeReportCount > 0) {
+          throw new Error("Không thể xóa: Trưởng đội này đang phụ trách đội có báo cáo đang xử lý");
+        }
+      }
+    }
+
     const deleted = await userRepository.deleteUserById(user_id);
     if (!deleted) {
       throw new Error("Người dùng không tồn tại");
