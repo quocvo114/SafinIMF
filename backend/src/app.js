@@ -12,19 +12,17 @@ const notificationRoutes = require("./routes/notificationRoutes");
 function createApp() {
   const app = express();
 
+  // Use permissive CORS during development and ensure preflight handling
   app.use(
     cors({
-      origin: [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-      ],
+      origin: true,
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
     }),
   );
+
+  app.options("*", cors());
 
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ extended: true, limit: "50mb" }));

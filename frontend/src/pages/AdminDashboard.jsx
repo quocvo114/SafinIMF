@@ -191,7 +191,7 @@ const geocodeLocation = async (location) => {
 
 const normalizeReportsForMap = async (rawReports) => {
   const geocodeCache = loadGeocodeCache();
-  let geocodeBudget = 10;
+  let geocodeBudget = 200;
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {

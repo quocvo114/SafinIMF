@@ -198,7 +198,7 @@ const geocodeLocation = async (location) => {
 
 const normalizeReportsForMap = async (rawReports) => {
   const geocodeCache = loadGeocodeCache();
-  let geocodeBudget = 10;
+  let geocodeBudget = 200;
 
   const normalizedReports = await Promise.all(
     rawReports.map(async (report, index) => {
@@ -508,6 +508,31 @@ const MaintenanceDashboard = () => {
       (incident) => resolveTypeFilterKey(incident.type) === selectedCategoryKey,
     );
   }, [selectedCategoryKey, visibleReports]);
+
+  // DEBUG: Log selected category and counts to help diagnose filtering issues
+  useEffect(() => {
+    try {
+      console.debug(
+        "[MaintenanceDashboard] selectedCategory:",
+        selectedCategory,
+        "-> key:",
+        selectedCategoryKey,
+        "reports:",
+        visibleReports.length,
+        "filtered:",
+        filteredIncidents.length,
+      );
+
+      if (visibleReports.length > 0 && filteredIncidents.length === 0 && selectedCategoryKey !== "all") {
+        console.debug(
+          "[MaintenanceDashboard] sample report types:",
+          visibleReports.slice(0, 6).map((r) => r.type),
+        );
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [selectedCategory, selectedCategoryKey, visibleReports, filteredIncidents]);
 
   const handleSearchLocation = async (query) => {
     // ✅ Cleanup: Search query logging removed

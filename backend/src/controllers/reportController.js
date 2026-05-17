@@ -74,6 +74,26 @@ function sendNotification(userId, afterImg) {
   console.log("Gửi ảnh kết quả cho dân", { userId, afterImg });
 }
 
+/**
+ * Ẩn afterImg và progressNote khỏi response nếu báo cáo chưa đạt trạng thái "Đã Hoàn Tất".
+ * Chỉ áp dụng với công dân (không áp dụng với admin/manager/maintenance).
+ */
+function maskProgressFieldsForCitizen(report, role) {
+  if (!report) return report;
+  // Admin, manager, maintenance luôn thấy đầy đủ dữ liệu
+  if (role === "admin" || role === "manager" || role === "maintenance") {
+    return report;
+  }
+  // Công dân chỉ thấy khi "Đã Hoàn Tất"
+  if (report.status !== "Đã Hoàn Tất") {
+    const masked = report.toObject ? report.toObject() : { ...report };
+    masked.afterImg = "";
+    masked.progressNote = "";
+    return masked;
+  }
+  return report;
+}
+
 function inferDistrict(location = "") {
   const normalizedLocation = String(location)
     .normalize("NFD")
@@ -629,9 +649,13 @@ class ReportController {
         });
       }
 
+      // Truyền role của user vào để admin/manager/maintenance vẫn thấy afterImg/progressNote
+      const userRole = req.user?.role || "";
+      const safeReport = maskProgressFieldsForCitizen(report, userRole);
+
       res.status(200).json({
         success: true,
-        data: report,
+        data: safeReport,
       });
     } catch (error) {
       res.status(500).json({
@@ -649,9 +673,12 @@ class ReportController {
       const reports = await ReportRepository.getByUserId(userId);
       console.log("✅ Found reports:", reports.length);
 
+      // Công dân không có role → mask afterImg/progressNote khi chưa hoàn tất
+      const safeReports = reports.map((r) => maskProgressFieldsForCitizen(r, ""));
+
       res.status(200).json({
         success: true,
-        data: reports,
+        data: safeReports,
       });
     } catch (error) {
       console.error("❌ Error in getReportsByUserId:", error.message);
@@ -1111,12 +1138,25 @@ class ReportController {
         }
       }
 
-      if (status === "Đã Hoàn Tất" && !updated.clusterSourceId) {
+      // Khi QLKV chuyển sang "Đã Giải Quyết": đồng bộ follower lên "Đã Giải Quyết" (logic gốc)
+      if (status === "Đã Giải Quyết" && !updated.clusterSourceId) {
         try {
           await clusterSyncService.syncStatusToResolved(updated.id);
         } catch (syncError) {
           console.error(
             "⚠️ Cluster sync (resolved) failed:",
+            syncError.message,
+          );
+        }
+      }
+
+      // Khi QLKV xác nhận "Đã Hoàn Tất": đồng bộ follower lên "Đã Hoàn Tất" kèm afterImg+progressNote
+      if (status === "Đã Hoàn Tất" && !updated.clusterSourceId) {
+        try {
+          await clusterSyncService.syncStatusToCompleted(updated.id);
+        } catch (syncError) {
+          console.error(
+            "⚠️ Cluster sync (completed) failed:",
             syncError.message,
           );
         }
@@ -1239,6 +1279,17 @@ class ReportController {
           success: false,
           code: "REPORT_ALREADY_ASSIGNED",
           message: "Báo cáo đã được phân công, không thể phân công lại",
+        });
+      }
+
+      // Kiểm tra giới hạn số báo cáo của đội (mặc định tối đa 5)
+      const MAX_CASES_PER_TEAM = 5;
+      const teamCurrentCases = Math.max(parseInt(team.currentCases, 10) || 0, 0);
+      if (teamCurrentCases >= MAX_CASES_PER_TEAM) {
+        return res.status(409).json({
+          success: false,
+          code: "TEAM_AT_CAPACITY",
+          message: `Đội xử lý "${team.name}" đã đạt giới hạn tối đa ${MAX_CASES_PER_TEAM} báo cáo đang xử lý`,
         });
       }
 
@@ -1518,7 +1569,8 @@ class ReportController {
         ? await ReportRepository.getById(report.clusterSourceId)
         : report;
 
-      const peers = await Report.find(
+      // Bước 1: Tìm peers đã được đồng bộ qua clusterSourceId (DB lookup)
+      let peers = await Report.find(
         { clusterSourceId: sourceId },
         {
           _id: 1,
@@ -1532,6 +1584,24 @@ class ReportController {
       )
         .sort({ createdAt: 1 })
         .lean();
+
+      // Bước 2: Nếu chưa có peers (báo cáo mới chưa qua assignment),
+      // fallback sang live haversine detection để hiển thị cluster notification sớm
+      if (peers.length === 0 && !report.clusterSourceId) {
+        const liveSource = sourceReport || report;
+        const livePeers = await clusterSyncService.findClusterPeers(liveSource);
+        peers = livePeers
+          .filter((p) => String(p._id) !== String(report._id))
+          .map((p) => ({
+            _id: p._id,
+            id: p.id || p.report_id,
+            report_id: p.report_id,
+            title: p.title,
+            type: p.type,
+            status: p.status,
+            createdAt: p.createdAt,
+          }));
+      }
 
       return res.status(200).json({
         success: true,

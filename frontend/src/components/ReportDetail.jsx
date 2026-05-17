@@ -137,7 +137,13 @@ export default function ReportDetail({ data, close }) {
   const incidentImages = getIncidentImages(displayData);
   const beforeImage = incidentImages[0] || "";
 
-  let afterImageCandidate = displayData?.afterImg || displayData?.after_img;
+  // Chỉ hiển thị ảnh sau khắc phục và ghi chú khi báo cáo đạt "Đã Hoàn Tất" (QLKV xác nhận)
+  const isCompleted = displayData?.status === "Đã Hoàn Tất";
+
+  let afterImageCandidate =
+    isCompleted
+      ? displayData?.afterImg || displayData?.after_img
+      : undefined;
   const afterImage =
     typeof afterImageCandidate === "string" &&
     afterImageCandidate.trim().toLowerCase() !== "null" &&
@@ -357,7 +363,7 @@ export default function ReportDetail({ data, close }) {
                 </div>
               </div>
 
-              {displayData?.progressNote && (
+              {isCompleted && displayData?.progressNote && (
                 <div className="flex flex-col gap-1.5">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-[#166534] flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Ghi chú từ đội xử

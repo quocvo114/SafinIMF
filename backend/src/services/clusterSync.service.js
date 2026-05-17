@@ -124,7 +124,11 @@ async function syncStatusToInProgress(sourceId) {
   const updates = [];
 
   for (const peer of peers) {
-    if (peer.status === "Đã Giải Quyết") {
+    // Không đồng bộ lên "Đang Xử Lý" nếu báo cáo đã giải quyết hoặc đã hoàn tất
+    if (
+      peer.status === "Đã Giải Quyết" ||
+      peer.status === "Đã Hoàn Tất"
+    ) {
       continue;
     }
 
@@ -173,7 +177,10 @@ async function syncStatusToResolved(sourceId) {
   const updates = [];
 
   for (const peer of peers) {
-    if (peer.status === "Đã Giải Quyết") {
+    if (
+      peer.status === "Đã Giải Quyết" ||
+      peer.status === "Đã Hoàn Tất"
+    ) {
       continue;
     }
 
@@ -183,6 +190,51 @@ async function syncStatusToResolved(sourceId) {
         update: {
           status: "Đã Giải Quyết",
           afterImg: source.afterImg || "",
+          clusterSyncedAt: now,
+          clusterSyncNote: buildClusterNote(source.id),
+        },
+      },
+    });
+  }
+
+  if (updates.length) {
+    await Report.bulkWrite(updates);
+  }
+
+  return { updated: updates.length, skipped: peers.length - updates.length };
+}
+
+/**
+ * Khi QLKV xác nhận source report "Đã Hoàn Tất",
+ * đồng bộ tất cả follower report lên "Đã Hoàn Tất" kèm afterImg + progressNote.
+ */
+async function syncStatusToCompleted(sourceId) {
+  const source = await getSourceReport(sourceId);
+  if (!source) {
+    return { updated: 0, skipped: 0 };
+  }
+
+  const peers = await Report.find({ clusterSourceId: source.id }).lean();
+  if (!peers.length) {
+    return { updated: 0, skipped: 0 };
+  }
+
+  const now = new Date();
+  const updates = [];
+
+  for (const peer of peers) {
+    if (peer.status === "Đã Hoàn Tất") {
+      continue; // Đã hoàn tất rồi, bỏ qua
+    }
+
+    updates.push({
+      updateOne: {
+        filter: { _id: peer._id },
+        update: {
+          status: "Đã Hoàn Tất",
+          afterImg: source.afterImg || "",
+          progressNote: source.progressNote || "",
+          teamResolved: true,
           clusterSyncedAt: now,
           clusterSyncNote: buildClusterNote(source.id),
         },
@@ -211,7 +263,10 @@ async function syncStatusToWaiting(sourceId) {
   const updates = [];
 
   for (const peer of peers) {
-    if (peer.status === "Đã Giải Quyết") {
+    if (
+      peer.status === "Đã Giải Quyết" ||
+      peer.status === "Đã Hoàn Tất"
+    ) {
       continue;
     }
 
@@ -243,5 +298,6 @@ module.exports = {
   findClusterPeers,
   syncStatusToInProgress,
   syncStatusToResolved,
+  syncStatusToCompleted,
   syncStatusToWaiting,
 };

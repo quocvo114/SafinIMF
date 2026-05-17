@@ -187,12 +187,6 @@ const AdminSidebar = () => {
       icon: <BarChart3 className="h-6 w-6" />,
       label: "Thống kê",
     },
-    {
-      id: "notifications",
-      path: "/notifications",
-      icon: <Bell className="h-6 w-6" />,
-      label: "Thông báo",
-    },
   ];
 
   const userInfo = {

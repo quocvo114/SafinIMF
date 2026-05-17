@@ -4,6 +4,21 @@ const ReportController = require("../controllers/reportController");
 const requireAuth = require("../middleware/auth");
 const authMiddleware = require("../middleware/auth");
 const requireRole = require("../middleware/role");
+const jwt = require("jsonwebtoken");
+
+// Middleware tuùy chọn: gắn req.user nếu có token hợp lệ, không reject nếu không có
+const optionalAuth = (req, _res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    try {
+      const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
+      req.user = { id: decoded.id, user_id: decoded.id, role: decoded.role };
+    } catch (_err) {
+      // Token invalid/expired → tiếp tục như không có token
+    }
+  }
+  next();
+};
 
 // GET /api/reports - Lấy tất cả báo cáo
 router.get("/", ReportController.getAllReports);
@@ -60,6 +75,7 @@ router.patch(
 router.get("/:id/cluster-peers", ReportController.getClusterPeers);
 
 // GET /api/reports/:id - Lấy 1 báo cáo (phải đặt sau /user/:userId)
-router.get("/:id", ReportController.getReportById);
+// Dùng optionalAuth để admin/manager/maintenance vẫn thấy afterImg khi có token
+router.get("/:id", optionalAuth, ReportController.getReportById);
 
 module.exports = router;

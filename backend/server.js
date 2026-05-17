@@ -31,26 +31,18 @@ const LOOPBACK_REGEX = /^http:\/\/127\.0\.0\.1:\d+$/;
 // const ENABLE_MONGO = process.env.ENABLE_MONGO !== "false";
 
 // CORS - Phải đặt trước các middleware khác
+// Simpler, more permissive CORS config for local development and to
+// ensure preflight OPTIONS requests are handled correctly.
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (
-        !origin ||
-        ALLOWED_ORIGINS.includes(origin) ||
-        LOCALHOST_REGEX.test(origin) ||
-        LOOPBACK_REGEX.test(origin)
-      ) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
+    origin: true, // reflect request origin
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
   }),
 );
+
+// Ensure preflight OPTIONS are responded to for all routes (removed due to path-to-regexp incompatibility)
 
 // Ensure preflight requests are handled for all routes
 // Note: explicit app.options('*', ...) removed due to path-to-regexp incompatibility

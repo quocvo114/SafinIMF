@@ -113,12 +113,6 @@ const MaintenanceUserSidebar = () => {
       icon: <FileText className="h-6 w-6 rotate-12" />,
       title: "Việc của tôi",
     },
-    {
-      id: "notifications",
-      path: "/notifications",
-      icon: <Bell className="h-6 w-6" />,
-      title: "Thông báo",
-    },
   ];
 
   const userInfo = {
@@ -195,13 +189,16 @@ const MaintenanceUserSidebar = () => {
 
   return (
     <>
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
+      {toast &&
+        portalTarget &&
+        createPortal(
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />,
+          portalTarget,
+        )}
 
       {showLogoutConfirm &&
         portalTarget &&

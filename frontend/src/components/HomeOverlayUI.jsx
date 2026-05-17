@@ -22,7 +22,7 @@ import { Button } from "./ui/button";
 
 const DEFAULT_CATEGORIES = [
   {
-    id: "traffic",
+    id: "Giao Thông",
     name: "Giao Thông",
     iconKey: "car",
     bgColor: "#f97316",
@@ -31,7 +31,7 @@ const DEFAULT_CATEGORIES = [
     borderColor: "#c2410c",
   },
   {
-    id: "electric",
+    id: "Điện",
     name: "Điện",
     iconKey: "electric",
     bgColor: "#eab308",
@@ -40,7 +40,7 @@ const DEFAULT_CATEGORIES = [
     borderColor: "#AD8D0C",
   },
   {
-    id: "tree",
+    id: "Cây Xanh",
     name: "Cây Xanh",
     iconKey: "tree",
     bgColor: "#22c55e",
@@ -49,7 +49,7 @@ const DEFAULT_CATEGORIES = [
     borderColor: "#15803d",
   },
   {
-    id: "public",
+    id: "Công Trình",
     name: "Công Trình",
     iconKey: "public",
     bgColor: "#a855f7",
