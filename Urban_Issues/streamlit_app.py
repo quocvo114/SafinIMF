@@ -3,9 +3,19 @@ from ultralytics import YOLO
 from PIL import Image
 import numpy as np
 import os
+from huggingface_hub import hf_hub_download
 
 os.environ['STREAMLIT_SERVER_HEADLESS'] = 'true'
 st.set_page_config(page_title="Urban Issues Detection", layout="wide")
+
+# Download model nếu chưa có
+if not os.path.exists("best.pt"):                          
+    hf_hub_download(                                       
+        repo_id="Alexvq/urban-issues-model",               
+        filename="best.pt",                                
+        token=os.environ.get("HF_TOKEN"),                
+        local_dir="."                                      
+    )                    
 
 # Load model
 @st.cache_resource
