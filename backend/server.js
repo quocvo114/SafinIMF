@@ -17,7 +17,7 @@ const statisticsRoutes = require("./src/routes/statisticsRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 5000;
+const PORT = process.env.PORT || 5000;
 const ENABLE_MONGO = process.env.ENABLE_MONGO !== "false";
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
