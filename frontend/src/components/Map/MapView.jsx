@@ -135,7 +135,8 @@ export default function MapView({
         const [report] = cluster.reports;
         const markerIcon = markerIcons[cluster.type];
         const isClusterResolved = cluster.reports.every(
-          (item) => item?.status === "Đã Giải Quyết",
+          (item) =>
+            item?.status === "Đã Giải Quyết" || item?.status === "Đã Hoàn Tất",
         );
 
         if (cluster.count > 1) {

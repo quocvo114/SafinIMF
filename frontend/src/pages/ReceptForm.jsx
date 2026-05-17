@@ -36,7 +36,13 @@ const DISTRICTS = [
 ];
 
 const TYPE_OPTIONS = ["all", "Giao Thông", "Điện", "Cây Xanh", "CTCC"];
-const STATUS_OPTIONS = ["all", "Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
+const STATUS_OPTIONS = [
+  "all",
+  "Đang Chờ",
+  "Đang Xử Lý",
+  "Đã Giải Quyết",
+  "Đã Hoàn Tất",
+];
 
 const CATEGORY_COLORS = {
   "Giao Thông": "#f97316",
@@ -67,6 +73,13 @@ const getStatusConfig = (status) => {
         border: "border-emerald-500/50",
         color: "text-emerald-300",
         dot: "bg-emerald-400",
+      };
+    case "Đã Hoàn Tất":
+      return {
+        bg: "bg-teal-500/30",
+        border: "border-teal-500/50",
+        color: "text-teal-300",
+        dot: "bg-teal-400",
       };
     default:
       return {
@@ -118,7 +131,7 @@ const getCategoryConfig = (category) => {
   }
 };
 
-const STATUS_FLOW = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
+const STATUS_FLOW = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết", "Đã Hoàn Tất"];
 
 function mapMaintenanceTeamsToAssignOptions(teams = []) {
   return teams
@@ -354,19 +367,62 @@ const ReceptForm = () => {
   };
 
   const handleUpdateStatus = async (report) => {
-    const reportId = report?.report_id || report?.id;
+    const reportId = report?.report_id || report?.id || report?._id;
     if (!reportId) {
       // ✅ Cleanup: Debug logging removed
       return;
     }
-    // ✅ Cleanup: Debug logging removed
-    setUpdateReportData(report);
-    setShowUpdateStatusModal(true);
-    setSelectedReport(null); // Đóng detail modal
+
+    try {
+      // Luôn lấy dữ liệu mới nhất để tránh bấm nghiệm thu từ dữ liệu cũ trong list
+      const response = await reportApi.getReportById(reportId);
+      const latestReport = response?.data?.data || response?.data || report;
+
+      if (!latestReport) {
+        return;
+      }
+
+      setUpdateReportData(latestReport);
+      setShowUpdateStatusModal(true);
+      setSelectedReport(null); // Đóng detail modal
+    } catch (error) {
+      setUpdateReportData(report);
+      setShowUpdateStatusModal(true);
+      setSelectedReport(null);
+    }
   };
 
   const handleConfirmUpdateStatus = async (reportId, newStatus) => {
     try {
+      let reportSnapshot = updateReportData;
+
+      if (newStatus === "Đã Hoàn Tất") {
+        const latestResponse = await reportApi.getReportById(reportId);
+        reportSnapshot = latestResponse?.data?.data || latestResponse?.data || updateReportData;
+
+        if (!reportSnapshot) {
+          toast.error("Không thể xác thực trạng thái báo cáo trước khi nghiệm thu.");
+          return;
+        }
+
+        const latestStatus = reportSnapshot?.status;
+        const hasAfterImage = Boolean(reportSnapshot?.afterImg);
+
+        if (latestStatus !== "Đã Giải Quyết") {
+          toast.error(
+            "Chỉ có thể nghiệm thu khi báo cáo đã ở trạng thái Đã Giải Quyết.",
+          );
+          return;
+        }
+
+        if (!hasAfterImage) {
+          toast.error(
+            "Báo cáo chưa có ảnh khắc phục. Không thể chuyển sang Đã Hoàn Tất.",
+          );
+          return;
+        }
+      }
+
       setUpdatingStatus(true);
       // ✅ Cleanup: Status update logging removed
       const response = await reportApi.updateReportStatus(reportId, newStatus);
@@ -970,6 +1026,6 @@ const ReceptForm = () => {
       />
     </div>
   );
-};
+}
 
 export default ReceptForm;

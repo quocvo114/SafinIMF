@@ -15,14 +15,12 @@ const DANANG_CENTER = [16.0471, 108.2068];
 const ADMIN_REPORTS_CACHE_KEY = "admin-map-reports-cache-v1";
 const ADMIN_GEOCODE_CACHE_KEY = "admin-map-geocode-cache-v1";
 
-const normalizeTypeKey = (value = "") =>
-  String(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/đ/g, "d")
-    .replace(/\s+/g, " ")
-    .trim();
+const REPORT_TYPE_TO_INCIDENT_TYPE = Object.freeze({
+  giaothong: "traffic",
+  dien: "electric",
+  cayxanh: "tree",
+  ctcc: "building",
+});
 
 const parseCoordinate = (value, min, max) => {
   const numericValue = Number(value);
@@ -66,6 +64,18 @@ const extractPositionFromReport = (report) => {
   }
 
   return [latFromLocation, lngFromLocation];
+};
+
+const mapReportTypeToIncidentType = (reportType) => {
+  const normalizedType = String(reportType || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  return REPORT_TYPE_TO_INCIDENT_TYPE[normalizedType] || null;
 };
 
 const parseReportDate = (timeValue, createdAtValue) => {
@@ -223,8 +233,7 @@ const normalizeReportsForMap = async (rawReports) => {
 
       return {
         id: String(report?._id || report?.id || report?.report_id || index),
-        category,
-        type: category,
+        type,
         position,
         title: report?.title || "Báo cáo sự cố",
         status: report?.status || "Đang Chờ",
@@ -373,16 +382,24 @@ export default function AdminDashboard() {
     hasAutoFittedRef.current = true;
   }, [reports]);
 
-  const normalizedSelectedCategory = normalizeTypeKey(selectedCategory);
+  const normalizedSelectedCategory = useMemo(() => {
+    if (selectedCategory === "all") {
+      return "all";
+    }
+
+    if (selectedCategory === "public") {
+      return "building";
+    }
+
+    const mappedType = mapReportTypeToIncidentType(selectedCategory);
+    return mappedType || selectedCategory;
+  }, [selectedCategory]);
 
   const visiblePoints = useMemo(() => {
     if (normalizedSelectedCategory === "all") {
       return reports;
     }
-    return reports.filter(
-      (point) =>
-        normalizeTypeKey(point.category) === normalizedSelectedCategory,
-    );
+    return reports.filter((point) => point.type === normalizedSelectedCategory);
   }, [normalizedSelectedCategory, reports]);
 
   return (
@@ -399,47 +416,12 @@ export default function AdminDashboard() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {visiblePoints.map((point) => {
-          const typeObj = incidentTypes.find(
-            (t) =>
-              normalizeTypeKey(t.name) === normalizeTypeKey(point.category),
-          );
-          let mapIcon = incidentMarkerIcons[point.category];
-
-          if (!mapIcon) {
-            let svgString = `<svg class="map-marker__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6" fill="currentColor" /></svg>`;
-            if (typeObj) {
-              const IconComp = INCIDENT_ICON_MAP[typeObj.iconKey];
-              if (IconComp) {
-                svgString = renderToString(
-                  <IconComp
-                    className="map-marker__icon"
-                    color="currentColor"
-                  />,
-                );
-              }
-            }
-
-            mapIcon = createCustomMarkerIcon({
-              backgroundColor: typeObj?.color || "#f97316", // default orange
-              svgIcon: svgString,
-            });
-          }
-
-          return (
-            <Marker
-              key={point.id}
-              position={point.position}
-              icon={mapIcon}
-              eventHandlers={{
-                click: (event) => event.target.openPopup(),
-              }}
-            >
-            <Popup>
-              <IncidentPopupContent incident={point} />
-            </Popup>
-          </Marker>
-        );})}
+        <MapView
+          reports={visiblePoints}
+          renderPopupContent={(incident) => (
+            <IncidentPopupContent incident={incident} />
+          )}
+        />
       </MapContainer>
 
       {/* ✅ Floating Categories - Soft UI Version */}
@@ -447,9 +429,14 @@ export default function AdminDashboard() {
         className="pointer-events-none absolute right-6 top-24 z-20"
         style={{ left: "calc(var(--admin-sidebar-offset, 6rem) + 1rem)" }}
       >
-        <div className="pointer-events-auto flex flex-wrap gap-3 overflow-x-auto scrollbar-hide sm:flex-nowrap">
+        <div className="pointer-events-auto flex flex-wrap gap-3 scrollbar-hide sm:flex-nowrap">
           {[
-            { id: "all", label: "Tất Cả", icon: "⌘", color: "#2563eb" },
+            {
+              id: "all",
+              label: "Tất Cả",
+              icon: <Layers className="h-4 w-4" />,
+              color: "#2563eb",
+            },
             ...incidentTypes.map((t) => {
               const IconComp = INCIDENT_ICON_MAP[t.iconKey] || Building2;
               return {

@@ -433,22 +433,18 @@ export default function ReportDetailQLKV({
   const statusValueClass = getStatusValueClass(data.status);
   const statusIconTone = getStatusIconTone(data.status);
   const issueTitle = data.issueTitle || data.title || "Chưa có tiêu đề";
-  const teamName = data.team || data.handlerTeam || "Chưa phân công";
-  const normalizedStatus = normalizeTypeKey(data.status);
-  const isResolved =
-    normalizedStatus === "da giai quyet" || normalizedStatus === "da xu ly";
-  const hasAssignedTeam = Boolean(
-    data?.assignedTeamId ||
-    data?.assignedTeamName ||
-    data?.team ||
-    data?.handlerTeam,
-  );
-  const isAssignBlocked = isResolved || hasAssignedTeam;
-  const assignLabel = isResolved
-    ? "Đã giải quyết"
-    : hasAssignedTeam
-      ? "Đã phân công"
-      : "Gửi xử lý";
+  const teamName =
+    data.assignedTeamName ||
+    data.handlingTeamName ||
+    data.team ||
+    data.handlerTeam ||
+    "Chưa phân công";
+  const clusterSourceId = data.clusterSourceId
+    ? String(data.clusterSourceId)
+    : "";
+  const assignedTeamNote = clusterSourceId
+    ? `Phụ trách qua báo cáo #${clusterSourceId}`
+    : "";
 
   return (
     <>
@@ -509,6 +505,66 @@ export default function ReportDetailQLKV({
                 </div>
               )}
 
+              {clusterSourceId && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                  <div className="flex items-start gap-2">
+                    <Users className="mt-0.5 h-4 w-4 text-blue-600" />
+                    <div>
+                      <p className="text-xs font-semibold text-blue-800">
+                        Báo cáo này được tự động cập nhật theo báo cáo
+                        {` #${clusterSourceId}`} (cùng cụm).
+                      </p>
+                      {data.clusterSyncNote && (
+                        <p className="mt-1 text-[11px] text-blue-700">
+                          {data.clusterSyncNote}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!clusterSourceId && clusterPeersLoading && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                  <p className="text-xs font-semibold text-emerald-700">
+                    Đang tải danh sách báo cáo đã đồng bộ...
+                  </p>
+                </div>
+              )}
+
+              {!clusterSourceId &&
+                !clusterPeersLoading &&
+                clusterPeers.length > 0 && (
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                    <div className="flex items-start gap-2">
+                      <Users className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-semibold text-emerald-800">
+                          Báo cáo này là chuẩn của cụm — đã đồng bộ cho
+                          {` ${clusterPeers.length}`} báo cáo liên quan:
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {clusterPeers.map((peer) => {
+                            const peerId =
+                              peer?.id || peer?.report_id || peer?._id || "";
+                            if (!peerId) {
+                              return null;
+                            }
+                            return (
+                              <span
+                                key={String(peerId)}
+                                className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+                              >
+                                #{peerId}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               {/* Info Grid 2x2 compact */}
               <div className="grid grid-cols-2 gap-2">
                 <InfoBlock
@@ -543,6 +599,7 @@ export default function ReportDetailQLKV({
                     icon={Users}
                     label="Đội phụ trách"
                     value={teamName}
+                    meta={assignedTeamNote}
                     className="h-full"
                   />
                   <div className="h-full">
@@ -630,11 +687,10 @@ export default function ReportDetailQLKV({
               Cập nhật trạng thái
             </Button>
             <Button
-              className="h-10 w-full rounded-[10px] bg-[#2f64da] px-7 text-sm font-semibold text-white hover:bg-[#2555c7] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:text-base"
+              className="h-10 w-full rounded-[10px] bg-[#2f64da] px-7 text-sm font-semibold text-white hover:bg-[#2555c7] sm:h-11 sm:w-auto sm:text-base"
               onClick={() => onSendProcess?.(data)}
-              disabled={isAssignBlocked}
             >
-              {assignLabel}
+              Gửi xử lý
               <Send className="ml-2 h-4 w-4" />
             </Button>
           </DialogFooter>

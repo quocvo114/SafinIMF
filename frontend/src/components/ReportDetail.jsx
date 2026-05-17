@@ -108,6 +108,8 @@ export default function ReportDetail({ data, close }) {
   }, [reportIdToUse, data]);
 
   const displayData = freshData || data;
+  // support both camelCase and snake_case from API
+  const clusterSourceId = displayData?.clusterSourceId || displayData?.cluster_source_id || null;
   const beforeImage = resolveImage(displayData, 0);
   const afterImage = displayData.afterImg || resolveImage(displayData, 1);
   const [afterImageFailed, setAfterImageFailed] = useState(false);
@@ -136,13 +138,14 @@ export default function ReportDetail({ data, close }) {
 
   if (!isOpen) return null;
 
-  const allImages = [beforeImage, afterImage].filter(Boolean);
+  const showCompletionResult = displayData.status === "Đã Hoàn Tất";
+  const allImages = [beforeImage, showCompletionResult ? afterImage : null].filter(Boolean);
 
   const openImageViewer = (index) => {
     setImageViewer({ open: true, index });
   };
 
-  const showAfterImage = Boolean(afterImage) && !afterImageFailed;
+  const showAfterImage = showCompletionResult && Boolean(afterImage) && !afterImageFailed;
 
   return (
     <>
@@ -243,6 +246,18 @@ export default function ReportDetail({ data, close }) {
               <p className="mb-1 text-[11px] font-medium uppercase text-[#A3A3A3]">
                 Mô tả
               </p>
+              {displayData.team && (
+                <div className="mb-2">
+                  <p className="text-[11px] font-medium uppercase text-[#A3A3A3]">
+                    Đội xử lý
+                  </p>
+                  <div className="rounded-[10px] border border-[#e4ecfb] bg-white px-3 py-2.5 sm:px-3.5 sm:py-3">
+                    <p className="text-sm font-semibold leading-snug text-zinc-900 truncate">
+                      {displayData.team}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="rounded-[10px] border border-[#e4ecfb] bg-[#f5f9ff] px-3 py-2.5 sm:px-3.5 sm:py-3">
                 <p
                   className="text-xs italic leading-snug text-zinc-700"
@@ -297,29 +312,31 @@ export default function ReportDetail({ data, close }) {
                 </CardContent>
               </Card>
 
-              <Card className="gap-0 rounded-[12px] border border-[#dce9ff] bg-[#f6faff] py-0 ring-0 shadow-sm">
-                <CardHeader className="px-3 pb-1 pt-2 sm:px-3.5 sm:pt-2.5">
-                  <CardTitle className="flex text-xs font-medium text-[#1E67D6]">
-                    <Camera className="mr-1.5 h-4 w-4 text-[#1E67D6]" />
-                    Ảnh sau khắc phục
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-3 pb-2.5 sm:px-3.5 sm:pb-3">
-                  <div className="mx-auto aspect-[16/9] w-full max-h-[190px] overflow-hidden rounded-[10px] bg-[#f2f2f2]">
-                    {showAfterImage ? (
-                      <img
-                        src={afterImage}
-                        alt="Anh sau khac phuc"
-                        className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => openImageViewer(allImages.indexOf(afterImage))}
-                        onError={() => setAfterImageFailed(true)}
-                      />
-                    ) : (
-                      <Skeleton className="h-full w-full rounded-[10px] bg-zinc-200/60" />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              {showCompletionResult && (
+                <Card className="gap-0 rounded-[12px] border border-[#dce9ff] bg-[#f6faff] py-0 ring-0 shadow-sm">
+                  <CardHeader className="px-3 pb-1 pt-2 sm:px-3.5 sm:pt-2.5">
+                    <CardTitle className="flex text-xs font-medium text-[#1E67D6]">
+                      <Camera className="mr-1.5 h-4 w-4 text-[#1E67D6]" />
+                      Kết quả xử lý
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-3 pb-2.5 sm:px-3.5 sm:pb-3">
+                    <div className="mx-auto aspect-[16/9] w-full max-h-[190px] overflow-hidden rounded-[10px] bg-[#f2f2f2]">
+                      {showAfterImage ? (
+                        <img
+                          src={afterImage}
+                          alt="Anh sau khac phuc"
+                          className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => openImageViewer(allImages.indexOf(afterImage))}
+                          onError={() => setAfterImageFailed(true)}
+                        />
+                      ) : (
+                        <Skeleton className="h-full w-full rounded-[10px] bg-zinc-200/60" />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </ScrollArea>

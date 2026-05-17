@@ -168,6 +168,7 @@ class ReportRepository {
     assignedTeamId,
     page = 1,
     limit = 10,
+    excludeClusterFollowers = false,
   }) {
     try {
       const query = this.buildFilterQuery({

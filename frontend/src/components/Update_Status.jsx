@@ -32,6 +32,12 @@ const getStatusInfo = (status) => {
       color: "text-green-600",
       bgColor: "bg-green-50",
     },
+    "Đã Hoàn Tất": {
+      label: "Đã hoàn tất",
+      icon: CheckCircle,
+      color: "text-emerald-700",
+      bgColor: "bg-emerald-50",
+    },
   };
   return statusMap[status] || { label: status, icon: AlertCircle, color: "text-gray-600", bgColor: "bg-gray-50" };
 };
@@ -41,7 +47,8 @@ const getAvailableStatuses = (currentStatus, hasAfterImage = false) => {
   const transitions = {
     "Đang Chờ": ["Đang Xử Lý"],
     "Đang Xử Lý": ["Đã Giải Quyết"], // Luôn hiển thị, nhưng có thể disabled
-    "Đã Giải Quyết": [],
+    "Đã Giải Quyết": ["Đã Hoàn Tất"],
+    "Đã Hoàn Tất": [],
   };
   return transitions[currentStatus] || [];
 };
@@ -50,6 +57,9 @@ const getAvailableStatuses = (currentStatus, hasAfterImage = false) => {
 const isStatusDisabled = (status, currentStatus, hasAfterImage) => {
   if (currentStatus === "Đang Xử Lý" && status === "Đã Giải Quyết") {
     return !hasAfterImage; // Disable nếu chưa upload ảnh
+  }
+  if (currentStatus === "Đã Giải Quyết" && status === "Đã Hoàn Tất") {
+    return !hasAfterImage;
   }
   return false;
 };

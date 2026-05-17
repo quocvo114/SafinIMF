@@ -20,13 +20,14 @@ const STATUS_COLOR = {
   "Đang Chờ": "bg-gray-400",
   "Đang Xử Lý": "bg-orange-500",
   "Đã Giải Quyết": "bg-blue-500",
+  "Đã Hoàn Tất": "bg-teal-500",
 };
 
 export default function MyReports() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -44,16 +45,20 @@ export default function MyReports() {
     } else {
       // Nếu không có user sau 1 giây, dừng loading
       const timer = setTimeout(() => {
-        setLoading(false);
+        setIsLoading(false);
         setError("Vui lòng đăng nhập để xem báo cáo");
       }, 1000);
       return () => clearTimeout(timer);
     }
   }, [user]); // Re-fetch khi user hoặc location thay đổi
 
+  const isIncompleteReport = (report) => {
+    return report.status !== "Đã Giải Quyết" && report.status !== "Đã Hoàn Tất";
+  };
+
   const fetchReports = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       setError(null);
 
       const userId = user?._id || user?.user_id;
@@ -61,7 +66,7 @@ export default function MyReports() {
 
       if (!userId) {
         setError("Vui lòng đăng nhập để xem báo cáo");
-        setLoading(false);
+        setIsLoading(false);
         return;
       }
 
@@ -69,7 +74,8 @@ export default function MyReports() {
       // ✅ Cleanup: API response logging removed
 
       if (response.success) {
-        setReports(response.data);
+        const visibleReports = (response.data || []).filter(isIncompleteReport);
+        setReports(visibleReports);
         // ✅ Cleanup: Report count logging removed
       } else {
         setError("Không thể tải báo cáo");
@@ -78,7 +84,7 @@ export default function MyReports() {
       setError("Lỗi khi tải dữ liệu");
       // ✅ Cleanup: Error logging removed
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -89,12 +95,26 @@ export default function MyReports() {
     return matchSearch && matchType && matchStatus;
   });
   //! Hiển thị loading
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Đang tải dữ liệu...</p>
+        <div className="w-full max-w-4xl px-6">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="h-4 w-4 rounded-full bg-blue-500 animate-pulse"></div>
+            <div className="h-4 w-4 rounded-full bg-blue-400 animate-pulse [animation-delay:150ms]"></div>
+            <div className="h-4 w-4 rounded-full bg-blue-300 animate-pulse [animation-delay:300ms]"></div>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-center text-gray-600 mb-6">Đang tải dữ liệu...</p>
+            <div className="space-y-3">
+              <div className="h-4 rounded bg-gray-200 animate-pulse"></div>
+              <div className="h-4 w-5/6 rounded bg-gray-200 animate-pulse"></div>
+              <div className="h-4 w-2/3 rounded bg-gray-200 animate-pulse"></div>
+              <div className="h-10 rounded bg-gray-200 animate-pulse mt-4"></div>
+              <div className="h-10 rounded bg-gray-200 animate-pulse"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -162,6 +182,11 @@ export default function MyReports() {
             number={reports.filter((r) => r.status === "Đã Giải Quyết").length}
             icon="✔️"
           />
+          <StatBox
+            label="Đã Hoàn Tất"
+            number={reports.filter((r) => r.status === "Đã Hoàn Tất").length}
+            icon="🎉"
+          />
         </div>
 
         {/* FILTERS & SORT */}
@@ -228,6 +253,7 @@ export default function MyReports() {
             <option value="Đang Chờ">Đang Chờ</option>
             <option value="Đang Xử Lý">Đang Xử Lý</option>
             <option value="Đã Giải Quyết">Đã Giải Quyết</option>
+            <option value="Đã Hoàn Tất">Đã Hoàn Tất</option>
           </select>
         </div>
 

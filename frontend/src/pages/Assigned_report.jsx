@@ -37,18 +37,24 @@ export default function Assigned_report() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState(null);
   const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [teamId, setTeamId] = useState("");
   const [teamLoading, setTeamLoading] = useState(false);
+  const [teamReady, setTeamReady] = useState(false);
   const ITEMS_PER_PAGE = 4;
   const { user } = useAuth();
+
+  const visibleStatuses = new Set(["Đang Xử Lý", "Đang Chờ"]);
 
   useEffect(() => {
     let isMounted = true;
     const fetchTeam = async () => {
-      if (!user) return;
+      if (!user) {
+        if (isMounted) setTeamReady(true);
+        return;
+      }
       setTeamLoading(true);
       try {
         const response = await maintenanceTeamApi.getTeams({
@@ -75,7 +81,10 @@ export default function Assigned_report() {
       } catch (teamError) {
         if (isMounted) setTeamId("");
       } finally {
-        if (isMounted) setTeamLoading(false);
+        if (isMounted) {
+          setTeamLoading(false);
+          setTeamReady(true);
+        }
       }
     };
 
@@ -87,8 +96,10 @@ export default function Assigned_report() {
 
   const fetchReports = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
+      setReports([]);
       setError(null);
+      setCurrentPage(1);
       if (user?.role === "maintenance" && !teamId && !teamLoading) {
         setReports([]);
         setError("Không tìm thấy đội xử lý của bạn.");
@@ -104,7 +115,10 @@ export default function Assigned_report() {
       });
 
       if (response.success && Array.isArray(response.data)) {
-        setReports(response.data);
+        const filteredReports = response.data.filter(
+          (report) => visibleStatuses.has(report?.status),
+        );
+        setReports(filteredReports);
       } else {
         setReports([]);
       }
@@ -113,13 +127,30 @@ export default function Assigned_report() {
       setError("Không thể tải danh sách báo cáo. Vui lòng thử lại.");
       setReports([]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!user) return;
+
+    if (user?.role !== "maintenance") {
+      return;
+    }
+
+    if (!teamReady) {
+      return;
+    }
+
+    if (!teamId) {
+      setReports([]);
+      setError("Không tìm thấy đội xử lý của bạn.");
+      setIsLoading(false);
+      return;
+    }
+
     fetchReports();
-  }, [refreshKey, teamId, teamLoading, user?.role]);
+  }, [refreshKey, teamId, teamReady, user?.role]);
 
   const filteredReports = reports.filter((report) => {
     const query = searchQuery.trim().toLowerCase();
@@ -178,7 +209,7 @@ export default function Assigned_report() {
 
             {/* Table Container */}
             <div className="flex flex-col flex-1 min-h-0 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden p-2 sm:p-4">
-              {loading ? (
+              {isLoading ? (
                 <div className="flex-1 flex items-center justify-center py-20">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-500" />

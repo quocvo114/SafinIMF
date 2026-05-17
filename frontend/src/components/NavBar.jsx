@@ -419,14 +419,10 @@ export function NavbarAdmin() {
         async (position) => {
           const { latitude, longitude } = position.coords;
           try {
-            const [locationResponse, weatherResponse] = await Promise.all([
-              fetch(
+            const locationResponse = await fetch(
                 `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=8&addressdetails=1&accept-language=vi`,
-              ),
-              fetch(
-                `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&timezone=Asia%2FBangkok`,
-              ),
-            ]);
+            );
+            
 
             const data = await locationResponse.json();
             const addressParts = data.display_name.split(", ");
@@ -438,13 +434,7 @@ export function NavbarAdmin() {
                   "Vị trí không xác định";
             setLocation({ city });
 
-            if (weatherResponse.ok) {
-              const weatherData = await weatherResponse.json();
-              const currentTemp = weatherData?.current?.temperature_2m;
-              if (typeof currentTemp === "number") {
-                setTemperature(Math.round(currentTemp));
-              }
-            }
+            // Weather fetch removed
           } catch (error) {
             setLocation({ city: "TP. Đà Nẵng" });
           }

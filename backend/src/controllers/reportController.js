@@ -62,7 +62,16 @@ async function resolveAssignedTeamIdFromUser(userId) {
   return team?.team_id || team?.id || null;
 }
 
-const RECEPTION_STATUS_OPTIONS = ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"];
+const RECEPTION_STATUS_OPTIONS = [
+  "Đang Chờ",
+  "Đang Xử Lý",
+  "Đã Giải Quyết",
+  "Đã Hoàn Tất",
+];
+
+function sendNotification(userId, afterImg) {
+  console.log("Gửi ảnh kết quả cho dân", { userId, afterImg });
+}
 
 function inferDistrict(location = "") {
   const normalizedLocation = String(location)
@@ -408,7 +417,11 @@ class ReportController {
         status = "all",
         page = 1,
         limit = 10,
-        assignedTeamId = "",
+        // `assignedTo` can be 'me' to indicate teams for the current user.
+        assignedTo = "",
+        // incoming assignedTeamId may be passed as a query param; alias it here
+        assignedTeamId: assignedTeamIdQuery = "",
+        excludeClusterFollowers,
       } = req.query;
 
       let assignedTeamId = assignedTeamIdQuery;
@@ -447,7 +460,6 @@ class ReportController {
         assignedTeamId,
         page,
         limit,
-        assignedTeamId,
         excludeClusterFollowers: excludeFollowers,
       });
 
@@ -951,24 +963,25 @@ class ReportController {
       }
 
       const wasResolved = existingReport.status === "Đã Giải Quyết";
+      const isCompleted = existingReport.status === "Đã Hoàn Tất";
       const resolvedTeamId =
         existingReport.assignedTeamId || existingReport.handlingTeamId;
 
-      // Ngăn phân công khi đã giải quyết
-      if (existingReport.status === "Đã Giải Quyết") {
+      // Ngăn chỉnh sửa khi đã hoàn tất nghiệm thu
+      if (isCompleted) {
         return res.status(409).json({
           success: false,
-          code: "REPORT_ALREADY_RESOLVED",
+          code: "REPORT_ALREADY_COMPLETED",
           message:
-            "Báo cáo này đã được giải quyết, không thể phân công hoặc thay đổi trạng thái",
+            "Báo cáo này đã hoàn tất, không thể thay đổi trạng thái",
         });
       }
 
-      // PB14: Kiểm tra ảnh khắc phục khi cập nhật thành "Đã Giải Quyết"
-      if (status === "Đã Giải Quyết") {
+      // PB14 + nghiệm thu: chỉ khi QLKV chuyển sang "Đã Hoàn Tất" mới bắt buộc có ảnh sau khắc phục
+      if (status === "Đã Hoàn Tất") {
         if (!existingReport.afterImg) {
           console.log(
-            `❌ [UPDATE_STATUS] Cannot resolve - no after image found for report ${id}`,
+            `❌ [UPDATE_STATUS] Cannot complete - no after image found for report ${id}`,
           );
           return res.status(400).json({
             success: false,
@@ -1003,6 +1016,10 @@ class ReportController {
       console.log(
         `✅ [UPDATE_STATUS] Successfully updated report ${id} to status: ${status}`,
       );
+
+      if (status === "Đã Hoàn Tất") {
+        sendNotification(existingReport.userId, existingReport.afterImg);
+      }
 
       if (status === "Đã Giải Quyết" && !wasResolved && resolvedTeamId) {
         try {
@@ -1229,6 +1246,7 @@ class ReportController {
       const updated = await Report.findOneAndUpdate(
         { $or: queryConditions },
         {
+          status: "Đã Giải Quyết",
           afterImg: afterImgUrl,
           ...(progressNote !== undefined ? { progressNote: progressNote.trim() } : {}),
         },
@@ -1276,7 +1294,7 @@ class ReportController {
       }
 
       console.log(
-        `✅ Progress updated: Report ${id} - ảnh khắc phục được lưu (chưa cập nhật trạng thái)`,
+        `✅ Progress updated: Report ${id} - đã lưu ảnh khắc phục và chuyển trạng thái sang Đã Giải Quyết`,
       );
 
       if (!wasResolved && resolvedTeamId) {

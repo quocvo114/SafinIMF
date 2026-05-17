@@ -37,13 +37,17 @@ export default function Assigned_report() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState(null);
   const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [teamId, setTeamId] = useState("");
   const [teamLoading, setTeamLoading] = useState(false);
   const ITEMS_PER_PAGE = 4;
   const { user } = useAuth();
+
+  const isIncompleteReport = (report) => {
+    return report?.status !== "Đã Giải Quyết" && report?.status !== "Đã Hoàn Tất";
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -87,7 +91,7 @@ export default function Assigned_report() {
 
   const fetchReports = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       setError(null);
       if (user?.role === "maintenance" && !teamId && !teamLoading) {
         setReports([]);
@@ -105,7 +109,7 @@ export default function Assigned_report() {
       });
 
       if (response.success && Array.isArray(response.data)) {
-        setReports(response.data);
+        setReports(response.data.filter(isIncompleteReport));
       } else {
         setReports([]);
       }
@@ -114,7 +118,7 @@ export default function Assigned_report() {
       setError("Không thể tải danh sách báo cáo. Vui lòng thử lại.");
       setReports([]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -179,13 +183,19 @@ export default function Assigned_report() {
 
             {/* Table Container */}
             <div className="flex flex-col flex-1 min-h-0 rounded-[30px] border border-gray-200 bg-white shadow-sm overflow-hidden">
-              {loading ? (
+              {isLoading ? (
                 <div className="flex-1 flex items-center justify-center py-20">
-                  <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                  <div className="flex flex-col items-center gap-4 w-full max-w-md px-6">
+                    <Loader2 className="h-9 w-9 animate-spin text-blue-500" />
                     <p className="text-sm text-gray-500">
                       Đang tải danh sách...
                     </p>
+                    <div className="w-full space-y-3">
+                      <div className="h-4 rounded bg-gray-200 animate-pulse" />
+                      <div className="h-4 w-5/6 rounded bg-gray-200 animate-pulse" />
+                      <div className="h-4 w-2/3 rounded bg-gray-200 animate-pulse" />
+                      <div className="h-4 w-4/5 rounded bg-gray-200 animate-pulse" />
+                    </div>
                   </div>
                 </div>
               ) : error ? (

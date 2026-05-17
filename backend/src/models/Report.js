@@ -71,7 +71,7 @@ const ReportSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết"],
+      enum: ["Đang Chờ", "Đang Xử Lý", "Đã Giải Quyết", "Đã Hoàn Tất"],
       default: "Đang Chờ",
       index: true, // Add index for faster status filtering
     },
