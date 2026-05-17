@@ -25,7 +25,7 @@ import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminUserManagement from "./pages/UserManagement.jsx";
 import ReceptForm from "./pages/ReceptForm.jsx";
 import ReportManagement from "./pages/Report_Management.jsx";
-import IncidentManagement from "./pages/Incident_management.jsx";
+import IncidentManagement from "./pages/incident_management.jsx";
 import Statistics from "./pages/Statistics.jsx";
 import Maintenanceteam_Management from "./pages/MaintenanceTeam_Management.jsx";
 
